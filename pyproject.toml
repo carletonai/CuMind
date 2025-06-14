@@ -13,15 +13,6 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy>=2.3.0",
     "gymnasium>=1.1.1",
-    # torch and torchvision only in optional-dependencies
-]
-
-[project.optional-dependencies]
-cpu = [
-    "torch>=2.7.0",
-    "torchvision>=0.22.0",
-]
-cuda = [
     "torch>=2.7.0",
     "torchvision>=0.22.0",
 ]
@@ -60,25 +51,19 @@ warn_return_any = true
 warn_unused_configs = true
 
 # =========================
-# uv PyTorch index configuration -- DO NOT EDIT
+# UV Configuration
 # =========================
-
-[tool.uv]
-conflicts = [
-    [
-        { extra = "cpu" },
-        { extra = "cuda" },
-    ],
-]
 
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-cpu", extra = "cpu" },
-    { index = "pytorch-cu128", extra = "cuda" },
+    { index = "pytorch-cpu", marker = "sys_platform != 'win32'" },
+    { index = "pytorch-cu128", marker = "sys_platform == 'win32'" },
+
 ]
 torchvision = [
-    { index = "pytorch-cpu", extra = "cpu" },
-    { index = "pytorch-cu128", extra = "cuda" },
+    { index = "pytorch-cpu", marker = "sys_platform !=   'win32'" },
+    { index = "pytorch-cu128", marker = "sys_platform == 'win32'" },
+
 ]
 
 [[tool.uv.index]]
