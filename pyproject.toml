@@ -1,0 +1,92 @@
+# =========================
+# Project Metadata
+# =========================
+[project]
+name = "muzero"
+version = "0.1.0"
+description = "CUAIS MuZero implementation in PyTorch"
+readme = "README.md"
+authors = [
+    { name = "t4r3k", email = "142579274+machine-moon@users.noreply.github.com" },
+]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.3.0",
+    "gymnasium>=1.1.1",
+    # torch and torchvision only in optional-dependencies
+]
+
+[project.optional-dependencies]
+cpu = [
+    "torch>=2.7.0",
+    "torchvision>=0.22.0",
+]
+cuda = [
+    "torch>=2.7.0",
+    "torchvision>=0.22.0",
+]
+
+# =========================
+# Build System
+# =========================
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# =========================
+# Dependency Groups
+# =========================
+[dependency-groups]
+dev = ["ruff>=0.11.13", "pytest>=8.4.0", "mypy>=1.16.0"]
+
+# =========================
+# Tooling Configuration
+# =========================
+
+# Ruff configuration
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"] # Errors, pyFlakes, Import, Naming, Warnings
+ignore = ["E203", "E501"]
+
+# Mypy configuration
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+# =========================
+# uv PyTorch index configuration -- DO NOT EDIT
+# =========================
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "cuda" },
+    ],
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu128", extra = "cuda" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu128", extra = "cuda" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
