@@ -34,23 +34,17 @@ class Node:
         if self.visit_count == 0:
             return float("inf")
 
-        exploration = (
-            c_puct * self.prior * math.sqrt(parent_visit_count) / (1 + self.visit_count)
-        )
+        exploration = c_puct * self.prior * math.sqrt(parent_visit_count) / (1 + self.visit_count)
         return self.value() + exploration
 
     def select_child(self, c_puct: float) -> int:
         """Select child with highest UCB score."""
         return max(
             self.children.keys(),
-            key=lambda action: self.children[action].ucb_score(
-                self.visit_count, c_puct
-            ),
+            key=lambda action: self.children[action].ucb_score(self.visit_count, c_puct),
         )
 
-    def expand(
-        self, actions: List[int], priors: torch.Tensor, hidden_state: torch.Tensor
-    ) -> None:
+    def expand(self, actions: List[int], priors: torch.Tensor, hidden_state: torch.Tensor) -> None:
         """Expand node with children."""
         self.hidden_state = hidden_state
         for action, prior in zip(actions, priors):
@@ -68,9 +62,7 @@ class MCTS:
     def __init__(self, config: "MuZeroConfig"):
         self.config = config
 
-    def search(
-        self, network: "MuZeroNetwork", root_hidden_state: torch.Tensor
-    ) -> np.ndarray:
+    def search(self, network: "MuZeroNetwork", root_hidden_state: torch.Tensor) -> np.ndarray:
         """Run MCTS and return action probabilities."""
         # Create root node
         with torch.no_grad():
@@ -121,10 +113,8 @@ class MCTS:
         if parent is not None and parent.hidden_state is not None:
             # Get hidden state from parent and action
             with torch.no_grad():
-                hidden_state, reward, policy_logits, value = (
-                    network.recurrent_inference(
-                        parent.hidden_state.unsqueeze(0), torch.tensor([action])
-                    )
+                hidden_state, reward, policy_logits, value = network.recurrent_inference(
+                    parent.hidden_state.unsqueeze(0), torch.tensor([action])
                 )
                 policy_probs = torch.softmax(policy_logits, dim=-1).squeeze(0)
 
@@ -136,9 +126,7 @@ class MCTS:
             # Root node case
             if node.hidden_state is not None:
                 with torch.no_grad():
-                    policy_logits, value = network.prediction(
-                        node.hidden_state.unsqueeze(0)
-                    )
+                    policy_logits, value = network.prediction(node.hidden_state.unsqueeze(0))
                 node_value = value.item()
             else:
                 node_value = 0.0

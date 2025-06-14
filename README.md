@@ -1,11 +1,11 @@
 # MuZero
 
-A clean, elegant implementation of the MuZero algorithm in PyTorch with modular design for different observation types.
+A clean, elegant implementation of the MuZero algorithm in PyTorch.
 
 ## Features
 
 - **Minimal dependencies**: Only PyTorch, NumPy, and Gymnasium
-- **Modular architecture**: Separate encoders for 1D vector and 3D image observations
+- **Clean architecture**: Modular design with separate components
 - **Type hints**: Full type annotations for better code quality
 - **Simple configuration**: Single config class for all parameters
 - **Fast development**: Uses `uv` for dependency management
@@ -20,8 +20,8 @@ This project uses `uv` for fast dependency management. Install it first:
 # On macOS/Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# On Windows
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+# Or via pip
+pip install -U uv
 ```
 
 ### Development Setup
@@ -81,75 +81,65 @@ The project uses `uv` instead of traditional package managers. Here are the equi
 
 ### Building and Setup
 ```bash
-# Install all dependencies (equivalent to "make install")
-uv sync --group dev --extra cpu
+# Install all dependencies
+uv sync --extra cpu
 
-# Check installation (equivalent to "make check-install")
-uv run python -c "import muzero; print('✓ MuZero installed successfully')"
+# Check installation 
+uv run python -c "import muzero; print('MuZero installed successfully')"
 ```
 
 ### Code Quality
 ```bash
-# Format code (equivalent to "make format")
+# Format code 
 uv run ruff format
 
-# Lint code (equivalent to "make lint")
+# Lint code 
 uv run ruff check
 
-# Fix linting issues automatically (equivalent to "make lint-fix")
+# Fix linting issues in-line 
 uv run ruff check --fix
 
-# Type checking (equivalent to "make typecheck")
+# Type checking 
 uv run mypy src/
 
-# Run all quality checks (equivalent to "make quality")
+# Run all quality checks 
 uv run ruff format && uv run ruff check && uv run mypy src/
 ```
 
 ### Testing
 ```bash
-# Run all tests (equivalent to "make test")
+# Run all tests 
 uv run pytest
 
-# Run tests with verbose output (equivalent to "make test-verbose")
+# Run tests with verbose output 
 uv run pytest -v
 
-# Run specific test file (equivalent to "make test-file")
+# Run specific test file 
 uv run pytest tests/test_muzero.py
 
-# Run tests with coverage (equivalent to "make test-coverage")
+# Run tests with coverage 
 uv run pytest --cov=src/muzero
 ```
 
-### Running Examples
+### Cleaning the Environment
+
+To remove build artifacts, lock files, and cached dependencies:
+
 ```bash
-# Run CartPole example (equivalent to "make run-example")
+# Remove uv lock file
+rm uv.lock
+
+# Clean uv's cache (removes downloaded wheels, etc.)
+uv cache clean
+
+# Remove build artifacts and temporary files
+uv clean
+```
+
+### Run Example
+```bash
 uv run python examples/cartpole_example.py
-
-# Run with specific config
-uv run python examples/cartpole_example.py --episodes 100
 ```
-
-### All-in-One Commands
-```bash
-# Full development setup (equivalent to "make dev")
-uv sync --group dev --extra cpu
-
-# Full quality pipeline (equivalent to "make all" or "make ci")
-uv run ruff format && uv run ruff check && uv run mypy src/ && uv run pytest
-
-# Clean build (equivalent to "make clean")
-uv clean && uv sync --group dev --extra cpu
-```
-
-### Understanding uv Flags
-
-- `--group dev`: Install development dependencies (testing, linting, etc.)
-- `--extra cpu`: Install PyTorch CPU version (lighter, faster)
-- `--extra cuda`: Install PyTorch CUDA version (for GPU training)
-- `uv sync`: Install/update dependencies based on lock file
-- `uv run`: Run a command in the project's virtual environment
-
 ## Architecture
 
 ### Modular Encoder Design
@@ -181,20 +171,9 @@ class RepresentationNetwork(nn.Module):
 
 This design eliminates conditional logic and makes the code more maintainable and extensible.
 
-## Project Status
-
-✅ **All systems operational:**
-- ✅ Code formatting (ruff)
-- ✅ Linting (ruff) 
-- ✅ Type checking (mypy)
-- ✅ Tests passing (pytest)
-- ✅ Modular encoder architecture
-- ✅ Support for 1D and 3D observations
-- ✅ Fast development workflow with uv
-
 ## Contributing
 
-1. **Setup**: `uv sync --group dev --extra cpu`
+1. **Setup**: `uv sync --extra cpu`
 2. **Code**: Make your changes
 3. **Quality**: `uv run ruff format && uv run ruff check && uv run mypy src/`
 4. **Test**: `uv run pytest`
@@ -205,28 +184,7 @@ For the best experience, run the full quality pipeline:
 uv run ruff format && uv run ruff check && uv run mypy src/ && uv run pytest
 ```
 
-## Adding New Observation Types
-
-To add support for new observation types, simply:
-
-1. Create a new encoder class inheriting from `BaseEncoder`
-2. Update the `_create_encoder` method in `RepresentationNetwork`
-3. Add tests for the new observation type
-
-Example for 2D observations:
-```python
-class GridEncoder(BaseEncoder):
-    """Encoder for 2D grid observations."""
-    
-    def __init__(self, observation_shape, hidden_dim, num_blocks):
-        super().__init__(observation_shape, hidden_dim, num_blocks)
-        # Implementation here
-        
-    def forward(self, observation):
-        # Forward pass implementation
-        return output
-```
 
 ## License
 
-MIT
+[MIT](LICENSE)

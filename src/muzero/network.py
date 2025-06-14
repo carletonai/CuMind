@@ -27,9 +27,7 @@ class ResidualBlock(nn.Module):
 class BaseEncoder(nn.Module):
     """Base class for observation encoders."""
 
-    def __init__(
-        self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int
-    ):
+    def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int):
         super().__init__()
         self.observation_shape = observation_shape
         self.hidden_dim = hidden_dim
@@ -42,9 +40,7 @@ class BaseEncoder(nn.Module):
 class VectorEncoder(BaseEncoder):
     """Encoder for 1D vector observations (e.g., CartPole)."""
 
-    def __init__(
-        self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int
-    ):
+    def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int):
         super().__init__(observation_shape, hidden_dim, num_blocks)
         input_dim = observation_shape[0]
 
@@ -71,17 +67,13 @@ class VectorEncoder(BaseEncoder):
 class ConvEncoder(BaseEncoder):
     """Encoder for 3D image observations (e.g., Atari)."""
 
-    def __init__(
-        self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int
-    ):
+    def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int):
         super().__init__(observation_shape, hidden_dim, num_blocks)
         channels, height, width = observation_shape
 
         self.conv = nn.Conv2d(channels, hidden_dim, 3, padding=1)
         self.bn = nn.BatchNorm2d(hidden_dim)
-        self.blocks = nn.ModuleList(
-            [ResidualBlock(hidden_dim) for _ in range(num_blocks)]
-        )
+        self.blocks = nn.ModuleList([ResidualBlock(hidden_dim) for _ in range(num_blocks)])
 
         # Calculate output size after conv layers and add projection layer
         self.flatten_size = hidden_dim * height * width
@@ -98,9 +90,7 @@ class ConvEncoder(BaseEncoder):
 class RepresentationNetwork(nn.Module):
     """Converts observations to hidden state representation."""
 
-    def __init__(
-        self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int
-    ):
+    def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int):
         super().__init__()
         self.encoder = self._create_encoder(observation_shape, hidden_dim, num_blocks)
 
@@ -195,9 +185,7 @@ class MuZeroNetwork(nn.Module):
     ):
         super().__init__()
 
-        self.representation = RepresentationNetwork(
-            observation_shape, hidden_dim, num_blocks
-        )
+        self.representation = RepresentationNetwork(observation_shape, hidden_dim, num_blocks)
         self.dynamics = DynamicsNetwork(hidden_dim, action_space_size, num_blocks)
         self.prediction = PredictionNetwork(hidden_dim, action_space_size)
 

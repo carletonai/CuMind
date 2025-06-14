@@ -31,20 +31,10 @@ class MuZeroAgent:
 
     def select_action(self, observation: np.ndarray, training: bool = True) -> int:
         """Select action using MCTS."""
-        observation_tensor = torch.FloatTensor(observation)
-
-        # Add batch dimension and handle different observation shapes
-        if len(observation_tensor.shape) == 1:
-            # 1D observation (e.g., CartPole)
-            observation_tensor = torch.FloatTensor(observation_tensor.unsqueeze(0))
-        else:
-            # Multi-dimensional observation (e.g., Atari)
-            observation_tensor = torch.FloatTensor(observation_tensor.unsqueeze(0))
+        observation_tensor = torch.FloatTensor(torch.FloatTensor(observation).unsqueeze(0))
 
         with torch.no_grad():
-            hidden_state, policy_logits, value = self.network.initial_inference(
-                observation_tensor
-            )
+            hidden_state, policy_logits, value = self.network.initial_inference(observation_tensor)
 
         # Run MCTS
         action_probs = self.mcts.search(self.network, hidden_state.squeeze(0))
@@ -113,9 +103,7 @@ class MuZeroAgent:
         """Compute MuZero losses."""
         # Remove unused variable
         # Initial inference
-        hidden_state, policy_logits, value = self.network.initial_inference(
-            observations
-        )
+        hidden_state, policy_logits, value = self.network.initial_inference(observations)
 
         # Collect predictions
         value_preds = [value.squeeze(-1)]
@@ -124,8 +112,8 @@ class MuZeroAgent:
 
         # Unroll dynamics
         for k in range(self.config.num_unroll_steps):
-            hidden_state, reward, policy_logits, value = (
-                self.network.recurrent_inference(hidden_state, actions[:, k])
+            hidden_state, reward, policy_logits, value = self.network.recurrent_inference(
+                hidden_state, actions[:, k]
             )
             value_preds.append(value.squeeze(-1))
             policy_preds.append(policy_logits)
@@ -148,13 +136,9 @@ class MuZeroAgent:
         )
 
         return {
-            "value_loss": value_loss
-            / torch.tensor(len(value_preds), dtype=torch.float),
-            "policy_loss": policy_loss
-            / torch.tensor(len(policy_preds), dtype=torch.float),
-            "reward_loss": (
-                reward_loss / torch.tensor(len(reward_preds), dtype=torch.float)
-            )
+            "value_loss": value_loss / torch.tensor(len(value_preds), dtype=torch.float),
+            "policy_loss": policy_loss / torch.tensor(len(policy_preds), dtype=torch.float),
+            "reward_loss": (reward_loss / torch.tensor(len(reward_preds), dtype=torch.float))
             if reward_preds
             else torch.tensor(0.0),
         }
