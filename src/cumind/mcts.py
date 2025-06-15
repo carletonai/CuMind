@@ -1,4 +1,4 @@
-"""Monte Carlo Tree Search for MuZero."""
+"""Monte Carlo Tree Search for CuMind."""
 
 import math
 from typing import TYPE_CHECKING, Dict, List, Optional
@@ -7,8 +7,8 @@ import numpy as np
 import torch
 
 if TYPE_CHECKING:
-    from .config import MuZeroConfig
-    from .network import MuZeroNetwork
+    from .config import CuMindConfig
+    from .network import CuMindNetwork
 
 
 class Node:
@@ -121,11 +121,11 @@ class Node:
 class MCTS:
     """Monte Carlo Tree Search."""
 
-    def __init__(self, config: "MuZeroConfig"):
+    def __init__(self, config: "CuMindConfig"):
         """Initialize MCTS with configuration.
 
         Args:
-            config: MuZero configuration with MCTS parameters
+            config: CuMind configuration with MCTS parameters
 
         Implementation:
             - Store config for simulation parameters
@@ -133,11 +133,11 @@ class MCTS:
         # Branch: feature/mcts-init
         raise NotImplementedError("MCTS.__init__ needs to be implemented")
 
-    def search(self, network: "MuZeroNetwork", root_hidden_state: torch.Tensor) -> np.ndarray:
+    def search(self, network: "CuMindNetwork", root_hidden_state: torch.Tensor) -> np.ndarray:
         """Run MCTS and return action probabilities.
 
         Args:
-            network: MuZero network for evaluation
+            network: CuMind network for evaluation
             root_hidden_state: Hidden state of root node
 
         Returns:
@@ -152,11 +152,11 @@ class MCTS:
         # Branch: feature/mcts-search
         raise NotImplementedError("MCTS.search needs to be implemented")
 
-    def _simulate(self, network: "MuZeroNetwork", root: Node) -> None:
+    def _simulate(self, network: "CuMindNetwork", root: Node) -> None:
         """Run one MCTS simulation.
 
         Args:
-            network: MuZero network for evaluation
+            network: CuMind network for evaluation
             root: Root node of search tree
 
         Implementation:

@@ -1,4 +1,4 @@
-"""Neural network components for MuZero."""
+"""Neural network components for CuMind."""
 
 from typing import Tuple
 
@@ -278,8 +278,8 @@ class PredictionNetwork(nn.Module):
         raise NotImplementedError("PredictionNetwork.forward needs to be implemented")
 
 
-class MuZeroNetwork(nn.Module):
-    """Complete MuZero neural network."""
+class CuMindNetwork(nn.Module):
+    """Complete CuMind neural network."""
 
     def __init__(
         self,
@@ -288,7 +288,7 @@ class MuZeroNetwork(nn.Module):
         hidden_dim: int = 64,
         num_blocks: int = 4,
     ):
-        """Initialize complete MuZero network.
+        """Initialize complete CuMind network.
 
         Args:
             observation_shape: Shape of input observations
@@ -300,8 +300,8 @@ class MuZeroNetwork(nn.Module):
             - Create representation, dynamics, and prediction networks
             - Store all three sub-networks as attributes
         """
-        # Branch: feature/muzero-network-init
-        raise NotImplementedError("MuZeroNetwork.__init__ needs to be implemented")
+        # Branch: feature/cumind-network-init
+        raise NotImplementedError("CuMindNetwork.__init__ needs to be implemented")
 
     def initial_inference(self, observation: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Initial step: observation -> hidden state -> policy, value.

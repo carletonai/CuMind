@@ -2,14 +2,14 @@ import numpy as np
 import pytest
 import torch
 
-from muzero import MuZeroAgent, MuZeroConfig
+from cumind import CuMindAgent, CuMindConfig
 
 
-class TestMuZeroAgent:
-    """Test suite for MuZero Agent."""
+class TestCuMindAgent:
+    """Test suite for CuMind Agent."""
 
     def test_agent_initialization(self):
-        """Test MuZero agent initialization.
+        """Test CuMind agent initialization.
 
         Implementation:
             - Create agent with default config

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from muzero.mcts import MCTS, Node
+from cumind.mcts import MCTS, Node
 
 
 class TestNode:

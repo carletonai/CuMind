@@ -1,6 +1,6 @@
-# Contributing to MuZero
+# Contributing to CuMind
 
-Welcome to the **Carleton University AI Society (CUAIS)** MuZero project! Every function has comprehensive docstrings with everything you need to implement it.
+Welcome to the **Carleton University AI Society (CUAIS)** CuMind project! Every function has comprehensive docstrings with everything you need to implement it.
 
 ## Development
 
@@ -61,12 +61,12 @@ Follow these logical steps to contribute effectively:
 - Clone the repository using SSH (recommended) or HTTPS:
   ```bash
   # SSH (recommended)
-  git clone git@github.com:carletonai/muzero.git
+  git clone git@github.com:carletonai/cumind.git
 
   # HTTPS (requires personal access token to push)
-  git clone https://github.com/carletonai/muzero.git
+  git clone https://github.com/carletonai/cumind.git
 
-  cd muzero
+  cd cumind
   uv sync
   ```
 - See:
@@ -133,7 +133,7 @@ git pull dev
 
 - Run your specific test:
   ```bash
-  uv run pytest tests/test_agent.py::TestMuZeroAgent::test_select_action_training_mode -v
+  uv run pytest tests/test_agent.py::TestCuMindAgent::test_select_action_training_mode -v
   ```
 - Run all tests:
   ```bash
@@ -151,7 +151,7 @@ git pull dev
 ### Committing Your Work
 ```bash
 # Stage your changes
-git add src/muzero/agent.py tests/test_agent.py
+git add src/cumind/agent.py tests/test_agent.py
 
 # Commit with an informative message (can be goofy but informative!)
 git commit -m "feat: implement MCTS action selection
@@ -221,9 +221,9 @@ New to Git? Check out these resources:
 
 ### Test Structure
 ```
-src/muzero/agent.py     →  tests/test_agent.py
-src/muzero/mcts.py      →  tests/test_mcts.py  
-src/muzero/network.py   →  tests/test_network.py
+src/cumind/agent.py     →  tests/test_agent.py
+src/cumind/mcts.py      →  tests/test_mcts.py  
+src/cumind/network.py   →  tests/test_network.py
 ```
 
 ### Test Implementation
@@ -237,7 +237,7 @@ Example:
 def test_select_action_training_mode(self):
     """Test action selection in training mode."""
     # Implementation: Test with mock MCTS, verify exploration
-    agent = MuZeroAgent(config)
+    agent = CuMindAgent(config)
     action = agent.select_action(observation, training=True)
     assert isinstance(action, int)
     assert 0 <= action < config.action_space_size
@@ -246,8 +246,8 @@ def test_select_action_training_mode(self):
 ##  Project Structure
 
 ```
-src/muzero/
-├── agent.py      # MuZero agent with MCTS integration
+src/cumind/
+├── agent.py      # CuMind agent with MCTS integration
 ├── mcts.py       # Monte Carlo Tree Search implementation  
 ├── network.py    # Neural networks (representation, dynamics, prediction)
 └── config.py     # Configuration and hyperparameters
@@ -256,7 +256,7 @@ tests/
 ├── test_agent.py    # Agent functionality tests
 ├── test_mcts.py     # MCTS algorithm tests
 ├── test_network.py  # Neural network component tests
-└── test_muzero.py   # Integration tests
+└── test_cumind.py   # Integration tests
 ```
 
 ## Available Functions to Implement
@@ -271,7 +271,7 @@ git branch -r
 ```
 
 **Popular starting points:**
-- `feature/agent-initialization` - Set up the MuZero agent
+- `feature/agent-initialization` - Set up the CuMind agent
 - `feature/mcts-action-selection` - MCTS-based action selection  
 - `feature/vector-encoder` - Neural network for 1D observations (Classic Control)
 - `feature/conv-encoder` - Neural network for 3D observations (Atari)
@@ -326,4 +326,4 @@ git branch -r
 
 **Welcome to the CUAIS community!**
 
-*Every function you implement brings us closer to a complete MuZero implementation. Thank you for contributing!*
+*Every function you implement brings us closer to a complete CuMind implementation. Thank you for contributing!*

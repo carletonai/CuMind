@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 import torch
 
-from muzero.network import (
+from cumind.network import (
     ConvEncoder,
     DynamicsNetwork,
-    MuZeroNetwork,
+    CuMindNetwork,
     PredictionNetwork,
     RepresentationNetwork,
     ResidualBlock,
@@ -289,11 +289,11 @@ class TestPredictionNetwork:
         pass
 
 
-class TestMuZeroNetwork:
-    """Test suite for complete MuZeroNetwork."""
+class TestCuMindNetwork:
+    """Test suite for complete CuMindNetwork."""
 
-    def test_muzero_network_initialization(self):
-        """Test MuZeroNetwork initialization.
+    def test_cumind_network_initialization(self):
+        """Test CuMindNetwork initialization.
 
         Implementation:
             - Test network creation with different configurations
@@ -301,7 +301,7 @@ class TestMuZeroNetwork:
             - Test with different observation shapes
             - Test parameter counting
         """
-        # Branch: feature/muzero-network-init-test
+        # Branch: feature/cumind-network-init-test
         pass
 
     def test_initial_inference(self):
@@ -340,8 +340,8 @@ class TestMuZeroNetwork:
         # Branch: feature/network-integration-test
         pass
 
-    def test_muzero_network_with_1d_observations(self):
-        """Test MuZeroNetwork with vector observations.
+    def test_cumind_network_with_1d_observations(self):
+        """Test CuMindNetwork with vector observations.
 
         Implementation:
             - Test network with 1d observations
@@ -349,11 +349,11 @@ class TestMuZeroNetwork:
             - Test full inference pipeline
             - Test training compatibility
         """
-        # Branch: feature/muzero-1d-observations-test
+        # Branch: feature/cumind-1d-observations-test
         pass
 
-    def test_muzero_network_with_3d_observations(self):
-        """Test MuZeroNetwork with image observations.
+    def test_cumind_network_with_3d_observations(self):
+        """Test CuMindNetwork with image observations.
 
         Implementation:
             - Test network with Atari-like observations
@@ -361,7 +361,7 @@ class TestMuZeroNetwork:
             - Test full inference pipeline
             - Test training compatibility
         """
-        # Branch: feature/muzero-3d-observations-test
+        # Branch: feature/cumind-3d-observations-test
         pass
 
     def test_unsupported_observation_shapes(self):

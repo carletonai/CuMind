@@ -1,4 +1,4 @@
-"""MuZero agent implementation."""
+"""CuMind agent implementation."""
 
 from typing import Any, Dict, List, Tuple
 
@@ -6,22 +6,22 @@ import numpy as np
 import torch
 import torch.nn.functional as functional
 
-from .config import MuZeroConfig
+from .config import CuMindConfig
 from .mcts import MCTS
-from .network import MuZeroNetwork
+from .network import CuMindNetwork
 
 
-class MuZeroAgent:
-    """MuZero agent for training and inference."""
+class CuMindAgent:
+    """CuMind agent for training and inference."""
 
-    def __init__(self, config: MuZeroConfig):
-        """Initialize MuZero agent with network, optimizer, and MCTS.
+    def __init__(self, config: CuMindConfig):
+        """Initialize CuMind agent with network, optimizer, and MCTS.
 
         Args:
-            config: MuZeroConfig with network architecture and training parameters
+            config: CuMindConfig with network architecture and training parameters
 
         Implementation:
-            - Create MuZeroNetwork with config parameters
+            - Create CuMindNetwork with config parameters
             - Setup Adam optimizer with learning rate and weight decay
             - Initialize MCTS instance for action selection
         """
@@ -75,7 +75,7 @@ class MuZeroAgent:
 
         Implementation:
             - Parse batch format (depends on your replay buffer structure)
-            - Extract observations, action sequences, and MuZero targets
+            - Extract observations, action sequences, and CuMind targets
             - Convert to appropriate tensor shapes and types
             - Target dict should have "values", "rewards", "policies" keys
         """
@@ -88,7 +88,7 @@ class MuZeroAgent:
         actions: torch.Tensor,
         targets: Dict[str, torch.Tensor],
     ) -> Dict[str, torch.Tensor]:
-        """Compute MuZero losses for value, policy, and reward predictions.
+        """Compute CuMind losses for value, policy, and reward predictions.
 
         Args:
             observations: Batch observations, shape (batch_size, *obs_shape)

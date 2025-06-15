@@ -1,6 +1,6 @@
-# MuZero
+# CuMind
 
-A clean, elegant implementation of the MuZero algorithm in PyTorch.
+A clean, elegant implementation of the CuMind algorithm in PyTorch.
 
 ## Contributing
 For guidelines on contributing to this project, please see the [CONTRIBUTING](CONTRIBUTING) document.
@@ -27,8 +27,8 @@ To get started quickly, use CPU mode to avoid large downloads:
 
 ```bash
 # Clone the repository
-git clone git@github.com:carletonai/muzero.git
-cd muzero
+git clone git@github.com:carletonai/cumind.git
+cd cumind
 
 # Install dependencies
 uv sync 
@@ -37,10 +37,10 @@ uv sync
 ## Quick Start
 
 ```python
-from muzero import MuZeroAgent, MuZeroConfig
+from cumind import CuMindAgent, CuMindConfig
 
 # Create configuration for CartPole (1D observations)
-config = MuZeroConfig(
+config = CuMindConfig(
     action_space_size=2,
     observation_shape=(4,),  # 1D vector
     hidden_dim=64,
@@ -48,7 +48,7 @@ config = MuZeroConfig(
 )
 
 # Create agent
-agent = MuZeroAgent(config)
+agent = CuMindAgent(config)
 
 # Select action
 action = agent.select_action(observation)
@@ -58,7 +58,7 @@ For image-based environments (like Atari):
 
 ```python
 # Create configuration for Atari (3D observations)
-config = MuZeroConfig(
+config = CuMindConfig(
     action_space_size=4,
     observation_shape=(3, 84, 84),  # 3D image: channels, height, width
     hidden_dim=64,

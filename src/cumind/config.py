@@ -1,17 +1,17 @@
-"""Configuration for MuZero."""
+"""Configuration for CuMind."""
 
 from dataclasses import dataclass
 from typing import Tuple
 
 
 @dataclass
-class MuZeroConfig:
-    """Hyperparameter configuration for MuZero.
+class CuMindConfig:
+    """Hyperparameter configuration for CuMind.
 
     Note:
-        This dataclass lists all configurable hyperparameters for MuZero.
+        This dataclass lists all configurable hyperparameters for CuMind.
         For more details and optimization strategies, see:
-        https://github.com/werner-duvaud/muzero-general/wiki/Hyperparameter-Optimization
+        https://github.com/werner-duvaud/cumind-general/wiki/Hyperparameter-Optimization
     """
 
     # Network architecture
