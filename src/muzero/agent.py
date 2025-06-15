@@ -15,84 +15,80 @@ class MuZeroAgent:
     """MuZero agent for training and inference."""
 
     def __init__(self, config: MuZeroConfig):
-        self.config = config
-        self.network = MuZeroNetwork(
-            observation_shape=config.observation_shape,
-            action_space_size=config.action_space_size,
-            hidden_dim=config.hidden_dim,
-            num_blocks=config.num_blocks,
-        )
-        self.optimizer = torch.optim.Adam(
-            self.network.parameters(),
-            lr=config.learning_rate,
-            weight_decay=config.weight_decay,
-        )
-        self.mcts = MCTS(config)
+        """Initialize MuZero agent with network, optimizer, and MCTS.
+
+        Args:
+            config: MuZeroConfig with network architecture and training parameters
+
+        Implementation:
+            - Create MuZeroNetwork with config parameters
+            - Setup Adam optimizer with learning rate and weight decay
+            - Initialize MCTS instance for action selection
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/agent-initialization
+        raise NotImplementedError("__init__ needs to be implemented")
 
     def select_action(self, observation: np.ndarray, training: bool = True) -> int:
-        """Select action using MCTS."""
-        observation_tensor = torch.FloatTensor(torch.FloatTensor(observation).unsqueeze(0))
+        """Select action using MCTS search from current observation.
 
-        with torch.no_grad():
-            hidden_state, policy_logits, value = self.network.initial_inference(observation_tensor)
+        Args:
+            observation: Current game state observation
+            training: If True, sample from action probabilities; if False, take best action
 
-        # Run MCTS
-        action_probs = self.mcts.search(self.network, hidden_state.squeeze(0))
+        Returns:
+            Selected action index
 
-        if training:
-            # Sample from distribution during training
-            action = int(np.random.choice(len(action_probs), p=action_probs))
-        else:
-            # Take best action during evaluation
-            action = int(np.argmax(action_probs))
+        Implementation:
+            - Convert observation to tensor and run network.initial_inference()
+            - Use MCTS to search and get action probabilities
+            - Sample action if training, else take argmax
 
-        return action
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/mcts-action-selection
+        raise NotImplementedError("select_action needs to be implemented")
 
     def train_step(self, batch: List[Any]) -> Dict[str, float]:
-        """Perform one training step."""
-        # Extract batch data
-        observations, actions, targets = self._prepare_batch(batch)
+        """Perform one training step on a batch of replay data.
 
-        # Forward pass
-        losses = self._compute_losses(observations, actions, targets)
+        Args:
+            batch: List of game trajectories from replay buffer
 
-        # Backward pass
-        loss_values = list(losses.values())
-        total_loss = loss_values[0]
-        for loss in loss_values[1:]:
-            total_loss = total_loss + loss
-        self.optimizer.zero_grad()
-        total_loss.backward()  # type: ignore[no-untyped-call]
-        self.optimizer.step()
+        Returns:
+            Dictionary of loss values for monitoring
 
-        # Return loss info
-        return {k: v.item() for k, v in losses.items()}
+        Implementation:
+            - Call _prepare_batch() to extract observations, actions, targets
+            - Call _compute_losses() to get loss dictionary
+            - Sum losses, run backward pass with optimizer step
+            - Return loss values as float dict for logging
 
-    def _prepare_batch(
-        self, batch: List[Any]
-    ) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, torch.Tensor]]:
-        """Prepare batch data for training."""
-        # This would be implemented based on your replay buffer format
-        # For now, return dummy tensors
-        batch_size = self.config.batch_size
-        obs_shape = self.config.observation_shape
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/training-step
+        raise NotImplementedError("train_step needs to be implemented")
 
-        observations = torch.randn(batch_size, *obs_shape)
-        actions = torch.randint(
-            0, self.config.action_space_size, (batch_size, self.config.num_unroll_steps)
-        )
+    def _prepare_batch(self, batch: List[Any]) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, torch.Tensor]]:
+        """Extract and format training data from replay buffer batch.
 
-        targets = {
-            "values": torch.randn(batch_size, self.config.num_unroll_steps + 1),
-            "rewards": torch.randn(batch_size, self.config.num_unroll_steps),
-            "policies": torch.randn(
-                batch_size,
-                self.config.num_unroll_steps + 1,
-                self.config.action_space_size,
-            ),
-        }
+        Args:
+            batch: Raw batch data from replay buffer
 
-        return observations, actions, targets
+        Returns:
+            Tuple of (observations, actions, targets) tensors ready for training
+
+        Implementation:
+            - Parse batch format (depends on your replay buffer structure)
+            - Extract observations, action sequences, and MuZero targets
+            - Convert to appropriate tensor shapes and types
+            - Target dict should have "values", "rewards", "policies" keys
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/batch-preparation
+        raise NotImplementedError("_prepare_batch needs to be implemented")
 
     def _compute_losses(
         self,
@@ -100,62 +96,53 @@ class MuZeroAgent:
         actions: torch.Tensor,
         targets: Dict[str, torch.Tensor],
     ) -> Dict[str, torch.Tensor]:
-        """Compute MuZero losses."""
-        # Remove unused variable
-        # Initial inference
-        hidden_state, policy_logits, value = self.network.initial_inference(observations)
+        """Compute MuZero losses for value, policy, and reward predictions.
 
-        # Collect predictions
-        value_preds = [value.squeeze(-1)]
-        policy_preds = [policy_logits]
-        reward_preds = []
+        Args:
+            observations: Batch observations, shape (batch_size, *obs_shape)
+            actions: Action sequences, shape (batch_size, num_unroll_steps)
+            targets: Dict with "values", "policies", "rewards" target tensors
 
-        # Unroll dynamics
-        for k in range(self.config.num_unroll_steps):
-            hidden_state, reward, policy_logits, value = self.network.recurrent_inference(
-                hidden_state, actions[:, k]
-            )
-            value_preds.append(value.squeeze(-1))
-            policy_preds.append(policy_logits)
-            reward_preds.append(reward.squeeze(-1))
+        Returns:
+            Dict of loss tensors: {"value_loss", "policy_loss", "reward_loss"}
 
-        # Compute losses
-        value_loss = sum(
-            functional.mse_loss(pred, target)
-            for pred, target in zip(value_preds, targets["values"].unbind(1))
-        )
+        Implementation:
+            - Run initial_inference() on observations
+            - Unroll dynamics with recurrent_inference() for each action
+            - Compute MSE loss for values/rewards, cross-entropy for policies
+            - Average losses across unroll steps
 
-        policy_loss = sum(
-            functional.cross_entropy(pred, target.argmax(-1))
-            for pred, target in zip(policy_preds, targets["policies"].unbind(1))
-        )
-
-        reward_loss = sum(
-            functional.mse_loss(pred, target)
-            for pred, target in zip(reward_preds, targets["rewards"].unbind(1))
-        )
-
-        return {
-            "value_loss": value_loss / torch.tensor(len(value_preds), dtype=torch.float),
-            "policy_loss": policy_loss / torch.tensor(len(policy_preds), dtype=torch.float),
-            "reward_loss": (reward_loss / torch.tensor(len(reward_preds), dtype=torch.float))
-            if reward_preds
-            else torch.tensor(0.0),
-        }
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/loss-computation
+        raise NotImplementedError("_compute_losses needs to be implemented")
 
     def save_checkpoint(self, path: str) -> None:
-        """Save model checkpoint."""
-        torch.save(
-            {
-                "network_state_dict": self.network.state_dict(),
-                "optimizer_state_dict": self.optimizer.state_dict(),
-                "config": self.config,
-            },
-            path,
-        )
+        """Save model checkpoint with network weights, optimizer state, and config.
+
+        Args:
+            path: File path to save checkpoint
+
+        Implementation:
+            - Use torch.save() to save dict with network state_dict,
+              optimizer state_dict, and config
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/checkpoint-saving
+        raise NotImplementedError("save_checkpoint needs to be implemented")
 
     def load_checkpoint(self, path: str) -> None:
-        """Load model checkpoint."""
-        checkpoint = torch.load(path)
-        self.network.load_state_dict(checkpoint["network_state_dict"])
-        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        """Load model checkpoint to restore training state.
+
+        Args:
+            path: File path to load checkpoint from
+
+        Implementation:
+            - Use torch.load() to load checkpoint dict
+            - Restore network and optimizer state_dicts
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/checkpoint-loading
+        raise NotImplementedError("load_checkpoint needs to be implemented")

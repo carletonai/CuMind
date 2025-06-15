@@ -6,7 +6,13 @@ from typing import Tuple
 
 @dataclass
 class MuZeroConfig:
-    """Configuration for MuZero training and inference."""
+    """Hyperparameter configuration for MuZero.
+
+    Note:
+        This dataclass lists all configurable hyperparameters for MuZero.
+        For more details and optimization strategies, see:
+        https://github.com/werner-duvaud/muzero-general/wiki/Hyperparameter-Optimization
+    """
 
     # Network architecture
     hidden_dim: int = 64

@@ -15,134 +15,190 @@ class Node:
     """MCTS node."""
 
     def __init__(self, prior: float):
-        self.prior = prior
-        self.visit_count = 0
-        self.value_sum = 0.0
-        self.children: Dict[int, "Node"] = {}
-        self.hidden_state: Optional[torch.Tensor] = None
+        """Initialize MCTS node with prior probability.
+
+        Args:
+            prior: Prior probability for this node
+
+        Implementation:
+            - Store prior probability
+            - Initialize visit_count to 0
+            - Initialize value_sum to 0.0
+            - Create empty children dictionary
+            - Set hidden_state to None initially
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/mcts-node-init
+        raise NotImplementedError("Node.__init__ needs to be implemented")
 
     def is_expanded(self) -> bool:
-        return len(self.children) > 0
+        """Check if node has children.
+
+        Returns:
+            True if node has been expanded with children
+
+        Implementation:
+            - Return whether self.children has any entries
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/node-is-expanded
+        raise NotImplementedError("Node.is_expanded needs to be implemented")
 
     def value(self) -> float:
-        if self.visit_count == 0:
-            return 0.0
-        return self.value_sum / self.visit_count
+        """Calculate average value from visits.
+
+        Returns:
+            Average value (value_sum / visit_count) or 0 if no visits
+
+        Implementation:
+            - Handle zero visit count case
+            - Return value_sum divided by visit_count
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/node-value
+        raise NotImplementedError("Node.value needs to be implemented")
 
     def ucb_score(self, parent_visit_count: int, c_puct: float) -> float:
-        """Calculate UCB score for node selection."""
-        if self.visit_count == 0:
-            return float("inf")
+        """Calculate UCB score for node selection.
 
-        exploration = c_puct * self.prior * math.sqrt(parent_visit_count) / (1 + self.visit_count)
-        return self.value() + exploration
+        Args:
+            parent_visit_count: Number of times parent was visited
+            c_puct: Exploration constant
+
+        Returns:
+            UCB score combining exploitation and exploration
+
+        Implementation:
+            - Return infinity if never visited
+            - Combine value + c_puct * prior * sqrt(parent_visits) / (1 + visits)
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/ucb-score
+        raise NotImplementedError("Node.ucb_score needs to be implemented")
 
     def select_child(self, c_puct: float) -> int:
-        """Select child with highest UCB score."""
-        return max(
-            self.children.keys(),
-            key=lambda action: self.children[action].ucb_score(self.visit_count, c_puct),
-        )
+        """Select child with highest UCB score.
+
+        Args:
+            c_puct: Exploration constant
+
+        Returns:
+            Action index of child with max UCB score
+
+        Implementation:
+            - Use max() with key function over children
+            - Call ucb_score for each child
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/select-child
+        raise NotImplementedError("Node.select_child needs to be implemented")
 
     def expand(self, actions: List[int], priors: torch.Tensor, hidden_state: torch.Tensor) -> None:
-        """Expand node with children."""
-        self.hidden_state = hidden_state
-        for action, prior in zip(actions, priors):
-            self.children[action] = Node(prior.item())
+        """Expand node with children.
+
+        Args:
+            actions: List of possible actions
+            priors: Prior probabilities for each action
+            hidden_state: Hidden state for this node
+
+        Implementation:
+            - Store hidden_state
+            - Create child Node for each action with corresponding prior
+            - Store children in self.children dict
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/node-expand
+        raise NotImplementedError("Node.expand needs to be implemented")
 
     def backup(self, value: float) -> None:
-        """Backup value through the tree."""
-        self.visit_count += 1
-        self.value_sum += value
+        """Backup value through the tree.
+
+        Args:
+            value: Value to add to this node
+
+        Implementation:
+            - Increment visit_count
+            - Add value to value_sum
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/node-backup
+        raise NotImplementedError("Node.backup needs to be implemented")
 
 
 class MCTS:
     """Monte Carlo Tree Search."""
 
     def __init__(self, config: "MuZeroConfig"):
-        self.config = config
+        """Initialize MCTS with configuration.
+
+        Args:
+            config: MuZero configuration with MCTS parameters
+
+        Implementation:
+            - Store config for simulation parameters
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/mcts-init
+        raise NotImplementedError("MCTS.__init__ needs to be implemented")
 
     def search(self, network: "MuZeroNetwork", root_hidden_state: torch.Tensor) -> np.ndarray:
-        """Run MCTS and return action probabilities."""
-        # Create root node
-        with torch.no_grad():
-            policy_logits, value = network.prediction(root_hidden_state.unsqueeze(0))
-            policy_probs = torch.softmax(policy_logits, dim=-1).squeeze(0)
+        """Run MCTS and return action probabilities.
 
-        actions = list(range(self.config.action_space_size))
-        root = Node(prior=0.0)
-        root.expand(actions, policy_probs, root_hidden_state)
+        Args:
+            network: MuZero network for evaluation
+            root_hidden_state: Hidden state of root node
 
-        # Add Dirichlet noise to root
-        self._add_exploration_noise(root)
+        Returns:
+            Action probability distribution
 
-        # Run simulations
-        for _ in range(self.config.num_simulations):
-            self._simulate(network, root)
+        Implementation:
+            - Create root node with network prediction
+            - Add exploration noise to root
+            - Run config.num_simulations simulations
+            - Extract visit counts and normalize to probabilities
 
-        # Extract action probabilities
-        visit_counts = np.array(
-            [
-                root.children[action].visit_count if action in root.children else 0
-                for action in actions
-            ]
-        )
-
-        # Temperature-based selection (could be added to config)
-        if visit_counts.sum() == 0:
-            # If no visits, return uniform distribution
-            action_probs = np.ones(len(actions)) / len(actions)
-        else:
-            action_probs = visit_counts / visit_counts.sum()
-        return action_probs
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/mcts-search
+        raise NotImplementedError("MCTS.search needs to be implemented")
 
     def _simulate(self, network: "MuZeroNetwork", root: Node) -> None:
-        """Run one MCTS simulation."""
-        path = []
-        node = root
+        """Run one MCTS simulation.
 
-        # Selection phase
-        while node.is_expanded():
-            action = node.select_child(self.config.c_puct)
-            path.append((node, action))
-            node = node.children[action]
+        Args:
+            network: MuZero network for evaluation
+            root: Root node of search tree
 
-        # Expansion and evaluation phase
-        parent, action = path[-1] if path else (None, 0)
+        Implementation:
+            - Selection: traverse tree using UCB until leaf
+            - Expansion: expand leaf with network prediction
+            - Backup: propagate value up the path with discounting
 
-        if parent is not None and parent.hidden_state is not None:
-            # Get hidden state from parent and action
-            with torch.no_grad():
-                hidden_state, reward, policy_logits, value = network.recurrent_inference(
-                    parent.hidden_state.unsqueeze(0), torch.tensor([action])
-                )
-                policy_probs = torch.softmax(policy_logits, dim=-1).squeeze(0)
-
-            # Expand node
-            actions = list(range(self.config.action_space_size))
-            node.expand(actions, policy_probs, hidden_state.squeeze(0))
-            node_value = value.item()
-        else:
-            # Root node case
-            if node.hidden_state is not None:
-                with torch.no_grad():
-                    policy_logits, value = network.prediction(node.hidden_state.unsqueeze(0))
-                node_value = value.item()
-            else:
-                node_value = 0.0
-
-        # Backup phase
-        for node, _ in reversed(path):
-            node.backup(node_value)
-            node_value *= self.config.discount  # Apply discount
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/mcts-simulate
+        raise NotImplementedError("MCTS._simulate needs to be implemented")
 
     def _add_exploration_noise(self, root: Node) -> None:
-        """Add Dirichlet noise to root node for exploration."""
-        actions = list(root.children.keys())
-        noise = np.random.dirichlet([self.config.dirichlet_alpha] * len(actions))
+        """Add Dirichlet noise to root node for exploration.
 
-        for action, noise_value in zip(actions, noise):
-            child = root.children[action]
-            child.prior = (
-                1 - self.config.exploration_fraction
-            ) * child.prior + self.config.exploration_fraction * noise_value
+        Args:
+            root: Root node to add noise to
+
+        Implementation:
+            - Sample Dirichlet noise with config.dirichlet_alpha
+            - Mix with existing priors using config.exploration_fraction
+            - Apply to all root children
+
+        Developer: [Your Name Here]
+        """
+        # Branch: feature/exploration-noise
+        raise NotImplementedError("MCTS._add_exploration_noise needs to be implemented")
