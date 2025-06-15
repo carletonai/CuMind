@@ -24,8 +24,6 @@ class MuZeroAgent:
             - Create MuZeroNetwork with config parameters
             - Setup Adam optimizer with learning rate and weight decay
             - Initialize MCTS instance for action selection
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/agent-initialization
         raise NotImplementedError("__init__ needs to be implemented")
@@ -44,8 +42,6 @@ class MuZeroAgent:
             - Convert observation to tensor and run network.initial_inference()
             - Use MCTS to search and get action probabilities
             - Sample action if training, else take argmax
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/mcts-action-selection
         raise NotImplementedError("select_action needs to be implemented")
@@ -64,8 +60,6 @@ class MuZeroAgent:
             - Call _compute_losses() to get loss dictionary
             - Sum losses, run backward pass with optimizer step
             - Return loss values as float dict for logging
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/training-step
         raise NotImplementedError("train_step needs to be implemented")
@@ -84,8 +78,6 @@ class MuZeroAgent:
             - Extract observations, action sequences, and MuZero targets
             - Convert to appropriate tensor shapes and types
             - Target dict should have "values", "rewards", "policies" keys
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/batch-preparation
         raise NotImplementedError("_prepare_batch needs to be implemented")
@@ -111,8 +103,6 @@ class MuZeroAgent:
             - Unroll dynamics with recurrent_inference() for each action
             - Compute MSE loss for values/rewards, cross-entropy for policies
             - Average losses across unroll steps
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/loss-computation
         raise NotImplementedError("_compute_losses needs to be implemented")
@@ -126,8 +116,6 @@ class MuZeroAgent:
         Implementation:
             - Use torch.save() to save dict with network state_dict,
               optimizer state_dict, and config
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/checkpoint-saving
         raise NotImplementedError("save_checkpoint needs to be implemented")
@@ -141,8 +129,6 @@ class MuZeroAgent:
         Implementation:
             - Use torch.load() to load checkpoint dict
             - Restore network and optimizer state_dicts
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/checkpoint-loading
         raise NotImplementedError("load_checkpoint needs to be implemented")

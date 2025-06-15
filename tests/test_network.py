@@ -24,8 +24,6 @@ class TestResidualBlock:
             - Verify layer creation (conv, batch norm)
             - Test parameter initialization
             - Test with edge case channel counts
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/residual-block-init-test
         pass
@@ -38,8 +36,6 @@ class TestResidualBlock:
             - Verify output shape matches input shape
             - Test with different input sizes
             - Test activation function application
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/residual-block-forward-test
         pass
@@ -52,8 +48,6 @@ class TestResidualBlock:
             - Test identity mapping when weights are zero
             - Test with different input magnitudes
             - Test gradient flow through connection
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/residual-connection-test
         pass
@@ -70,8 +64,6 @@ class TestVectorEncoder:
             - Verify fully connected layer creation
             - Test with different hidden dimensions
             - Test with different number of blocks
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/vector-encoder-init-test
         pass
@@ -84,8 +76,6 @@ class TestVectorEncoder:
             - Verify output shape (batch_size, hidden_dim)
             - Test with different batch sizes
             - Test with different input dimensions
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/vector-encoder-forward-test
         pass
@@ -98,8 +88,6 @@ class TestVectorEncoder:
             - Verify gradients reach all parameters
             - Test with different learning rates
             - Test gradient magnitude preservation
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/vector-encoder-gradients-test
         pass
@@ -116,8 +104,6 @@ class TestConvEncoder:
             - Verify convolutional layer creation
             - Test residual block integration
             - Test with different image sizes
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/conv-encoder-init-test
         pass
@@ -130,8 +116,6 @@ class TestConvEncoder:
             - Verify output shape (batch_size, hidden_dim)
             - Test with different image sizes
             - Test spatial dimension reduction
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/conv-encoder-forward-test
         pass
@@ -144,8 +128,6 @@ class TestConvEncoder:
             - Verify gradient flow through blocks
             - Test with different numbers of blocks
             - Test feature map evolution
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/conv-encoder-residual-test
         pass
@@ -162,8 +144,6 @@ class TestRepresentationNetwork:
             - Verify encoder selection (vector vs conv)
             - Test with different hidden dimensions
             - Test encoder factory method
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/representation-init-test
         pass
@@ -176,8 +156,6 @@ class TestRepresentationNetwork:
             - Test ConvEncoder selection for 3D observations
             - Test error handling for unsupported shapes
             - Test parameter passing to encoders
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/encoder-factory-test
         pass
@@ -190,8 +168,6 @@ class TestRepresentationNetwork:
             - Verify hidden state shape and properties
             - Test with different vector sizes
             - Test batch processing
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/representation-1d-test
         pass
@@ -204,8 +180,6 @@ class TestRepresentationNetwork:
             - Verify hidden state shape and properties
             - Test with different image sizes
             - Test batch processing
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/representation-3d-test
         pass
@@ -222,8 +196,6 @@ class TestDynamicsNetwork:
             - Verify action embedding layer creation
             - Test processing block creation
             - Test output head creation
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/dynamics-init-test
         pass
@@ -236,8 +208,6 @@ class TestDynamicsNetwork:
             - Test reward prediction
             - Verify output shapes
             - Test with different batch sizes
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/dynamics-forward-test
         pass
@@ -250,8 +220,6 @@ class TestDynamicsNetwork:
             - Test action-state concatenation
             - Test with different action space sizes
             - Test embedding learning
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/action-embedding-test
         pass
@@ -264,8 +232,6 @@ class TestDynamicsNetwork:
             - Test reward prediction range
             - Test with different reward scales
             - Test gradient flow to reward head
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/reward-prediction-test
         pass
@@ -282,8 +248,6 @@ class TestPredictionNetwork:
             - Verify policy and value head creation
             - Test with different action space sizes
             - Test parameter initialization
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/prediction-init-test
         pass
@@ -296,8 +260,6 @@ class TestPredictionNetwork:
             - Test value prediction
             - Verify output shapes
             - Test with different batch sizes
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/prediction-forward-test
         pass
@@ -310,8 +272,6 @@ class TestPredictionNetwork:
             - Test logit range and distribution
             - Test with different action space sizes
             - Test softmax compatibility
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/policy-head-test
         pass
@@ -324,8 +284,6 @@ class TestPredictionNetwork:
             - Test value prediction range
             - Test with different state inputs
             - Test gradient flow to value head
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/value-head-test
         pass
@@ -342,8 +300,6 @@ class TestMuZeroNetwork:
             - Verify all sub-networks are created
             - Test with different observation shapes
             - Test parameter counting
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/muzero-network-init-test
         pass
@@ -356,8 +312,6 @@ class TestMuZeroNetwork:
             - Verify output shapes (hidden_state, policy, value)
             - Test with different observation types
             - Test batch processing
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/initial-inference-test
         pass
@@ -370,8 +324,6 @@ class TestMuZeroNetwork:
             - Verify output shapes (next_state, reward, policy, value)
             - Test with different actions
             - Test consistency with dynamics network
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/recurrent-inference-test
         pass
@@ -384,8 +336,6 @@ class TestMuZeroNetwork:
             - Test hidden state consistency
             - Test gradient flow through all components
             - Test with different network configurations
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/network-integration-test
         pass
@@ -398,8 +348,6 @@ class TestMuZeroNetwork:
             - Verify VectorEncoder usage
             - Test full inference pipeline
             - Test training compatibility
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/muzero-1d-observations-test
         pass
@@ -412,8 +360,6 @@ class TestMuZeroNetwork:
             - Verify ConvEncoder usage
             - Test full inference pipeline
             - Test training compatibility
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/muzero-3d-observations-test
         pass
@@ -426,8 +372,6 @@ class TestMuZeroNetwork:
             - Test 4D+ observations (should raise error)
             - Test empty observation shapes
             - Test error message clarity
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/unsupported-shapes-test
         pass

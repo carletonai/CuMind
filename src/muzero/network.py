@@ -20,8 +20,6 @@ class ResidualBlock(nn.Module):
             - Create two Conv2d layers (3x3, padding=1)
             - Create two BatchNorm2d layers
             - Store channels for forward pass
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/residual-block-init
         raise NotImplementedError("ResidualBlock.__init__ needs to be implemented")
@@ -39,8 +37,6 @@ class ResidualBlock(nn.Module):
             - Store input as residual
             - Apply conv1 -> bn1 -> relu -> conv2 -> bn2
             - Add residual and apply final relu
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/residual-block-forward
         raise NotImplementedError("ResidualBlock.forward needs to be implemented")
@@ -60,8 +56,6 @@ class BaseEncoder(nn.Module):
         Implementation:
             - Call super().__init__()
             - Store configuration parameters
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/base-encoder-init
         raise NotImplementedError("BaseEncoder.__init__ needs to be implemented")
@@ -77,8 +71,6 @@ class BaseEncoder(nn.Module):
 
         Implementation:
             - N/A: Abstract method - implemented in subclasses
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/base-encoder-forward
         raise NotImplementedError
@@ -100,8 +92,6 @@ class VectorEncoder(BaseEncoder):
             - Build sequence of Linear -> ReLU layers
             - Use observation_shape[0] as input dimension
             - Each block transforms to hidden_dim
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/vector-encoder-init
         raise NotImplementedError("VectorEncoder.__init__ needs to be implemented")
@@ -117,8 +107,6 @@ class VectorEncoder(BaseEncoder):
 
         Implementation:
             - Pass through self.encoder sequential layers
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/vector-encoder-forward
         raise NotImplementedError("VectorEncoder.forward needs to be implemented")
@@ -140,8 +128,6 @@ class ConvEncoder(BaseEncoder):
             - Initial conv layer to transform to hidden_dim channels
             - Create residual blocks for feature processing
             - Flatten and project to final hidden_dim
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/conv-encoder-init
         raise NotImplementedError("ConvEncoder.__init__ needs to be implemented")
@@ -159,8 +145,6 @@ class ConvEncoder(BaseEncoder):
             - Apply initial conv -> batch norm -> relu
             - Process through residual blocks
             - Flatten and project to hidden_dim
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/conv-encoder-forward
         raise NotImplementedError("ConvEncoder.forward needs to be implemented")
@@ -181,8 +165,6 @@ class RepresentationNetwork(nn.Module):
             - Call super().__init__()
             - Use _create_encoder to select appropriate encoder type
             - Store encoder for forward pass
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/representation-network-init
         raise NotImplementedError("RepresentationNetwork.__init__ needs to be implemented")
@@ -201,8 +183,6 @@ class RepresentationNetwork(nn.Module):
         Implementation:
             - Check len(observation_shape): 1 -> VectorEncoder, 3 -> ConvEncoder
             - Raise ValueError for unsupported shapes
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/encoder-factory
         raise NotImplementedError("_create_encoder needs to be implemented")
@@ -218,8 +198,6 @@ class RepresentationNetwork(nn.Module):
 
         Implementation:
             - Delegate to self.encoder.forward()
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/representation-network-forward
         raise NotImplementedError("RepresentationNetwork.forward needs to be implemented")
@@ -241,8 +219,6 @@ class DynamicsNetwork(nn.Module):
             - Concatenate state and action embeddings
             - Process through residual blocks
             - Output next state and reward prediction
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/dynamics-network-init
         raise NotImplementedError("DynamicsNetwork.__init__ needs to be implemented")
@@ -262,8 +238,6 @@ class DynamicsNetwork(nn.Module):
             - Concatenate state and action embedding
             - Process through blocks with residual connections
             - Predict reward using reward head
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/dynamics-network-forward
         raise NotImplementedError("DynamicsNetwork.forward needs to be implemented")
@@ -283,8 +257,6 @@ class PredictionNetwork(nn.Module):
             - Two linear heads: policy and value
             - Policy head outputs logits for each action
             - Value head outputs single scalar value
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/prediction-network-init
         raise NotImplementedError("PredictionNetwork.__init__ needs to be implemented")
@@ -301,8 +273,6 @@ class PredictionNetwork(nn.Module):
         Implementation:
             - Apply policy_head for action probabilities
             - Apply value_head for state value
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/prediction-network-forward
         raise NotImplementedError("PredictionNetwork.forward needs to be implemented")
@@ -329,8 +299,6 @@ class MuZeroNetwork(nn.Module):
         Implementation:
             - Create representation, dynamics, and prediction networks
             - Store all three sub-networks as attributes
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/muzero-network-init
         raise NotImplementedError("MuZeroNetwork.__init__ needs to be implemented")
@@ -347,8 +315,6 @@ class MuZeroNetwork(nn.Module):
         Implementation:
             - Use representation network to encode observation
             - Use prediction network to get policy and value
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/initial-inference
         raise NotImplementedError("initial_inference needs to be implemented")
@@ -366,8 +332,6 @@ class MuZeroNetwork(nn.Module):
         Implementation:
             - Use dynamics network to predict next state and reward
             - Use prediction network to get policy and value for next state
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/recurrent-inference
         raise NotImplementedError("recurrent_inference needs to be implemented")

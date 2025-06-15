@@ -28,8 +28,6 @@ def select_action(self, observation: np.ndarray, training: bool = True) -> int:
     - Convert observation to tensor and run network.initial_inference()
     - Use MCTS to search and get action probabilities
     - Sample action if training, else take argmax
-
-  Developer: [Your Name Here]
   """
   # Branch: feature/mcts-action-selection
   raise NotImplementedError("select_action needs to be implemented")

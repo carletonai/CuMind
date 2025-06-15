@@ -16,8 +16,6 @@ class TestMuZeroAgent:
             - Create agent with custom config
             - Verify all components are properly initialized
             - Test with different observation shapes
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/agent-init-test
         pass
@@ -30,8 +28,6 @@ class TestMuZeroAgent:
             - Verify action is within valid range
             - Test with different observation types
             - Ensure stochastic behavior in training mode
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/action-selection-training-test
         pass
@@ -44,8 +40,6 @@ class TestMuZeroAgent:
             - Verify deterministic behavior
             - Test greedy action selection
             - Compare with training mode behavior
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/action-selection-eval-test
         pass
@@ -58,8 +52,6 @@ class TestMuZeroAgent:
             - Test loss computation (value, policy, reward)
             - Verify optimizer step execution
             - Test with different batch sizes
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/training-step-test
         pass
@@ -72,8 +64,6 @@ class TestMuZeroAgent:
             - Verify batch format and shapes
             - Test with different sequence lengths
             - Test target value computation
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/batch-preparation-test
         pass
@@ -86,8 +76,6 @@ class TestMuZeroAgent:
             - Test policy loss computation
             - Test reward loss computation
             - Verify loss shapes and gradients
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/loss-computation-test
         pass
@@ -100,8 +88,6 @@ class TestMuZeroAgent:
             - Verify all components are saved
             - Test with different file paths
             - Test error handling for invalid paths
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/checkpoint-save-test
         pass
@@ -114,8 +100,6 @@ class TestMuZeroAgent:
             - Verify all components are restored
             - Test compatibility with saved checkpoints
             - Test error handling for missing files
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/checkpoint-load-test
         pass
@@ -128,8 +112,6 @@ class TestMuZeroAgent:
             - Test action selection with vector input
             - Verify network compatibility
             - Test training with vector observations
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/vector-obs-test
         pass
@@ -142,8 +124,6 @@ class TestMuZeroAgent:
             - Test action selection with image input
             - Verify convolutional network usage
             - Test training with image observations
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/image-obs-test
         pass

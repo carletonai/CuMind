@@ -26,8 +26,6 @@ class Node:
             - Initialize value_sum to 0.0
             - Create empty children dictionary
             - Set hidden_state to None initially
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/mcts-node-init
         raise NotImplementedError("Node.__init__ needs to be implemented")
@@ -40,8 +38,6 @@ class Node:
 
         Implementation:
             - Return whether self.children has any entries
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/node-is-expanded
         raise NotImplementedError("Node.is_expanded needs to be implemented")
@@ -55,8 +51,6 @@ class Node:
         Implementation:
             - Handle zero visit count case
             - Return value_sum divided by visit_count
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/node-value
         raise NotImplementedError("Node.value needs to be implemented")
@@ -74,8 +68,6 @@ class Node:
         Implementation:
             - Return infinity if never visited
             - Combine value + c_puct * prior * sqrt(parent_visits) / (1 + visits)
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/ucb-score
         raise NotImplementedError("Node.ucb_score needs to be implemented")
@@ -92,8 +84,6 @@ class Node:
         Implementation:
             - Use max() with key function over children
             - Call ucb_score for each child
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/select-child
         raise NotImplementedError("Node.select_child needs to be implemented")
@@ -110,8 +100,6 @@ class Node:
             - Store hidden_state
             - Create child Node for each action with corresponding prior
             - Store children in self.children dict
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/node-expand
         raise NotImplementedError("Node.expand needs to be implemented")
@@ -125,8 +113,6 @@ class Node:
         Implementation:
             - Increment visit_count
             - Add value to value_sum
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/node-backup
         raise NotImplementedError("Node.backup needs to be implemented")
@@ -143,8 +129,6 @@ class MCTS:
 
         Implementation:
             - Store config for simulation parameters
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/mcts-init
         raise NotImplementedError("MCTS.__init__ needs to be implemented")
@@ -164,8 +148,6 @@ class MCTS:
             - Add exploration noise to root
             - Run config.num_simulations simulations
             - Extract visit counts and normalize to probabilities
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/mcts-search
         raise NotImplementedError("MCTS.search needs to be implemented")
@@ -181,8 +163,6 @@ class MCTS:
             - Selection: traverse tree using UCB until leaf
             - Expansion: expand leaf with network prediction
             - Backup: propagate value up the path with discounting
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/mcts-simulate
         raise NotImplementedError("MCTS._simulate needs to be implemented")
@@ -197,8 +177,6 @@ class MCTS:
             - Sample Dirichlet noise with config.dirichlet_alpha
             - Mix with existing priors using config.exploration_fraction
             - Apply to all root children
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/exploration-noise
         raise NotImplementedError("MCTS._add_exploration_noise needs to be implemented")

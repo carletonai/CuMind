@@ -16,8 +16,6 @@ class TestNode:
             - Verify initial state (unexpanded, no children)
             - Test node properties and attributes
             - Test with different prior values
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/node-init-test
         pass
@@ -30,8 +28,6 @@ class TestNode:
             - Test expanded node returns True
             - Test after adding children
             - Test edge cases
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/node-expansion-state-test
         pass
@@ -44,8 +40,6 @@ class TestNode:
             - Test with zero visits (should return 0)
             - Test with multiple visits
             - Test value updates over time
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/node-value-test
         pass
@@ -58,8 +52,6 @@ class TestNode:
             - Test with different visit counts
             - Test parent visit count influence
             - Test prior probability integration
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/ucb-score-test
         pass
@@ -72,8 +64,6 @@ class TestNode:
             - Test with multiple children
             - Test tie-breaking behavior
             - Test with no children (should raise error)
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/child-selection-test
         pass
@@ -86,8 +76,6 @@ class TestNode:
             - Verify correct number of children created
             - Test child prior assignment
             - Test expansion of already expanded node
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/node-expansion-test
         pass
@@ -100,8 +88,6 @@ class TestNode:
             - Test backup through parent chain
             - Test visit count and value sum updates
             - Test backup with different values
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/value-backup-test
         pass
@@ -118,8 +104,6 @@ class TestMCTS:
             - Verify root node initialization
             - Test with different configurations
             - Test parameter validation
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/mcts-init-test
         pass
@@ -132,8 +116,6 @@ class TestMCTS:
             - Verify tree expansion during search
             - Test action probability computation
             - Test search determinism with fixed seed
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/mcts-search-test
         pass
@@ -146,8 +128,6 @@ class TestMCTS:
             - Test expansion phase (new node creation)
             - Test evaluation phase (network inference)
             - Test backup phase (value propagation)
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/simulation-step-test
         pass
@@ -160,8 +140,6 @@ class TestMCTS:
             - Verify noise parameters (alpha, epsilon)
             - Test with different action space sizes
             - Test noise effect on action selection
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/exploration-noise-test
         pass
@@ -174,8 +152,6 @@ class TestMCTS:
             - Test temperature parameter effect
             - Test with uneven visit distributions
             - Test normalization correctness
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/action-probabilities-test
         pass
@@ -188,8 +164,6 @@ class TestMCTS:
             - Test tree depth measurement
             - Test node count statistics
             - Test value distribution analysis
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/tree-statistics-test
         pass
@@ -202,8 +176,6 @@ class TestMCTS:
             - Test with convolutional networks
             - Test with different hidden dimensions
             - Test network compatibility
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/mcts-network-compatibility-test
         pass
@@ -216,8 +188,6 @@ class TestMCTS:
             - Test with single action space
             - Test with invalid configurations
             - Test memory management with deep trees
-
-        Developer: [Your Name Here]
         """
         # Branch: feature/mcts-edge-cases-test
         pass
