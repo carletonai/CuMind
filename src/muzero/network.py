@@ -85,7 +85,7 @@ class BaseEncoder(nn.Module):
 
 
 class VectorEncoder(BaseEncoder):
-    """Encoder for 1D vector observations (e.g., CartPole)."""
+    """Encoder for 1D vector observations."""
 
     def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int):
         """Initialize vector encoder with fully connected layers.

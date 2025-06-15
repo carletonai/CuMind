@@ -394,7 +394,7 @@ class TestMuZeroNetwork:
         """Test MuZeroNetwork with vector observations.
 
         Implementation:
-            - Test network with CartPole-like observations
+            - Test network with 1d observations
             - Verify VectorEncoder usage
             - Test full inference pipeline
             - Test training compatibility

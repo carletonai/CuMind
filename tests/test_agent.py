@@ -121,7 +121,7 @@ class TestMuZeroAgent:
         pass
 
     def test_agent_with_vector_observations(self):
-        """Test agent with 1D vector observations (CartPole).
+        """Test agent with 1D vector observations.
 
         Implementation:
             - Create agent with 1D observation shape
