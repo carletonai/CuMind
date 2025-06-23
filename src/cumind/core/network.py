@@ -1,4 +1,4 @@
-"""Neural network components for CuMind."""
+"""Unified CuMind neural network components."""
 
 from typing import Tuple
 
@@ -100,13 +100,15 @@ class VectorEncoder(BaseEncoder):
         """Encode 1D observation through fully connected layers.
 
         Args:
-            observation: Input vector of shape (batch, input_dim)
+            observation: Flattened observation of shape (batch, obs_dim)
 
         Returns:
-            Hidden representation of shape (batch, hidden_dim)
+            Hidden state tensor of shape (batch, hidden_dim)
 
         Implementation:
-            - Pass through self.encoder sequential layers
+            - Pass observation through each fully connected layer
+            - Apply ReLU activation between layers
+            - Return final hidden representation
         """
         # Branch: feature/vector-encoder-forward
         raise NotImplementedError("VectorEncoder.forward needs to be implemented")
@@ -116,7 +118,7 @@ class ConvEncoder(BaseEncoder):
     """Encoder for 3D image observations (e.g., Atari)."""
 
     def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int):
-        """Initialize convolutional encoder with residual blocks.
+        """Initialize convolutional encoder for image observations.
 
         Args:
             observation_shape: Shape of 3D observation (channels, height, width)
@@ -125,9 +127,9 @@ class ConvEncoder(BaseEncoder):
 
         Implementation:
             - Call super().__init__()
-            - Initial conv layer to transform to hidden_dim channels
+            - Create initial conv layer to reduce spatial dimensions
             - Create residual blocks for feature processing
-            - Flatten and project to final hidden_dim
+            - Create final linear layer to output hidden_dim
         """
         # Branch: feature/conv-encoder-init
         raise NotImplementedError("ConvEncoder.__init__ needs to be implemented")
@@ -136,24 +138,25 @@ class ConvEncoder(BaseEncoder):
         """Encode 3D observation through convolutional layers.
 
         Args:
-            observation: Input image of shape (batch, channels, height, width)
+            observation: Image observation of shape (batch, channels, height, width)
 
         Returns:
-            Hidden representation of shape (batch, hidden_dim)
+            Hidden state tensor of shape (batch, hidden_dim)
 
         Implementation:
-            - Apply initial conv -> batch norm -> relu
+            - Pass through initial conv layer
             - Process through residual blocks
-            - Flatten and project to hidden_dim
+            - Global average pooling to reduce spatial dimensions
+            - Final linear layer to hidden_dim
         """
         # Branch: feature/conv-encoder-forward
         raise NotImplementedError("ConvEncoder.forward needs to be implemented")
 
 
 class RepresentationNetwork(nn.Module):
-    """Converts observations to hidden state representation."""
+    """rθ: Encode raw observations to hidden states."""
 
-    def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int):
+    def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int = 64, num_blocks: int = 4):
         """Initialize representation network with appropriate encoder.
 
         Args:
@@ -163,50 +166,51 @@ class RepresentationNetwork(nn.Module):
 
         Implementation:
             - Call super().__init__()
-            - Use _create_encoder to select appropriate encoder type
-            - Store encoder for forward pass
+            - Use _create_encoder to select VectorEncoder or ConvEncoder
+            - Store encoder as self.encoder
         """
-        # Branch: feature/representation-network-init
+        # Branch: feature/representation-init
         raise NotImplementedError("RepresentationNetwork.__init__ needs to be implemented")
 
     def _create_encoder(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int) -> BaseEncoder:
-        """Factory method to create appropriate encoder.
+        """Factory method to create appropriate encoder based on observation shape.
 
         Args:
-            observation_shape: Shape of observations
-            hidden_dim: Hidden dimension
-            num_blocks: Number of blocks
+            observation_shape: Shape of input observations
+            hidden_dim: Dimension of hidden representation
+            num_blocks: Number of processing blocks
 
         Returns:
-            Appropriate encoder instance (VectorEncoder or ConvEncoder)
+            VectorEncoder for 1D observations, ConvEncoder for 3D observations
 
         Implementation:
-            - Check len(observation_shape): 1 -> VectorEncoder, 3 -> ConvEncoder
-            - Raise ValueError for unsupported shapes
+            - If len(observation_shape) == 1: return VectorEncoder
+            - If len(observation_shape) == 3: return ConvEncoder
+            - Otherwise: raise ValueError with helpful message
         """
         # Branch: feature/encoder-factory
         raise NotImplementedError("_create_encoder needs to be implemented")
 
     def forward(self, observation: torch.Tensor) -> torch.Tensor:
-        """Convert observation to hidden state.
+        """Encode observation to hidden state.
 
         Args:
             observation: Input observation tensor
 
         Returns:
-            Hidden state of shape (batch, hidden_dim)
+            Hidden state tensor of shape (batch, hidden_dim)
 
         Implementation:
-            - Delegate to self.encoder.forward()
+            - Simply forward to self.encoder
         """
-        # Branch: feature/representation-network-forward
+        # Branch: feature/representation-forward
         raise NotImplementedError("RepresentationNetwork.forward needs to be implemented")
 
 
 class DynamicsNetwork(nn.Module):
-    """Predicts next hidden state and reward given current state and action."""
+    """gθ: Predict next hidden state and reward from current state and action."""
 
-    def __init__(self, hidden_dim: int, action_space_size: int, num_blocks: int):
+    def __init__(self, hidden_dim: int, action_space_size: int, num_blocks: int = 4):
         """Initialize dynamics network with action embedding and processing blocks.
 
         Args:
@@ -217,7 +221,7 @@ class DynamicsNetwork(nn.Module):
         Implementation:
             - Action embedding to convert discrete actions to vectors
             - Concatenate state and action embeddings
-            - Process through residual blocks
+            - Process through residual blocks or linear layers
             - Output next state and reward prediction
         """
         # Branch: feature/dynamics-network-init
@@ -244,42 +248,45 @@ class DynamicsNetwork(nn.Module):
 
 
 class PredictionNetwork(nn.Module):
-    """Predicts policy and value given hidden state."""
+    """fθ: Predict policy and value from hidden state."""
 
     def __init__(self, hidden_dim: int, action_space_size: int):
         """Initialize prediction network with policy and value heads.
 
         Args:
             hidden_dim: Dimension of input hidden states
-            action_space_size: Number of possible actions
+            action_space_size: Number of possible actions for policy head
 
         Implementation:
-            - Two linear heads: policy and value
-            - Policy head outputs logits for each action
-            - Value head outputs single scalar value
+            - Create policy head: Linear layer to action_space_size
+            - Create value head: Linear layer to single scalar
+            - Both heads process the same hidden state input
         """
         # Branch: feature/prediction-network-init
         raise NotImplementedError("PredictionNetwork.__init__ needs to be implemented")
 
-    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Predict policy and value from hidden state.
+    def forward(self, hidden_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Predict policy logits and value from hidden state.
 
         Args:
-            state: Hidden state of shape (batch, hidden_dim)
+            hidden_state: Hidden state tensor of shape (batch, hidden_dim)
 
         Returns:
-            Tuple of (policy_logits, value) tensors
+            Tuple of (policy_logits, value) where:
+            - policy_logits: shape (batch, action_space_size)
+            - value: shape (batch, 1)
 
         Implementation:
-            - Apply policy_head for action probabilities
-            - Apply value_head for state value
+            - Apply policy head to get action logits
+            - Apply value head to get state value
+            - Return both predictions
         """
         # Branch: feature/prediction-network-forward
         raise NotImplementedError("PredictionNetwork.forward needs to be implemented")
 
 
 class CuMindNetwork(nn.Module):
-    """Complete CuMind neural network."""
+    """Complete CuMind neural network combining all three networks."""
 
     def __init__(
         self,
@@ -297,8 +304,8 @@ class CuMindNetwork(nn.Module):
             num_blocks: Number of processing blocks
 
         Implementation:
-            - Create representation, dynamics, and prediction networks
-            - Store all three sub-networks as attributes
+            - Create RepresentationNetwork, DynamicsNetwork, PredictionNetwork
+            - Store all three networks as attributes
         """
         # Branch: feature/cumind-network-init
         raise NotImplementedError("CuMindNetwork.__init__ needs to be implemented")
@@ -315,6 +322,7 @@ class CuMindNetwork(nn.Module):
         Implementation:
             - Use representation network to encode observation
             - Use prediction network to get policy and value
+            - Return all three components
         """
         # Branch: feature/initial-inference
         raise NotImplementedError("initial_inference needs to be implemented")
@@ -330,8 +338,9 @@ class CuMindNetwork(nn.Module):
             Tuple of (next_hidden_state, reward, policy_logits, value)
 
         Implementation:
-            - Use dynamics network to predict next state and reward
-            - Use prediction network to get policy and value for next state
+            - Use dynamics network to get next state and reward
+            - Use prediction network on next state to get policy and value
+            - Return all four components
         """
         # Branch: feature/recurrent-inference
         raise NotImplementedError("recurrent_inference needs to be implemented")

@@ -6,19 +6,19 @@ import numpy as np
 import torch
 import torch.nn.functional as functional
 
-from .config import CuMindConfig
-from .mcts import MCTS
-from .network import CuMindNetwork
+from ..config import Config
+from ..core.mcts import MCTS
+from ..core.network import CuMindNetwork
 
 
-class CuMindAgent:
+class Agent:
     """CuMind agent for training and inference."""
 
-    def __init__(self, config: CuMindConfig):
+    def __init__(self, config: Config):
         """Initialize CuMind agent with network, optimizer, and MCTS.
 
         Args:
-            config: CuMindConfig with network architecture and training parameters
+            config: Config with network architecture and training parameters
 
         Implementation:
             - Create CuMindNetwork with config parameters

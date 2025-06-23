@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from cumind.mcts import MCTS, Node
+from cumind.core import MCTS, Node
 
 
 class TestNode:

@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 import torch
 
-from cumind.network import (
+from cumind.core import (
     ConvEncoder,
-    DynamicsNetwork,
     CuMindNetwork,
+    DynamicsNetwork,
     PredictionNetwork,
     RepresentationNetwork,
     ResidualBlock,

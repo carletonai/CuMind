@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 import torch
 
-from cumind import CuMindAgent, CuMindConfig
+from cumind.agent import Agent, Config
 
 
-class TestCuMindAgent:
+class TestAgent:
     """Test suite for CuMind Agent."""
 
     def test_agent_initialization(self):

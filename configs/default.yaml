@@ -1,0 +1,19 @@
+hidden_dim: 64
+num_blocks: 4
+batch_size: 32
+learning_rate: 0.001
+weight_decay: 0.0001
+num_simulations: 50
+c_puct: 1.0
+dirichlet_alpha: 0.3
+exploration_fraction: 0.25
+action_space_size: 4
+observation_shape:
+- 84
+- 84
+- 3
+num_unroll_steps: 5
+td_steps: 10
+discount: 0.997
+replay_buffer_size: 10000
+min_replay_size: 1000

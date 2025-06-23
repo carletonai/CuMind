@@ -7,7 +7,7 @@ import numpy as np
 import torch
 
 if TYPE_CHECKING:
-    from .config import CuMindConfig
+    from ..config import Config
     from .network import CuMindNetwork
 
 
@@ -121,7 +121,7 @@ class Node:
 class MCTS:
     """Monte Carlo Tree Search."""
 
-    def __init__(self, config: "CuMindConfig"):
+    def __init__(self, config: "Config"):
         """Initialize MCTS with configuration.
 
         Args:

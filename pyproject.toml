@@ -12,6 +12,7 @@ dependencies = [
     "gymnasium>=1.1.1",
     "torch>=2.7.0",
     "torchvision>=0.22.0",
+    "wandb>=0.20.1",
 ]
 
 # =========================

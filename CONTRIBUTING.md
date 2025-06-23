@@ -133,7 +133,7 @@ git pull dev
 
 - Run your specific test:
   ```bash
-  uv run pytest tests/test_agent.py::TestCuMindAgent::test_select_action_training_mode -v
+  uv run pytest tests/test_agent.py::TestAgent::test_select_action_training_mode -v
   ```
 - Run all tests:
   ```bash
@@ -237,7 +237,7 @@ Example:
 def test_select_action_training_mode(self):
     """Test action selection in training mode."""
     # Implementation: Test with mock MCTS, verify exploration
-    agent = CuMindAgent(config)
+    agent = Agent(config)
     action = agent.select_action(observation, training=True)
     assert isinstance(action, int)
     assert 0 <= action < config.action_space_size

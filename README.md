@@ -37,10 +37,10 @@ uv sync
 ## Quick Start
 
 ```python
-from cumind import CuMindAgent, CuMindConfig
+from cumind import Agent, Config
 
 # Create configuration for CartPole (1D observations)
-config = CuMindConfig(
+config = Config(
     action_space_size=2,
     observation_shape=(4,),  # 1D vector
     hidden_dim=64,
@@ -48,7 +48,7 @@ config = CuMindConfig(
 )
 
 # Create agent
-agent = CuMindAgent(config)
+agent = Agent(config)
 
 # Select action
 action = agent.select_action(observation)
@@ -58,7 +58,7 @@ For image-based environments (like Atari):
 
 ```python
 # Create configuration for Atari (3D observations)
-config = CuMindConfig(
+config = Config(
     action_space_size=4,
     observation_shape=(3, 84, 84),  # 3D image: channels, height, width
     hidden_dim=64,
