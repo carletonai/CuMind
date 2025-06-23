@@ -21,41 +21,30 @@ class Node:
 
         Args:
             prior: Prior probability for this node
-
-        Implementation:
-            - Store prior probability
-            - Initialize visit_count to 0
-            - Initialize value_sum to 0.0
-            - Create empty children dictionary
-            - Set hidden_state to None initially
         """
-        # Branch: feature/mcts-node-init
-        raise NotImplementedError("Node.__init__ needs to be implemented")
+        self.prior = prior
+        self.visit_count = 0
+        self.value_sum = 0.0
+        self.children: Dict[int, "Node"] = {}
+        self.hidden_state: Optional[chex.Array] = None
 
     def is_expanded(self) -> bool:
         """Check if node has children.
 
         Returns:
             True if node has been expanded with children
-
-        Implementation:
-            - Return whether self.children has any entries
         """
-        # Branch: feature/node-is-expanded
-        raise NotImplementedError("Node.is_expanded needs to be implemented")
+        return len(self.children) > 0
 
     def value(self) -> float:
         """Calculate average value from visits.
 
         Returns:
             Average value (value_sum / visit_count) or 0 if no visits
-
-        Implementation:
-            - Handle zero visit count case
-            - Return value_sum divided by visit_count
         """
-        # Branch: feature/node-value
-        raise NotImplementedError("Node.value needs to be implemented")
+        if self.visit_count == 0:
+            return 0.0
+        return self.value_sum / self.visit_count
 
     def ucb_score(self, parent_visit_count: int, c_puct: float) -> float:
         """Calculate UCB score for node selection.
@@ -66,13 +55,12 @@ class Node:
 
         Returns:
             UCB score combining exploitation and exploration
-
-        Implementation:
-            - Return infinity if never visited
-            - Combine value + c_puct * prior * sqrt(parent_visits) / (1 + visits)
         """
-        # Branch: feature/ucb-score
-        raise NotImplementedError("Node.ucb_score needs to be implemented")
+        if self.visit_count == 0:
+            return float("inf")
+
+        exploration_term = c_puct * self.prior * math.sqrt(parent_visit_count) / (1 + self.visit_count)
+        return self.value() + exploration_term
 
     def select_child(self, c_puct: float) -> int:
         """Select child with highest UCB score.
@@ -82,13 +70,8 @@ class Node:
 
         Returns:
             Action index of child with max UCB score
-
-        Implementation:
-            - Use max() with key function over children
-            - Call ucb_score for each child
         """
-        # Branch: feature/select-child
-        raise NotImplementedError("Node.select_child needs to be implemented")
+        return max(self.children.keys(), key=lambda action: self.children[action].ucb_score(self.visit_count, c_puct))
 
     def expand(self, actions: List[int], priors: chex.Array, hidden_state: chex.Array) -> None:
         """Expand node with children.
@@ -97,27 +80,19 @@ class Node:
             actions: List of possible actions
             priors: Prior probabilities for each action
             hidden_state: Hidden state for this node
-
-        Implementation:
-            - Store hidden_state
-            - Create child Node for each action with corresponding prior
-            - Store children in self.children dict
         """
-        # Branch: feature/node-expand
-        raise NotImplementedError("Node.expand needs to be implemented")
+        self.hidden_state = hidden_state
+        for action, prior in zip(actions, priors):
+            self.children[action] = Node(float(prior))
 
     def backup(self, value: float) -> None:
         """Backup value through the tree.
 
         Args:
             value: Value to add to this node
-
-        Implementation:
-            - Increment visit_count
-            - Add value to value_sum
         """
-        # Branch: feature/node-backup
-        raise NotImplementedError("Node.backup needs to be implemented")
+        self.visit_count += 1
+        self.value_sum += value
 
 
 class MCTS:
@@ -128,31 +103,50 @@ class MCTS:
 
         Args:
             config: CuMind configuration with MCTS parameters
-
-        Implementation:
-            - Store config for simulation parameters
         """
-        # Branch: feature/mcts-init
-        raise NotImplementedError("MCTS.__init__ needs to be implemented")
+        self.config = config
 
-    def search(self, network: "CuMindNetwork", root_hidden_state: chex.Array) -> np.ndarray:
+    def search(self, network: "CuMindNetwork", root_hidden_state: chex.Array, add_noise: bool = True) -> np.ndarray:
         """Run MCTS and return action probabilities.
 
         Args:
             network: CuMind network for evaluation
             root_hidden_state: Hidden state of root node
+            add_noise: Whether to add exploration noise (set False for evaluation)
 
         Returns:
             Action probability distribution
-
-        Implementation:
-            - Create root node with network prediction
-            - Add exploration noise to root
-            - Run config.num_simulations simulations
-            - Extract visit counts and normalize to probabilities
         """
-        # Branch: feature/mcts-search
-        raise NotImplementedError("MCTS.search needs to be implemented")
+        # Get initial prediction for root
+        # Add batch dimension for network prediction
+        root_hidden_state_batched = jnp.expand_dims(root_hidden_state, 0)
+        policy_logits, _ = network.prediction_network(root_hidden_state_batched)
+        priors = jax.nn.softmax(policy_logits, axis=-1)[0]  # Remove batch dimension
+
+        # Create root node and expand
+        root = Node(1.0)  # Root prior doesn't matter
+        actions = list(range(self.config.action_space_size))
+        root.expand(actions, priors, root_hidden_state)
+
+        # Add exploration noise to root only if training
+        if add_noise:
+            self._add_exploration_noise(root)
+
+        # Run simulations
+        for _ in range(self.config.num_simulations):
+            self._simulate(network, root)
+
+        # Extract visit counts and normalize to probabilities
+        visit_counts = np.zeros(self.config.action_space_size)
+        for action, child in root.children.items():
+            visit_counts[action] = child.visit_count
+
+        # Normalize to probabilities
+        total_visits = np.sum(visit_counts)
+        if total_visits == 0:
+            return np.ones(self.config.action_space_size) / self.config.action_space_size
+
+        return visit_counts / total_visits
 
     def _simulate(self, network: "CuMindNetwork", root: Node) -> None:
         """Run one MCTS simulation.
@@ -160,25 +154,60 @@ class MCTS:
         Args:
             network: CuMind network for evaluation
             root: Root node of search tree
-
-        Implementation:
-            - Selection: traverse tree using UCB until leaf
-            - Expansion: expand leaf with network prediction
-            - Backup: propagate value up the path with discounting
         """
-        # Branch: feature/mcts-simulate
-        raise NotImplementedError("MCTS._simulate needs to be implemented")
+        # Selection: traverse tree using UCB until leaf
+        path = []
+        node = root
+
+        while node.is_expanded():
+            action = node.select_child(self.config.c_puct)
+            path.append((node, action))
+            node = node.children[action]
+
+        # Expansion and evaluation at leaf
+        if node.hidden_state is None:
+            # This leaf node needs a hidden state - get it from parent
+            if len(path) > 0:
+                parent_node, action = path[-1]
+                parent_state = parent_node.hidden_state
+                # Run dynamics to get next state
+                next_state, _ = network.dynamics_network(jnp.expand_dims(parent_state, 0), jnp.array([action]))
+                node.hidden_state = next_state[0]  # Remove batch dimension
+            else:
+                # Root node case
+                node.hidden_state = root.hidden_state
+
+        # Get prediction for this node
+        policy_logits, value = network.prediction_network(jnp.expand_dims(node.hidden_state, 0))
+        priors = jax.nn.softmax(policy_logits, axis=-1)[0]
+        leaf_value = float(value[0, 0])
+
+        # Expand if not terminal
+        actions = list(range(self.config.action_space_size))
+        node.expand(actions, priors, node.hidden_state)
+
+        # Backup: propagate value up the path with discounting
+        discount = 1.0
+        for node, action in reversed(path):
+            node.backup(leaf_value * discount)
+            discount *= self.config.discount
+
+        # Backup root
+        root.backup(leaf_value * discount)
 
     def _add_exploration_noise(self, root: Node) -> None:
         """Add Dirichlet noise to root node for exploration.
 
         Args:
             root: Root node to add noise to
-
-        Implementation:
-            - Sample Dirichlet noise with config.dirichlet_alpha
-            - Mix with existing priors using config.exploration_fraction
-            - Apply to all root children
         """
-        # Branch: feature/exploration-noise
-        raise NotImplementedError("MCTS._add_exploration_noise needs to be implemented")
+        if not root.children:
+            return
+
+        # Sample Dirichlet noise
+        num_actions = len(root.children)
+        noise = np.random.dirichlet([self.config.dirichlet_alpha] * num_actions)
+
+        # Mix with existing priors
+        for i, (_, child) in enumerate(root.children.items()):
+            child.prior = child.prior * (1 - self.config.exploration_fraction) + noise[i] * self.config.exploration_fraction

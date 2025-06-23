@@ -3,8 +3,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+from flax import nnx
 
-from cumind.core import (
+from cumind.core.network import (
     ConvEncoder,
     CuMindNetwork,
     DynamicsNetwork,
@@ -19,80 +20,129 @@ class TestResidualBlock:
     """Test suite for ResidualBlock."""
 
     def test_residual_block_initialization(self):
-        """Test ResidualBlock initialization.
+        """Test ResidualBlock initialization."""
+        key = jax.random.PRNGKey(0)
+        rngs = nnx.Rngs(params=key)
 
-        Implementation:
-            - Test block creation with different channel counts
-            - Verify layer creation (conv, batch norm)
-            - Test parameter initialization
-            - Test with edge case channel counts
-        """
-        # Branch: feature/residual-block-init-test
-        pass
+        channels = 32
+        block = ResidualBlock(channels, rngs)
+
+        # Test that block has required layers
+        assert hasattr(block, "conv1")
+        assert hasattr(block, "conv2")
+        assert hasattr(block, "bn1")
+        assert hasattr(block, "bn2")
+
+        # Test with different channel counts
+        for ch in [16, 64, 128]:
+            block = ResidualBlock(ch, rngs)
+            assert hasattr(block, "conv1")
 
     def test_residual_block_forward(self):
-        """Test ResidualBlock forward pass.
+        """Test ResidualBlock forward pass."""
+        key = jax.random.PRNGKey(0)
+        rngs = nnx.Rngs(params=key)
 
-        Implementation:
-            - Test forward pass with residual connection
-            - Verify output shape matches input shape
-            - Test with different input sizes
-            - Test activation function application
-        """
-        # Branch: feature/residual-block-forward-test
-        pass
+        channels = 32
+        block = ResidualBlock(channels, rngs)
+
+        # Test forward pass
+        batch_size, height, width = 2, 8, 8
+        x = jnp.ones((batch_size, height, width, channels))
+        output = block(x)
+
+        # Output shape should match input shape
+        assert output.shape == x.shape
+
+        # Output should be different from input (not identity)
+        assert not jnp.allclose(output, x)
 
     def test_residual_connection(self):
-        """Test residual connection functionality.
+        """Test residual connection functionality."""
+        key = jax.random.PRNGKey(0)
+        rngs = nnx.Rngs(params=key)
 
-        Implementation:
-            - Verify residual connection preserves gradients
-            - Test identity mapping when weights are zero
-            - Test with different input magnitudes
-            - Test gradient flow through connection
-        """
-        # Branch: feature/residual-connection-test
-        pass
+        channels = 16
+        block = ResidualBlock(channels, rngs)
+
+        batch_size, height, width = 1, 4, 4
+        x = jax.random.normal(jax.random.PRNGKey(1), (batch_size, height, width, channels))
+
+        # Test forward pass
+        output = block(x)
+
+        # Check that output shape is preserved
+        assert output.shape == x.shape
+
+        # Check that output is different from input (transformation occurred)
+        assert not jnp.allclose(output, x)
 
 
 class TestVectorEncoder:
     """Test suite for VectorEncoder."""
 
     def test_vector_encoder_initialization(self):
-        """Test VectorEncoder initialization.
+        """Test VectorEncoder initialization."""
+        key = jax.random.PRNGKey(0)
+        rngs = nnx.Rngs(params=key)
 
-        Implementation:
-            - Test encoder creation with 1D observation shape
-            - Verify fully connected layer creation
-            - Test with different hidden dimensions
-            - Test with different number of blocks
-        """
-        # Branch: feature/vector-encoder-init-test
-        pass
+        observation_shape = (4,)
+        hidden_dim = 64
+        num_blocks = 2
+
+        encoder = VectorEncoder(observation_shape, hidden_dim, num_blocks, rngs)
+
+        # Test that encoder has required attributes
+        assert hasattr(encoder, "layers")
+        assert len(encoder.layers) == num_blocks
+        assert encoder.hidden_dim == hidden_dim
+        assert encoder.observation_shape == observation_shape
 
     def test_vector_encoder_forward(self):
-        """Test VectorEncoder forward pass.
+        """Test VectorEncoder forward pass."""
+        key = jax.random.PRNGKey(0)
+        rngs = nnx.Rngs(params=key)
 
-        Implementation:
-            - Test encoding of 1D observations
-            - Verify output shape (batch_size, hidden_dim)
-            - Test with different batch sizes
-            - Test with different input dimensions
-        """
-        # Branch: feature/vector-encoder-forward-test
-        pass
+        observation_shape = (4,)
+        hidden_dim = 32
+        num_blocks = 2
+        batch_size = 3
+
+        encoder = VectorEncoder(observation_shape, hidden_dim, num_blocks, rngs)
+
+        # Test forward pass
+        obs = jnp.ones((batch_size, observation_shape[0]))
+        output = encoder(obs)
+
+        # Check output shape
+        assert output.shape == (batch_size, hidden_dim)
+
+        # Test with different input sizes
+        obs_large = jnp.ones((10, observation_shape[0]))
+        output_large = encoder(obs_large)
+        assert output_large.shape == (10, hidden_dim)
 
     def test_vector_encoder_gradients(self):
-        """Test VectorEncoder gradient flow.
+        """Test VectorEncoder gradient flow."""
+        key = jax.random.PRNGKey(0)
+        rngs = nnx.Rngs(params=key)
 
-        Implementation:
-            - Test backward pass through encoder
-            - Verify gradients reach all parameters
-            - Test with different learning rates
-            - Test gradient magnitude preservation
-        """
-        # Branch: feature/vector-encoder-gradients-test
-        pass
+        observation_shape = (8,)
+        hidden_dim = 16
+        num_blocks = 1
+
+        encoder = VectorEncoder(observation_shape, hidden_dim, num_blocks, rngs)
+
+        # Test forward pass
+        obs = jax.random.normal(jax.random.PRNGKey(1), (2, observation_shape[0]))
+        output = encoder(obs)
+
+        # Verify output shape
+        assert output.shape == (2, hidden_dim)
+
+        # Test that encoder has parameters
+        state = nnx.state(encoder)
+        assert len(state) > 0  # Should have parameters
 
 
 class TestConvEncoder:

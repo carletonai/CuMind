@@ -17,13 +17,11 @@ class ResidualBlock(nnx.Module):
         Args:
             channels: Number of input and output channels
             rngs: Random number generators for initialization
-
-        Implementation:
-            - Create two Conv layers (3x3, padding=1)
-            - Create two BatchNorm layers
         """
-        # Branch: feature/residual-block-init
-        raise NotImplementedError("ResidualBlock.__init__ needs to be implemented")
+        self.conv1 = nnx.Conv(channels, channels, kernel_size=(3, 3), padding=1, rngs=rngs)
+        self.bn1 = nnx.BatchNorm(channels, rngs=rngs)
+        self.conv2 = nnx.Conv(channels, channels, kernel_size=(3, 3), padding=1, rngs=rngs)
+        self.bn2 = nnx.BatchNorm(channels, rngs=rngs)
 
     def __call__(self, x: chex.Array) -> chex.Array:
         """Forward pass with residual connection.
@@ -33,14 +31,11 @@ class ResidualBlock(nnx.Module):
 
         Returns:
             Output tensor with same shape as input
-
-        Implementation:
-            - Store input as residual
-            - Apply conv1 -> bn1 -> relu -> conv2 -> bn2
-            - Add residual and apply final relu
         """
-        # Branch: feature/residual-block-forward
-        raise NotImplementedError("ResidualBlock.__call__ needs to be implemented")
+        residual = x
+        x = nnx.relu(self.bn1(self.conv1(x)))
+        x = self.bn2(self.conv2(x))
+        return nnx.relu(x + residual)
 
 
 class BaseEncoder(nnx.Module):
@@ -54,12 +49,12 @@ class BaseEncoder(nnx.Module):
             hidden_dim: Dimension of hidden representation
             num_blocks: Number of processing blocks
             rngs: Random number generators for initialization
-
-        Implementation:
-            - Setup encoder-specific layers
         """
-        # Branch: feature/base-encoder-init
-        raise NotImplementedError("BaseEncoder.__init__ needs to be implemented")
+        self.observation_shape = observation_shape
+        self.hidden_dim = hidden_dim
+        self.num_blocks = num_blocks
+        # Store rngs for potential use in subclasses
+        self.rngs = rngs
 
     def __call__(self, observation: chex.Array) -> chex.Array:
         raise NotImplementedError("BaseEncoder is abstract")
@@ -76,15 +71,17 @@ class VectorEncoder(BaseEncoder):
             hidden_dim: Output hidden dimension
             num_blocks: Number of fully connected blocks
             rngs: Random number generators for initialization
-
-        Implementation:
-            - Call super().__init__()
-            - Build sequence of Dense -> ReLU layers
-            - Use observation_shape[0] as input dimension
-            - Each block transforms to hidden_dim
         """
-        # Branch: feature/vector-encoder-init
-        raise NotImplementedError("VectorEncoder.__init__ needs to be implemented")
+        super().__init__(observation_shape, hidden_dim, num_blocks, rngs)
+
+        input_dim = observation_shape[0]
+        self.layers = []
+
+        # Create fully connected layers
+        current_dim = input_dim
+        for _ in range(num_blocks):
+            self.layers.append(nnx.Linear(current_dim, hidden_dim, rngs=rngs))
+            current_dim = hidden_dim
 
     def __call__(self, observation: chex.Array) -> chex.Array:
         """Encode 1D observation through fully connected layers.
@@ -94,14 +91,13 @@ class VectorEncoder(BaseEncoder):
 
         Returns:
             Hidden state tensor of shape (batch, hidden_dim)
-
-        Implementation:
-            - Pass observation through each fully connected layer
-            - Apply ReLU activation between layers
-            - Return final hidden representation
         """
-        # Branch: feature/vector-encoder-forward
-        raise NotImplementedError("VectorEncoder.__call__ needs to be implemented")
+        x = observation
+        for i, layer in enumerate(self.layers):
+            x = layer(x)
+            if i < len(self.layers) - 1:  # No ReLU after final layer
+                x = nnx.relu(x)
+        return x
 
 
 class ConvEncoder(BaseEncoder):
@@ -115,15 +111,19 @@ class ConvEncoder(BaseEncoder):
             hidden_dim: Output hidden dimension
             num_blocks: Number of residual blocks
             rngs: Random number generators for initialization
-
-        Implementation:
-            - Call super().__init__()
-            - Create initial conv layer to reduce spatial dimensions
-            - Create residual blocks for feature processing
-            - Create final dense layer to output hidden_dim
         """
-        # Branch: feature/conv-encoder-init
-        raise NotImplementedError("ConvEncoder.__init__ needs to be implemented")
+        super().__init__(observation_shape, hidden_dim, num_blocks, rngs)
+
+        # Initial conv to reduce spatial dimensions and increase channels
+        self.initial_conv = nnx.Conv(observation_shape[-1], 32, kernel_size=(3, 3), strides=(2, 2), padding=1, rngs=rngs)
+
+        # Residual blocks for feature processing
+        self.residual_blocks = []
+        for _ in range(num_blocks):
+            self.residual_blocks.append(ResidualBlock(32, rngs))
+
+        # Final dense layer to output hidden_dim
+        self.final_dense = nnx.Linear(32, hidden_dim, rngs=rngs)
 
     def __call__(self, observation: chex.Array) -> chex.Array:
         """Encode 3D observation through convolutional layers.
@@ -133,15 +133,18 @@ class ConvEncoder(BaseEncoder):
 
         Returns:
             Hidden state tensor of shape (batch, hidden_dim)
-
-        Implementation:
-            - Pass through initial conv layer
-            - Process through residual blocks
-            - Global average pooling to reduce spatial dimensions
-            - Final dense layer to hidden_dim
         """
-        # Branch: feature/conv-encoder-forward
-        raise NotImplementedError("ConvEncoder.__call__ needs to be implemented")
+        x = nnx.relu(self.initial_conv(observation))
+
+        # Process through residual blocks
+        for block in self.residual_blocks:
+            x = block(x)
+
+        # Global average pooling to reduce spatial dimensions
+        x = jnp.mean(x, axis=(1, 2))  # Average over height and width
+
+        # Final dense layer
+        return self.final_dense(x)
 
 
 class RepresentationNetwork(nnx.Module):
@@ -155,27 +158,30 @@ class RepresentationNetwork(nnx.Module):
             hidden_dim: Dimension of hidden representation
             num_blocks: Number of processing blocks
             rngs: Random number generators for initialization
-
-        Implementation:
-            - Use _create_encoder to select VectorEncoder or ConvEncoder
-            - Store encoder as self.encoder
         """
-        # Branch: feature/representation-init
-        raise NotImplementedError("RepresentationNetwork.__init__ needs to be implemented")
+        if rngs is None:
+            rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
 
-    def _create_encoder(self) -> BaseEncoder:
+        self.observation_shape = observation_shape
+        self.hidden_dim = hidden_dim
+        self.num_blocks = num_blocks
+        self.encoder = self._create_encoder(rngs)
+
+    def _create_encoder(self, rngs: nnx.Rngs) -> BaseEncoder:
         """Factory method to create appropriate encoder based on observation shape.
+
+        Args:
+            rngs: Random number generators for initialization
 
         Returns:
             VectorEncoder for 1D observations, ConvEncoder for 3D observations
-
-        Implementation:
-            - If len(observation_shape) == 1: return VectorEncoder
-            - If len(observation_shape) == 3: return ConvEncoder
-            - Otherwise: raise ValueError with helpful message
         """
-        # Branch: feature/encoder-factory
-        raise NotImplementedError("_create_encoder needs to be implemented")
+        if len(self.observation_shape) == 1:
+            return VectorEncoder(self.observation_shape, self.hidden_dim, self.num_blocks, rngs)
+        elif len(self.observation_shape) == 3:
+            return ConvEncoder(self.observation_shape, self.hidden_dim, self.num_blocks, rngs)
+        else:
+            raise ValueError(f"Unsupported observation shape: {self.observation_shape}. Expected 1D vector or 3D image, got {len(self.observation_shape)}D")
 
     def __call__(self, observation: chex.Array) -> chex.Array:
         """Encode observation to hidden state.
@@ -185,12 +191,9 @@ class RepresentationNetwork(nnx.Module):
 
         Returns:
             Hidden state tensor of shape (batch, hidden_dim)
-
-        Implementation:
-            - Simply forward to self.encoder
         """
-        # Branch: feature/representation-forward
-        raise NotImplementedError("RepresentationNetwork.__call__ needs to be implemented")
+        return self.encoder(observation)
+
 
 class DynamicsNetwork(nnx.Module):
     """gθ: Predict next hidden state and reward from current state and action."""
@@ -203,15 +206,25 @@ class DynamicsNetwork(nnx.Module):
             action_space_size: Number of possible actions
             num_blocks: Number of processing blocks
             rngs: Random number generators for initialization
-
-        Implementation:
-            - Action embedding to convert discrete actions to vectors
-            - Concatenate state and action embeddings
-            - Process through residual blocks or dense layers
-            - Output next state and reward prediction
         """
-        # Branch: feature/dynamics-network-init
-        raise NotImplementedError("DynamicsNetwork.__init__ needs to be implemented")
+        if rngs is None:
+            rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
+
+        self.hidden_dim = hidden_dim
+        self.action_space_size = action_space_size
+
+        # Action embedding to convert discrete actions to vectors
+        self.action_embedding = nnx.Embed(action_space_size, hidden_dim, rngs=rngs)
+
+        # Processing layers for state + action
+        self.layers = []
+        input_dim = hidden_dim * 2  # concatenated state and action
+        for _ in range(num_blocks):
+            self.layers.append(nnx.Linear(input_dim, hidden_dim, rngs=rngs))
+            input_dim = hidden_dim
+
+        # Reward prediction head
+        self.reward_head = nnx.Linear(hidden_dim, 1, rngs=rngs)
 
     def __call__(self, state: chex.Array, action: chex.Array) -> Tuple[chex.Array, chex.Array]:
         """Predict next state and reward.
@@ -222,14 +235,26 @@ class DynamicsNetwork(nnx.Module):
 
         Returns:
             Tuple of (next_state, reward) tensors
-
-        Implementation:
-            - Concatenate state and action embedding
-            - Process through blocks with residual connections
-            - Predict reward using reward head
         """
-        # Branch: feature/dynamics-network-forward
-        raise NotImplementedError("DynamicsNetwork.__call__ needs to be implemented")
+        # Embed actions and concatenate with state
+        action_embedded = self.action_embedding(action)
+        x = jnp.concatenate([state, action_embedded], axis=-1)
+
+        # Process through layers with residual connections
+        for i, layer in enumerate(self.layers):
+            residual = x if i > 0 and x.shape[-1] == self.hidden_dim else None
+            x = layer(x)
+            if residual is not None:
+                x = x + residual  # Skip connection for same-sized tensors
+            x = nnx.relu(x)
+
+        # Predict reward
+        reward = self.reward_head(x)
+
+        # Next state is the processed hidden representation
+        next_state = x
+
+        return next_state, reward
 
 
 class PredictionNetwork(nnx.Module):
@@ -242,31 +267,30 @@ class PredictionNetwork(nnx.Module):
             hidden_dim: Dimension of input hidden states
             action_space_size: Number of possible actions for policy head
             rngs: Random number generators for initialization
-
-        Implementation:
-            - Create policy head: Dense layer to action_space_size
-            - Create value head: Dense layer to single scalar
-            - Both heads process the same hidden state input
         """
-        # Branch: feature/prediction-network-init
-        raise NotImplementedError("PredictionNetwork.__init__ needs to be implemented")
+        if rngs is None:
+            rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
+
+        # Policy head: outputs action logits
+        self.policy_head = nnx.Linear(hidden_dim, action_space_size, rngs=rngs)
+
+        # Value head: outputs single scalar value
+        self.value_head = nnx.Linear(hidden_dim, 1, rngs=rngs)
 
     def __call__(self, hidden_state: chex.Array) -> Tuple[chex.Array, chex.Array]:
         """Predict policy logits and value from hidden state.
 
         Args:
             hidden_state: Hidden state tensor of shape (batch, hidden_dim)
+
+        Returns:
             Tuple of (policy_logits, value) where:
             - policy_logits: shape (batch, action_space_size)
             - value: shape (batch, 1)
-
-        Implementation:
-            - Apply policy head to get action logits
-            - Apply value head to get state value
-            - Return both predictions
         """
-        # Branch: feature/prediction-network-forward
-        raise NotImplementedError("PredictionNetwork.__call__ needs to be implemented")
+        policy_logits = self.policy_head(hidden_state)
+        value = self.value_head(hidden_state)
+        return policy_logits, value
 
 
 class CuMindNetwork(nnx.Module):
@@ -281,13 +305,14 @@ class CuMindNetwork(nnx.Module):
             hidden_dim: Dimension of hidden representations
             num_blocks: Number of processing blocks
             rngs: Random number generators for initialization
-
-        Implementation:
-            - Create RepresentationNetwork, DynamicsNetwork, PredictionNetwork
-            - Store all three networks as attributes
         """
-        # Branch: feature/cumind-network-init
-        raise NotImplementedError("CuMindNetwork.__init__ needs to be implemented")
+        if rngs is None:
+            rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
+
+        # Create the three networks
+        self.representation_network = RepresentationNetwork(observation_shape, hidden_dim, num_blocks, rngs)
+        self.dynamics_network = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
+        self.prediction_network = PredictionNetwork(hidden_dim, action_space_size, rngs)
 
     def initial_inference(self, observation: chex.Array) -> Tuple[chex.Array, chex.Array, chex.Array]:
         """Initial step: observation -> hidden state -> policy, value.
@@ -297,14 +322,10 @@ class CuMindNetwork(nnx.Module):
 
         Returns:
             Tuple of (hidden_state, policy_logits, value)
-
-        Implementation:
-            - Use representation network to encode observation
-            - Use prediction network to get policy and value
-            - Return all three components
         """
-        # Branch: feature/initial-inference
-        raise NotImplementedError("initial_inference needs to be implemented")
+        hidden_state = self.representation_network(observation)
+        policy_logits, value = self.prediction_network(hidden_state)
+        return hidden_state, policy_logits, value
 
     def recurrent_inference(self, hidden_state: chex.Array, action: chex.Array) -> Tuple[chex.Array, chex.Array, chex.Array, chex.Array]:
         """Recurrent step: hidden state + action -> next hidden state, reward, policy, value.
@@ -315,11 +336,7 @@ class CuMindNetwork(nnx.Module):
 
         Returns:
             Tuple of (next_hidden_state, reward, policy_logits, value)
-
-        Implementation:
-            - Use dynamics network to get next state and reward
-            - Use prediction network on next state to get policy and value
-            - Return all four components
         """
-        # Branch: feature/recurrent-inference
-        raise NotImplementedError("recurrent_inference needs to be implemented")
+        next_hidden_state, reward = self.dynamics_network(hidden_state, action)
+        policy_logits, value = self.prediction_network(next_hidden_state)
+        return next_hidden_state, reward, policy_logits, value

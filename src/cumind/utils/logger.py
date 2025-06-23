@@ -22,15 +22,32 @@ class Logger:
             log_dir: Directory to store log files
             wandb_project: Weights & Biases project name (optional)
             wandb_config: Configuration dict for W&B (optional)
-
-        Implementation:
-            - Setup file logging to log_dir
-            - Initialize TensorBoard writer
-            - Setup W&B if project name provided
-            - Store configuration parameters
         """
-        # Branch: feature/logger-init
-        raise NotImplementedError("Logger.__init__ needs to be implemented")
+        self.log_dir = Path(log_dir)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Setup file logging
+        self.logger = logging.getLogger("CuMind")
+        self.logger.setLevel(logging.INFO)
+
+        handler = logging.FileHandler(self.log_dir / "training.log")
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+
+        # Optional TensorBoard writer
+        self.tensorboard_writer = None
+        try:
+            from tensorboard import SummaryWriter  # type: ignore
+
+            self.tensorboard_writer = SummaryWriter(log_dir=str(self.log_dir))
+        except ImportError:
+            self.logger.info("TensorBoard not available, skipping TensorBoard logging")
+
+        # Optional W&B setup
+        self.use_wandb = wandb_project is not None
+        if self.use_wandb:
+            wandb.init(project=wandb_project, config=wandb_config, dir=str(self.log_dir))
 
     def log_scalar(self, name: str, value: float, step: int) -> None:
         """Log a scalar value.
@@ -39,14 +56,14 @@ class Logger:
             name: Name of the metric
             value: Scalar value to log
             step: Training step/epoch
-
-        Implementation:
-            - Log to file logger
-            - Send to TensorBoard if available
-            - Send to W&B if configured
         """
-        # Branch: feature/log-scalar
-        raise NotImplementedError("Logger.log_scalar needs to be implemented")
+        self.logger.info("Step %d: %s = %.6f", step, name, value)
+
+        if self.tensorboard_writer is not None:
+            self.tensorboard_writer.add_scalar(name, value, step)
+
+        if self.use_wandb:
+            wandb.log({name: value}, step=step)
 
     def log_scalars(self, metrics: Dict[str, float], step: int) -> None:
         """Log multiple scalar values.
@@ -54,34 +71,30 @@ class Logger:
         Args:
             metrics: Dictionary of metric names and values
             step: Training step/epoch
-
-        Implementation:
-            - Iterate through metrics dictionary
-            - Call log_scalar for each metric
         """
-        # Branch: feature/log-scalars
-        raise NotImplementedError("Logger.log_scalars needs to be implemented")
+        for name, value in metrics.items():
+            self.log_scalar(name, value, step)
 
     def log_text(self, text: str) -> None:
         """Log text message.
 
         Args:
             text: Text message to log
-
-        Implementation:
-            - Log to file logger with timestamp
-            - Send to W&B if configured
         """
-        # Branch: feature/log-text
-        raise NotImplementedError("Logger.log_text needs to be implemented")
+        self.logger.info(text)
+
+        if self.use_wandb:
+            wandb.log({"message": text})
 
     def close(self) -> None:
-        """Close logger and cleanup resources.
+        """Close logger and cleanup resources."""
+        if self.tensorboard_writer is not None:
+            self.tensorboard_writer.close()
 
-        Implementation:
-            - Close file handlers
-            - Close TensorBoard writer if active
-            - Finish W&B run if active
-        """
-        # Branch: feature/logger-close
-        raise NotImplementedError("Logger.close needs to be implemented")
+        if self.use_wandb:
+            wandb.finish()
+
+        # Close logging handlers
+        for handler in self.logger.handlers[:]:
+            handler.close()
+            self.logger.removeHandler(handler)
