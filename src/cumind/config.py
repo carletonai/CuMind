@@ -1,12 +1,13 @@
 """Configuration for CuMind."""
 
 import json
-from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Tuple
 
+import chex
 
-@dataclass
+
+@chex.dataclass
 class Config:
     """Hyperparameter configuration for CuMind.
 
@@ -70,7 +71,25 @@ class Config:
             json_path: Path to save JSON configuration file
         """
 
-        config_dict = asdict(self)
+        # Convert chex dataclass to dict
+        config_dict = {
+            "hidden_dim": self.hidden_dim,
+            "num_blocks": self.num_blocks,
+            "batch_size": self.batch_size,
+            "learning_rate": self.learning_rate,
+            "weight_decay": self.weight_decay,
+            "num_simulations": self.num_simulations,
+            "c_puct": self.c_puct,
+            "dirichlet_alpha": self.dirichlet_alpha,
+            "exploration_fraction": self.exploration_fraction,
+            "action_space_size": self.action_space_size,
+            "observation_shape": self.observation_shape,
+            "num_unroll_steps": self.num_unroll_steps,
+            "td_steps": self.td_steps,
+            "discount": self.discount,
+            "replay_buffer_size": self.replay_buffer_size,
+            "min_replay_size": self.min_replay_size,
+        }
         json_file = Path(json_path)
         json_file.parent.mkdir(parents=True, exist_ok=True)
 

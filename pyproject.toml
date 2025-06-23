@@ -3,17 +3,33 @@
 # =========================
 [project]
 name = "cumind"
-version = "0.1.2"
-description = "CUAIS CuMind implementation in PyTorch"
+version = "0.1.4"
+description = "CUAIS CuMind implementation"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=2.3.0",
     "gymnasium>=1.1.1",
-    "torch>=2.7.0",
-    "torchvision>=0.22.0",
+    "jax>=0.6.2",
+    "flax>=0.10.6",
+    "optax>=0.2.5",
+    "chex>=0.1.89",
     "wandb>=0.20.1",
 ]
+
+# JAX Dependencies:
+# - jax: Core JAX library for numerical computing
+# - flax: Neural network library built on JAX
+# - optax: Gradient-based optimization library 
+# - chex: Testing and assertion utilities for JAX
+
+# Note: JAX CPU version is used by default
+# To install other JAX versions, use:
+# pip install -U jax[cuda12]     # for NVIDIA GPUs with CUDA 12
+# pip install -U jax[tpu]        # for TPU
+# pip install -U jax[rocm]       # for AMD GPUs  
+# pip install -U jax[metal]      # for Apple Silicon
+
 
 # =========================
 # Build System
@@ -51,25 +67,3 @@ warn_unused_configs = true
 # =========================
 # UV Configuration
 # =========================
-
-[tool.uv.sources]
-torch = [
-    { index = "pytorch-cpu", marker = "sys_platform != 'win32'" },
-    { index = "pytorch-cu128", marker = "sys_platform == 'win32'" },
-
-]
-torchvision = [
-    { index = "pytorch-cpu", marker = "sys_platform !=   'win32'" },
-    { index = "pytorch-cu128", marker = "sys_platform == 'win32'" },
-
-]
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
-
-[[tool.uv.index]]
-name = "pytorch-cu128"
-url = "https://download.pytorch.org/whl/cu128"
-explicit = true

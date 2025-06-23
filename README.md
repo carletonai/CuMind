@@ -1,13 +1,14 @@
 # CuMind
 
-A clean, elegant implementation of the CuMind algorithm in PyTorch.
+A clean, elegant implementation of the MuZero in JAX.
 
 ## Contributing
 For guidelines on contributing to this project, please see the [CONTRIBUTING](CONTRIBUTING) document.
 
 ## Features
 
-- **Minimal dependencies**: Only PyTorch, NumPy, and Gymnasium
+- **JAX/Flax powered**: Built on JAX for high performance and research flexibility
+- **Minimal dependencies**: JAX, Flax, Optax, Chex, NumPy, and Gymnasium
 - **Clean architecture**: Modular design with separate components
 - **Type hints**: Full type annotations for better code quality
 - **Simple configuration**: Single config class for all parameters
@@ -38,6 +39,7 @@ uv sync
 
 ```python
 from cumind import Agent, Config
+import jax
 
 # Create configuration for CartPole (1D observations)
 config = Config(
@@ -46,6 +48,9 @@ config = Config(
     hidden_dim=64,
     num_simulations=25
 )
+
+# Initialize JAX random key
+key = jax.random.PRNGKey(42)
 
 # Create agent
 agent = Agent(config)

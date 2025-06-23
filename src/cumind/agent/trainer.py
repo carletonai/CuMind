@@ -2,9 +2,10 @@
 
 from typing import Any, Dict, List
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
+import chex
+import jax
+import jax.numpy as jnp
+import optax  # type: ignore
 
 from ..config import Config
 from ..core.network import CuMindNetwork
@@ -67,7 +68,7 @@ class Trainer:
 
         Implementation:
             - Create checkpoint dict with network state, optimizer state
-            - Use torch.save() to write to disk
+            - Use flax.training.checkpoints.save_checkpoint with msgpack serialization
             - Include training step counter and config
         """
         # Branch: feature/trainer-save
@@ -80,8 +81,8 @@ class Trainer:
             path: File path to load checkpoint from
 
         Implementation:
-            - Use torch.load() to read checkpoint dict
-            - Restore network and optimizer state_dicts
+            - Use flax.training.checkpoints.restore_checkpoint to read checkpoint
+            - Restore network and optimizer state using from_state_dict
             - Restore training step counter
         """
         # Branch: feature/trainer-load

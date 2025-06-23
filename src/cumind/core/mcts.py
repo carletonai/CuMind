@@ -3,8 +3,10 @@
 import math
 from typing import TYPE_CHECKING, Dict, List, Optional
 
+import chex
+import jax
+import jax.numpy as jnp
 import numpy as np
-import torch
 
 if TYPE_CHECKING:
     from ..config import Config
@@ -88,7 +90,7 @@ class Node:
         # Branch: feature/select-child
         raise NotImplementedError("Node.select_child needs to be implemented")
 
-    def expand(self, actions: List[int], priors: torch.Tensor, hidden_state: torch.Tensor) -> None:
+    def expand(self, actions: List[int], priors: chex.Array, hidden_state: chex.Array) -> None:
         """Expand node with children.
 
         Args:
@@ -133,7 +135,7 @@ class MCTS:
         # Branch: feature/mcts-init
         raise NotImplementedError("MCTS.__init__ needs to be implemented")
 
-    def search(self, network: "CuMindNetwork", root_hidden_state: torch.Tensor) -> np.ndarray:
+    def search(self, network: "CuMindNetwork", root_hidden_state: chex.Array) -> np.ndarray:
         """Run MCTS and return action probabilities.
 
         Args:

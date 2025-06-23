@@ -2,9 +2,11 @@
 
 from typing import Any, Dict, List, Tuple
 
+import chex
+import jax
+import jax.numpy as jnp
 import numpy as np
-import torch
-import torch.nn.functional as functional
+import optax  # type: ignore
 
 from ..config import Config
 from ..core.mcts import MCTS
@@ -64,7 +66,7 @@ class Agent:
         # Branch: feature/training-step
         raise NotImplementedError("train_step needs to be implemented")
 
-    def _prepare_batch(self, batch: List[Any]) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, torch.Tensor]]:
+    def _prepare_batch(self, batch: List[Any]) -> Tuple[chex.Array, chex.Array, Dict[str, chex.Array]]:
         """Extract and format training data from replay buffer batch.
 
         Args:
@@ -84,10 +86,10 @@ class Agent:
 
     def _compute_losses(
         self,
-        observations: torch.Tensor,
-        actions: torch.Tensor,
-        targets: Dict[str, torch.Tensor],
-    ) -> Dict[str, torch.Tensor]:
+        observations: chex.Array,
+        actions: chex.Array,
+        targets: Dict[str, chex.Array],
+    ) -> Dict[str, chex.Array]:
         """Compute CuMind losses for value, policy, and reward predictions.
 
         Args:
@@ -114,8 +116,8 @@ class Agent:
             path: File path to save checkpoint
 
         Implementation:
-            - Use torch.save() to save dict with network state_dict,
-              optimizer state_dict, and config
+            - Use flax.serialization.to_state_dict to serialize network state,
+              optimizer state, and config
         """
         # Branch: feature/checkpoint-saving
         raise NotImplementedError("save_checkpoint needs to be implemented")
@@ -127,8 +129,8 @@ class Agent:
             path: File path to load checkpoint from
 
         Implementation:
-            - Use torch.load() to load checkpoint dict
-            - Restore network and optimizer state_dicts
+            - Use flax.training.checkpoints.restore_checkpoint to load checkpoint
+            - Restore network and optimizer state using from_state_dict
         """
         # Branch: feature/checkpoint-loading
         raise NotImplementedError("load_checkpoint needs to be implemented")
