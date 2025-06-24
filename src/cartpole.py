@@ -10,7 +10,7 @@ from cumind.data.self_play import SelfPlay
 from cumind.utils.logger import Logger
 
 
-def train_cartpole():
+def train_cartpole() -> None:
     """Train CuMind agent on CartPole environment."""
 
     # Configuration for CartPole
@@ -61,7 +61,7 @@ def train_cartpole():
             agent.save_checkpoint(checkpoint_path)
             print(f"  Saved checkpoint: {checkpoint_path}")
 
-    env.close()
+    env.close()  # type: ignore
     logger.close()
     print("Training completed!")
 

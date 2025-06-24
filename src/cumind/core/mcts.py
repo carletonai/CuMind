@@ -82,7 +82,8 @@ class Node:
             hidden_state: Hidden state for this node
         """
         self.hidden_state = hidden_state
-        for action, prior in zip(actions, priors):
+        priors_array = jnp.asarray(priors, dtype=jnp.float32)
+        for action, prior in zip(actions, jnp.asarray(priors_array)):
             self.children[action] = Node(float(prior))
 
     def backup(self, value: float) -> None:
@@ -171,20 +172,24 @@ class MCTS:
                 parent_node, action = path[-1]
                 parent_state = parent_node.hidden_state
                 # Run dynamics to get next state
-                next_state, _ = network.dynamics_network(jnp.expand_dims(parent_state, 0), jnp.array([action]))
-                node.hidden_state = next_state[0]  # Remove batch dimension
+                if parent_state is not None:
+                    next_state, _ = network.dynamics_network(jnp.expand_dims(parent_state, 0), jnp.array([action]))
+                    node.hidden_state = jnp.asarray(next_state)[0]  # Remove batch dimension properly
             else:
                 # Root node case
                 node.hidden_state = root.hidden_state
 
         # Get prediction for this node
-        policy_logits, value = network.prediction_network(jnp.expand_dims(node.hidden_state, 0))
-        priors = jax.nn.softmax(policy_logits, axis=-1)[0]
-        leaf_value = float(value[0, 0])
+        if node.hidden_state is not None:
+            hidden_state_expanded = jnp.expand_dims(node.hidden_state, 0)
+            policy_logits, value = network.prediction_network(hidden_state_expanded)
+            priors = jax.nn.softmax(policy_logits, axis=-1)
+            priors_array = jnp.asarray(jnp.asarray(priors)[0], dtype=jnp.float32)
+            leaf_value = float(jnp.asarray(jnp.asarray(value)[0, 0]))
 
-        # Expand if not terminal
-        actions = list(range(self.config.action_space_size))
-        node.expand(actions, priors, node.hidden_state)
+            # Expand if not terminal
+            actions = list(range(self.config.action_space_size))
+            node.expand(actions, priors_array, jnp.asarray(node.hidden_state))
 
         # Backup: propagate value up the path with discounting
         discount = 1.0

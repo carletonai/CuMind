@@ -2,7 +2,7 @@
 
 import random
 from collections import deque
-from typing import Any, List, Tuple
+from typing import Any, Deque, List, Optional, Union
 
 import numpy as np
 
@@ -19,12 +19,12 @@ class ReplayBuffer:
         """
         self.capacity = capacity
         self.prioritized = prioritized
-        self.buffer = deque(maxlen=capacity)
+        self.buffer: Deque[Any] = deque(maxlen=capacity)
 
         if prioritized:
             # For simplicity, we'll implement a basic prioritized buffer
             # In a full implementation, you'd use a sum tree for efficiency
-            self.priorities = deque(maxlen=capacity)
+            self.priorities: Optional[Deque[float]] = deque(maxlen=capacity)
         else:
             self.priorities = None
 
@@ -36,9 +36,9 @@ class ReplayBuffer:
         """
         self.buffer.append(trajectory)
 
-        if self.prioritized:
+        if self.prioritized and self.priorities is not None:
             # Assign max priority to new trajectories
-            if self.priorities:
+            if len(self.priorities) > 0:
                 max_priority = max(self.priorities)
             else:
                 max_priority = 1.0

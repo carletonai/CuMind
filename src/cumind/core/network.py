@@ -33,9 +33,10 @@ class ResidualBlock(nnx.Module):
             Output tensor with same shape as input
         """
         residual = x
-        x = nnx.relu(self.bn1(self.conv1(x)))
-        x = self.bn2(self.conv2(x))
-        return nnx.relu(x + residual)
+        x_array = jnp.asarray(x, dtype=jnp.float32)
+        x_array = nnx.relu(self.bn1(self.conv1(x_array)))
+        x_array = self.bn2(self.conv2(x_array))
+        return nnx.relu(x_array + residual)
 
 
 class BaseEncoder(nnx.Module):
@@ -92,12 +93,12 @@ class VectorEncoder(BaseEncoder):
         Returns:
             Hidden state tensor of shape (batch, hidden_dim)
         """
-        x = observation
+        x_array = jnp.asarray(observation, dtype=jnp.float32)
         for i, layer in enumerate(self.layers):
-            x = layer(x)
+            x_array = layer(x_array)
             if i < len(self.layers) - 1:  # No ReLU after final layer
-                x = nnx.relu(x)
-        return x
+                x_array = nnx.relu(x_array)
+        return x_array
 
 
 class ConvEncoder(BaseEncoder):
@@ -134,17 +135,18 @@ class ConvEncoder(BaseEncoder):
         Returns:
             Hidden state tensor of shape (batch, hidden_dim)
         """
-        x = nnx.relu(self.initial_conv(observation))
+        x_array = jnp.asarray(observation, dtype=jnp.float32)
+        x_array = nnx.relu(self.initial_conv(x_array))
 
         # Process through residual blocks
         for block in self.residual_blocks:
-            x = block(x)
+            x_array = jnp.asarray(block(x_array), dtype=jnp.float32)
 
         # Global average pooling to reduce spatial dimensions
-        x = jnp.mean(x, axis=(1, 2))  # Average over height and width
+        pooled = jnp.mean(x_array, axis=(1, 2))  # Average over height and width
 
         # Final dense layer
-        return self.final_dense(x)
+        return self.final_dense(pooled)
 
 
 class RepresentationNetwork(nnx.Module):
@@ -237,8 +239,10 @@ class DynamicsNetwork(nnx.Module):
             Tuple of (next_state, reward) tensors
         """
         # Embed actions and concatenate with state
-        action_embedded = self.action_embedding(action)
-        x = jnp.concatenate([state, action_embedded], axis=-1)
+        state_array = jnp.asarray(state, dtype=jnp.float32)
+        action_array = jnp.asarray(action, dtype=jnp.int32)
+        action_embedded = self.action_embedding(action_array)
+        x = jnp.concatenate([state_array, action_embedded], axis=-1)
 
         # Process through layers with residual connections
         for i, layer in enumerate(self.layers):
@@ -288,8 +292,9 @@ class PredictionNetwork(nnx.Module):
             - policy_logits: shape (batch, action_space_size)
             - value: shape (batch, 1)
         """
-        policy_logits = self.policy_head(hidden_state)
-        value = self.value_head(hidden_state)
+        hidden_state_array = jnp.asarray(hidden_state, dtype=jnp.float32)
+        policy_logits = self.policy_head(hidden_state_array)
+        value = self.value_head(hidden_state_array)
         return policy_logits, value
 
 

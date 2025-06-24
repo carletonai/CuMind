@@ -1,6 +1,6 @@
 """JAX utility functions for CuMind."""
 
-from typing import Any, Callable, Sequence, Tuple
+from typing import Any, Callable, Sequence, Tuple, TypeVar, cast
 
 import chex
 import jax
@@ -17,7 +17,7 @@ def tree_stack(trees: Sequence[Any]) -> Any:
     Returns:
         PyTree with arrays stacked along new axis 0
     """
-    return jax.tree_map(lambda *arrays: jnp.stack(arrays, axis=0), *trees)
+    return jax.tree_util.tree_map(lambda *arrays: jnp.stack(arrays, axis=0), *trees)
 
 
 def tree_unstack(tree: Any) -> Tuple[Any, ...]:
@@ -29,16 +29,16 @@ def tree_unstack(tree: Any) -> Tuple[Any, ...]:
     Returns:
         Tuple of PyTrees unstacked along axis 0
     """
-    leaves, treedef = jax.tree_flatten(tree)
+    leaves, treedef = jax.tree_util.tree_flatten(tree)
     unstacked_leaves = [jnp.split(leaf, leaf.shape[0], axis=0) for leaf in leaves]
     unstacked_trees = []
     for i in range(leaves[0].shape[0]):
         tree_leaves = [leaf_splits[i].squeeze(0) for leaf_splits in unstacked_leaves]
-        unstacked_trees.append(jax.tree_unflatten(treedef, tree_leaves))
+        unstacked_trees.append(jax.tree_util.tree_unflatten(treedef, tree_leaves))
     return tuple(unstacked_trees)
 
 
-def batched_apply(fn: Callable, *args: Any, batch_size: int = 32) -> Any:
+def batched_apply[T](fn: Callable[[Any], T], *args: Any, batch_size: int = 32) -> T:
     """Apply function in batches to avoid memory issues.
 
     Args:
@@ -50,7 +50,7 @@ def batched_apply(fn: Callable, *args: Any, batch_size: int = 32) -> Any:
         Concatenated results from all batches
     """
     # Get the batch dimension
-    total_size = jax.tree_leaves(args[0])[0].shape[0]
+    total_size = jax.tree_util.tree_leaves(args[0])[0].shape[0]
 
     if total_size <= batch_size:
         return fn(*args)
@@ -58,11 +58,11 @@ def batched_apply(fn: Callable, *args: Any, batch_size: int = 32) -> Any:
     results = []
     for i in range(0, total_size, batch_size):
         end_idx = min(i + batch_size, total_size)
-        batch_args = jax.tree_map(lambda x: x[i:end_idx], args)
+        batch_args = jax.tree_util.tree_map(lambda x: x[i:end_idx], args)
         batch_result = fn(*batch_args)
         results.append(batch_result)
 
-    return jax.tree_map(lambda *arrays: jnp.concatenate(arrays, axis=0), *results)
+    return cast(T, jax.tree_util.tree_map(lambda *arrays: jnp.concatenate(arrays, axis=0), *results))
 
 
 def safe_normalize(x: chex.Array, axis: int = -1, epsilon: float = 1e-8) -> chex.Array:
