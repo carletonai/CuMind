@@ -6,7 +6,7 @@ name = "cumind"
 version = "0.1.5"
 description = "CUAIS CuMind implementation"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.3.0",
     "gymnasium>=1.1.1",
@@ -51,7 +51,7 @@ dev = ["ruff>=0.11.13", "pytest>=8.4.0", "mypy>=1.16.0"]
 # Ruff configuration
 [tool.ruff]
 line-length = 320
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"] # Errors, pyFlakes, Import, Naming, Warnings
@@ -59,7 +59,7 @@ ignore = ["E203", "E501", "F401"]
 
 # Mypy configuration
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
