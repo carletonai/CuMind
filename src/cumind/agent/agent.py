@@ -6,7 +6,7 @@ import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-import optax
+import optax  # type: ignore
 from flax import nnx
 
 from ..config import Config

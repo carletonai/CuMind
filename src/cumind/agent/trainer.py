@@ -7,6 +7,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from flax import nnx
+from tqdm import tqdm
 
 from ..config import Config
 from ..core.network import CuMindNetwork
@@ -41,27 +42,36 @@ class Trainer:
             num_episodes: The total number of episodes to run.
             train_frequency: The number of episodes between training steps.
         """
-        for episode in range(num_episodes):
+        pbar = tqdm(range(num_episodes), desc="Training Progress")
+        for episode in pbar:
             self_play = SelfPlay(self.config, self.agent, self.buffer)
             episode_data = self_play.run_episode(env)
 
             episode_reward = sum(step["reward"] for step in episode_data)
             episode_length = len(episode_data)
-            self.logger.log_scalar("episode_reward", episode_reward, episode)
-            self.logger.log_scalar("episode_length", episode_length, episode)
-            print(f"Episode {episode:3d}: Reward={episode_reward:6.1f}, Length={episode_length:3d}")
+            self.logger.log_text(f"Episode {episode:3d}: Reward={episode_reward:6.1f}, Length={episode_length:3d}")
 
+            loss_info = {}
             if episode % train_frequency == 0:
-                self.train_step()
+                loss_info = self.train_step()
+
+            pbar.set_postfix(
+                {
+                    "Episode": episode,
+                    "Reward": f"{episode_reward:.2f}",
+                    "Length": episode_length,
+                    "Loss": f"{loss_info.get('total_loss', 0):.4f}",
+                }
+            )
 
             if episode % 50 == 0 and episode > 0:
                 self.save_checkpoint(f"checkpoints/cartpole_episode_{episode}.pkl")
 
-    def train_step(self) -> None:
+    def train_step(self) -> Dict[str, float]:
         """Performs one full training step, including sampling and network update."""
         if not self.buffer.is_ready(self.config.min_replay_size):
-            print("Buffer not ready for training, skipping step.")
-            return
+            self.logger.log_text("Buffer not ready for training, skipping step.")
+            return {}
 
         batch = self.buffer.sample(self.config.batch_size)
         observations, actions, targets = self._prepare_batch(batch)
@@ -74,12 +84,13 @@ class Trainer:
         updates, self.agent.optimizer_state = self.agent.optimizer.update(grads, self.agent.optimizer_state, params)
         updated_params = optax.apply_updates(params, updates)
 
-        nnx.update(self.agent.network, {"params": updated_params})
+        nnx.update(self.agent.network, updated_params)
 
         losses_float = {f"train/{k}": float(v) for k, v in losses.items()}
+        losses_float["total_loss"] = float(total_loss)
         self.logger.log_scalars(losses_float, self.train_step_count)
-        print(f"  Training step {self.train_step_count} - Losses: {losses_float}")
         self.train_step_count += 1
+        return {"total_loss": float(total_loss), **losses_float}
 
     def _loss_fn(self, params: nnx.State, observations: chex.Array, actions: chex.Array, targets: Dict[str, chex.Array]) -> Tuple[chex.Array, Dict[str, chex.Array]]:
         """Computes the total loss for a batch."""

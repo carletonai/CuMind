@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 from flax import nnx
 
+from cumind.config import Config
 from cumind.core import MCTS, Node
 from cumind.core.network import CuMindNetwork
-from cumind.config import Config
 
 
 class TestNode:

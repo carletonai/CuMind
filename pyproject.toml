@@ -15,6 +15,7 @@ dependencies = [
     "optax>=0.2.5",
     "chex>=0.1.89",
     "wandb>=0.20.1",
+    "tqdm>=4.67.1",
 ]
 
 # JAX Dependencies:
@@ -55,7 +56,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"] # Errors, pyFlakes, Import, Naming, Warnings
-ignore = ["E203", "E501", "F401"]
+ignore = ["E203", "E501", "F401", "N803"]
 
 # Mypy configuration
 [tool.mypy]

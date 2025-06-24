@@ -31,7 +31,7 @@ class Logger:
         self.logger.setLevel(logging.INFO)
 
         handler = logging.FileHandler(self.log_dir / "training.log")
-        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S")
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
 
