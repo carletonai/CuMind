@@ -99,43 +99,43 @@ class Node:
 class MCTS:
     """Monte Carlo Tree Search."""
 
-    def __init__(self, config: "Config"):
-        """Initialize MCTS with configuration.
+    def __init__(self, network: "CuMindNetwork", config: "Config"):
+        """Initialize MCTS with a network and configuration.
 
         Args:
-            config: CuMind configuration with MCTS parameters
+            network: The CuMind network for model-based rollouts.
+            config: CuMind configuration with MCTS parameters.
         """
+        self.network = network
         self.config = config
 
-    def search(self, network: "CuMindNetwork", root_hidden_state: chex.Array, add_noise: bool = True) -> np.ndarray:
+    def search(self, root_hidden_state: chex.Array, add_noise: bool = True) -> np.ndarray:
         """Run MCTS and return action probabilities.
 
         Args:
-            network: CuMind network for evaluation
-            root_hidden_state: Hidden state of root node
-            add_noise: Whether to add exploration noise (set False for evaluation)
+            root_hidden_state: Hidden state of the root node.
+            add_noise: If True, add exploration noise to the root's priors.
 
         Returns:
-            Action probability distribution
+            Action probability distribution.
         """
         # Get initial prediction for root
-        # Add batch dimension for network prediction
         root_hidden_state_batched = jnp.expand_dims(root_hidden_state, 0)
-        policy_logits, _ = network.prediction_network(root_hidden_state_batched)
-        priors = jax.nn.softmax(policy_logits, axis=-1)[0]  # Remove batch dimension
+        policy_logits, _ = self.network.prediction_network(root_hidden_state_batched)
+        priors = jax.nn.softmax(policy_logits, axis=-1)[0]
 
         # Create root node and expand
-        root = Node(1.0)  # Root prior doesn't matter
+        root = Node(1.0)
         actions = list(range(self.config.action_space_size))
         root.expand(actions, priors, root_hidden_state)
 
-        # Add exploration noise to root only if training
+        # Add exploration noise to root if training
         if add_noise:
             self._add_exploration_noise(root)
 
         # Run simulations
         for _ in range(self.config.num_simulations):
-            self._simulate(network, root)
+            self._simulate(root)
 
         # Extract visit counts and normalize to probabilities
         visit_counts = np.zeros(self.config.action_space_size)
@@ -149,14 +149,13 @@ class MCTS:
 
         return visit_counts / total_visits
 
-    def _simulate(self, network: "CuMindNetwork", root: Node) -> None:
-        """Run one MCTS simulation.
+    def _simulate(self, root: Node) -> None:
+        """Run one MCTS simulation from the root.
 
         Args:
-            network: CuMind network for evaluation
-            root: Root node of search tree
+            root: The root node of the search tree.
         """
-        # Selection: traverse tree using UCB until leaf
+        # Selection: traverse tree using UCB until a leaf is reached
         path = []
         node = root
 
@@ -165,46 +164,41 @@ class MCTS:
             path.append((node, action))
             node = node.children[action]
 
-        # Expansion and evaluation at leaf
+        leaf_value = 0.0
+        # Expansion and evaluation at the leaf
         if node.hidden_state is None:
-            # This leaf node needs a hidden state - get it from parent
+            # This can happen if the leaf was just created. Its state needs to be computed.
             if len(path) > 0:
                 parent_node, action = path[-1]
-                parent_state = parent_node.hidden_state
-                # Run dynamics to get next state
-                if parent_state is not None:
-                    next_state, _ = network.dynamics_network(jnp.expand_dims(parent_state, 0), jnp.array([action]))
-                    node.hidden_state = jnp.asarray(next_state)[0]  # Remove batch dimension properly
+                if parent_node.hidden_state is not None:
+                    # Run dynamics to get the next state for the leaf
+                    next_state, _ = self.network.dynamics_network(jnp.expand_dims(parent_node.hidden_state, 0), jnp.array([action]))
+                    node.hidden_state = jnp.asarray(next_state)[0]
             else:
-                # Root node case
+                # This case is for the root, which should always have a state.
                 node.hidden_state = root.hidden_state
 
-        # Get prediction for this node
+        # Evaluate the leaf and expand it
         if node.hidden_state is not None:
             hidden_state_expanded = jnp.expand_dims(node.hidden_state, 0)
-            policy_logits, value = network.prediction_network(hidden_state_expanded)
+            policy_logits, value = self.network.prediction_network(hidden_state_expanded)
             priors = jax.nn.softmax(policy_logits, axis=-1)
-            priors_array = jnp.asarray(jnp.asarray(priors)[0], dtype=jnp.float32)
-            leaf_value = float(jnp.asarray(jnp.asarray(value)[0, 0]))
+            priors_array = np.asarray(priors[0], dtype=np.float32)
+            leaf_value = float(jnp.asarray(value)[0, 0])
 
-            # Expand if not terminal
             actions = list(range(self.config.action_space_size))
             node.expand(actions, priors_array, jnp.asarray(node.hidden_state))
 
-        # Backup: propagate value up the path with discounting
-        discount = 1.0
-        for node, action in reversed(path):
-            node.backup(leaf_value * discount)
-            discount *= self.config.discount
-
-        # Backup root
-        root.backup(leaf_value * discount)
+        # Backup: propagate the leaf's value up the path
+        for node, _ in reversed(path):
+            node.backup(leaf_value)
+        root.backup(leaf_value)
 
     def _add_exploration_noise(self, root: Node) -> None:
-        """Add Dirichlet noise to root node for exploration.
+        """Add Dirichlet noise to the root node's priors for exploration.
 
         Args:
-            root: Root node to add noise to
+            root: The root node to add noise to.
         """
         if not root.children:
             return

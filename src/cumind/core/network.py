@@ -9,157 +9,149 @@ from flax import nnx
 
 
 class ResidualBlock(nnx.Module):
-    """Residual block for the neural network."""
+    """A standard residual block with two convolutional layers."""
 
     def __init__(self, channels: int, rngs: nnx.Rngs):
-        """Initialize residual block layers.
+        """Initializes the residual block.
 
         Args:
-            channels: Number of input and output channels
-            rngs: Random number generators for initialization
+            channels: The number of input and output channels.
+            rngs: Random number generators for layer initialization.
         """
         self.conv1 = nnx.Conv(channels, channels, kernel_size=(3, 3), padding=1, rngs=rngs)
-        self.bn1 = nnx.BatchNorm(channels, rngs=rngs)
+        self.bn1 = nnx.BatchNorm(channels, use_running_average=True, rngs=rngs)
         self.conv2 = nnx.Conv(channels, channels, kernel_size=(3, 3), padding=1, rngs=rngs)
-        self.bn2 = nnx.BatchNorm(channels, rngs=rngs)
+        self.bn2 = nnx.BatchNorm(channels, use_running_average=True, rngs=rngs)
 
     def __call__(self, x: chex.Array) -> chex.Array:
-        """Forward pass with residual connection.
+        """Performs a forward pass through the residual block.
 
         Args:
-            x: Input tensor of shape (batch, height, width, channels)
+            x: The input tensor of shape (batch, height, width, channels).
 
         Returns:
-            Output tensor with same shape as input
+            The output tensor with the same shape as the input.
         """
         residual = x
         x_array = jnp.asarray(x, dtype=jnp.float32)
-        x_array = nnx.relu(self.bn1(self.conv1(x_array)))
-        x_array = self.bn2(self.conv2(x_array))
+        x_array = self.conv1(x_array)
+        x_array = self.bn1(x_array)
+        x_array = nnx.relu(x_array)
+        x_array = self.conv2(x_array)
+        x_array = self.bn2(x_array)
         return nnx.relu(x_array + residual)
 
 
 class BaseEncoder(nnx.Module):
-    """Base class for observation encoders."""
+    """Abstract base class for observation encoders."""
 
     def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int, rngs: nnx.Rngs):
-        """Initialize base encoder with configuration.
+        """Initializes the base encoder.
 
         Args:
-            observation_shape: Shape of input observations
-            hidden_dim: Dimension of hidden representation
-            num_blocks: Number of processing blocks
-            rngs: Random number generators for initialization
+            observation_shape: The shape of the input observations.
+            hidden_dim: The dimension of the output hidden representation.
+            num_blocks: The number of processing blocks (e.g., residual or dense).
+            rngs: Random number generators for layer initialization.
         """
         self.observation_shape = observation_shape
         self.hidden_dim = hidden_dim
         self.num_blocks = num_blocks
-        # Store rngs for potential use in subclasses
         self.rngs = rngs
 
     def __call__(self, observation: chex.Array) -> chex.Array:
-        raise NotImplementedError("BaseEncoder is abstract")
+        """Encodes an observation into a hidden state."""
+        raise NotImplementedError("BaseEncoder is an abstract class.")
 
 
 class VectorEncoder(BaseEncoder):
-    """Encoder for 1D vector observations."""
+    """An encoder for 1D vector observations using fully connected layers."""
 
     def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int, rngs: nnx.Rngs):
-        """Initialize vector encoder with fully connected layers.
+        """Initializes the vector encoder.
 
         Args:
-            observation_shape: Shape of 1D observation (e.g., (4,))
-            hidden_dim: Output hidden dimension
-            num_blocks: Number of fully connected blocks
-            rngs: Random number generators for initialization
+            observation_shape: The shape of the 1D observation (e.g., (4,)).
+            hidden_dim: The output hidden dimension.
+            num_blocks: The number of fully connected blocks.
+            rngs: Random number generators for layer initialization.
         """
         super().__init__(observation_shape, hidden_dim, num_blocks, rngs)
 
         input_dim = observation_shape[0]
         self.layers = []
 
-        # Create fully connected layers
         current_dim = input_dim
-        for _ in range(num_blocks):
-            self.layers.append(nnx.Linear(current_dim, hidden_dim, rngs=rngs))
-            current_dim = hidden_dim
+        for i in range(num_blocks):
+            output_dim = hidden_dim if i == num_blocks - 1 else hidden_dim
+            self.layers.append(nnx.Linear(current_dim, output_dim, rngs=rngs))
+            current_dim = output_dim
 
     def __call__(self, observation: chex.Array) -> chex.Array:
-        """Encode 1D observation through fully connected layers.
+        """Encodes a 1D observation into a hidden state.
 
         Args:
-            observation: Flattened observation of shape (batch, obs_dim)
+            observation: A flattened observation of shape (batch, obs_dim).
 
         Returns:
-            Hidden state tensor of shape (batch, hidden_dim)
+            A hidden state tensor of shape (batch, hidden_dim).
         """
-        x_array = jnp.asarray(observation, dtype=jnp.float32)
+        x = jnp.asarray(observation, dtype=jnp.float32)
         for i, layer in enumerate(self.layers):
-            x_array = layer(x_array)
-            if i < len(self.layers) - 1:  # No ReLU after final layer
-                x_array = nnx.relu(x_array)
-        return x_array
+            x = layer(x)
+            if i < len(self.layers) - 1:
+                x = nnx.relu(x)
+        return x
 
 
 class ConvEncoder(BaseEncoder):
-    """Encoder for 3D image observations (e.g., Atari)."""
+    """An encoder for 3D image observations using convolutional layers."""
 
     def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int, rngs: nnx.Rngs):
-        """Initialize convolutional encoder for image observations.
+        """Initializes the convolutional encoder.
 
         Args:
-            observation_shape: Shape of 3D observation (channels, height, width)
-            hidden_dim: Output hidden dimension
-            num_blocks: Number of residual blocks
-            rngs: Random number generators for initialization
+            observation_shape: The shape of the 3D observation (height, width, channels).
+            hidden_dim: The output hidden dimension.
+            num_blocks: The number of residual blocks.
+            rngs: Random number generators for layer initialization.
         """
         super().__init__(observation_shape, hidden_dim, num_blocks, rngs)
 
-        # Initial conv to reduce spatial dimensions and increase channels
         self.initial_conv = nnx.Conv(observation_shape[-1], 32, kernel_size=(3, 3), strides=(2, 2), padding=1, rngs=rngs)
-
-        # Residual blocks for feature processing
-        self.residual_blocks = []
-        for _ in range(num_blocks):
-            self.residual_blocks.append(ResidualBlock(32, rngs))
-
-        # Final dense layer to output hidden_dim
+        self.residual_blocks = [ResidualBlock(32, rngs) for _ in range(num_blocks)]
         self.final_dense = nnx.Linear(32, hidden_dim, rngs=rngs)
 
     def __call__(self, observation: chex.Array) -> chex.Array:
-        """Encode 3D observation through convolutional layers.
+        """Encodes a 3D observation into a hidden state.
 
         Args:
-            observation: Image observation of shape (batch, height, width, channels)
+            observation: An image observation of shape (batch, height, width, channels).
 
         Returns:
-            Hidden state tensor of shape (batch, hidden_dim)
+            A hidden state tensor of shape (batch, hidden_dim).
         """
-        x_array = jnp.asarray(observation, dtype=jnp.float32)
-        x_array = nnx.relu(self.initial_conv(x_array))
+        x = jnp.asarray(observation, dtype=jnp.float32)
+        x = nnx.relu(self.initial_conv(x))
 
-        # Process through residual blocks
         for block in self.residual_blocks:
-            x_array = jnp.asarray(block(x_array), dtype=jnp.float32)
+            x = jnp.asarray(block(x), dtype=jnp.float32)
 
-        # Global average pooling to reduce spatial dimensions
-        pooled = jnp.mean(x_array, axis=(1, 2))  # Average over height and width
-
-        # Final dense layer
+        pooled = jnp.mean(x, axis=(1, 2))
         return self.final_dense(pooled)
 
 
 class RepresentationNetwork(nnx.Module):
-    """rθ: Encode raw observations to hidden states."""
+    """The representation network (r_theta) that encodes raw observations into hidden states."""
 
     def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int = 64, num_blocks: int = 4, rngs: Optional[nnx.Rngs] = None):
-        """Initialize representation network with appropriate encoder.
+        """Initializes the representation network.
 
         Args:
-            observation_shape: Shape of input observations
-            hidden_dim: Dimension of hidden representation
-            num_blocks: Number of processing blocks
-            rngs: Random number generators for initialization
+            observation_shape: The shape of the input observations.
+            hidden_dim: The dimension of the hidden representation.
+            num_blocks: The number of processing blocks in the encoder.
+            rngs: Random number generators for layer initialization.
         """
         if rngs is None:
             rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
@@ -170,177 +162,146 @@ class RepresentationNetwork(nnx.Module):
         self.encoder = self._create_encoder(rngs)
 
     def _create_encoder(self, rngs: nnx.Rngs) -> BaseEncoder:
-        """Factory method to create appropriate encoder based on observation shape.
-
-        Args:
-            rngs: Random number generators for initialization
-
-        Returns:
-            VectorEncoder for 1D observations, ConvEncoder for 3D observations
-        """
+        """Creates the appropriate encoder based on the observation shape."""
         if len(self.observation_shape) == 1:
             return VectorEncoder(self.observation_shape, self.hidden_dim, self.num_blocks, rngs)
-        elif len(self.observation_shape) == 3:
+        if len(self.observation_shape) == 3:
             return ConvEncoder(self.observation_shape, self.hidden_dim, self.num_blocks, rngs)
-        else:
-            raise ValueError(f"Unsupported observation shape: {self.observation_shape}. Expected 1D vector or 3D image, got {len(self.observation_shape)}D")
+        raise ValueError(f"Unsupported observation shape: {self.observation_shape}")
 
     def __call__(self, observation: chex.Array) -> chex.Array:
-        """Encode observation to hidden state.
+        """Encodes an observation into a hidden state.
 
         Args:
-            observation: Input observation tensor
+            observation: The input observation tensor.
 
         Returns:
-            Hidden state tensor of shape (batch, hidden_dim)
+            A hidden state tensor of shape (batch, hidden_dim).
         """
         return self.encoder(observation)
 
 
 class DynamicsNetwork(nnx.Module):
-    """gθ: Predict next hidden state and reward from current state and action."""
+    """The dynamics network (g_theta) that predicts the next hidden state and reward."""
 
     def __init__(self, hidden_dim: int, action_space_size: int, num_blocks: int = 4, rngs: Optional[nnx.Rngs] = None):
-        """Initialize dynamics network with action embedding and processing blocks.
+        """Initializes the dynamics network.
 
         Args:
-            hidden_dim: Dimension of hidden states
-            action_space_size: Number of possible actions
-            num_blocks: Number of processing blocks
-            rngs: Random number generators for initialization
+            hidden_dim: The dimension of the hidden states.
+            action_space_size: The number of possible actions.
+            num_blocks: The number of processing blocks.
+            rngs: Random number generators for layer initialization.
         """
         if rngs is None:
             rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
 
         self.hidden_dim = hidden_dim
         self.action_space_size = action_space_size
-
-        # Action embedding to convert discrete actions to vectors
         self.action_embedding = nnx.Embed(action_space_size, hidden_dim, rngs=rngs)
 
-        # Processing layers for state + action
         self.layers = []
-        input_dim = hidden_dim * 2  # concatenated state and action
         for _ in range(num_blocks):
-            self.layers.append(nnx.Linear(input_dim, hidden_dim, rngs=rngs))
-            input_dim = hidden_dim
+            self.layers.append(nnx.Linear(hidden_dim, hidden_dim, rngs=rngs))
 
-        # Reward prediction head
         self.reward_head = nnx.Linear(hidden_dim, 1, rngs=rngs)
 
     def __call__(self, state: chex.Array, action: chex.Array) -> Tuple[chex.Array, chex.Array]:
-        """Predict next state and reward.
+        """Predicts the next hidden state and reward.
 
         Args:
-            state: Current hidden state of shape (batch, hidden_dim)
-            action: Action indices of shape (batch,)
+            state: The current hidden state of shape (batch, hidden_dim).
+            action: The action indices of shape (batch,).
 
         Returns:
-            Tuple of (next_state, reward) tensors
+            A tuple containing the next hidden state and the predicted reward.
         """
-        # Embed actions and concatenate with state
-        state_array = jnp.asarray(state, dtype=jnp.float32)
-        action_array = jnp.asarray(action, dtype=jnp.int32)
-        action_embedded = self.action_embedding(action_array)
-        x = jnp.concatenate([state_array, action_embedded], axis=-1)
+        action_embedded = self.action_embedding(jnp.asarray(action, dtype=jnp.int32))
+        x = jnp.asarray(state, dtype=jnp.float32) + action_embedded
 
-        # Process through layers with residual connections
-        for i, layer in enumerate(self.layers):
-            residual = x if i > 0 and x.shape[-1] == self.hidden_dim else None
-            x = layer(x)
-            if residual is not None:
-                x = x + residual  # Skip connection for same-sized tensors
-            x = nnx.relu(x)
+        for layer in self.layers:
+            residual = x
+            x = nnx.relu(layer(x))
+            x = x + residual
 
-        # Predict reward
         reward = self.reward_head(x)
-
-        # Next state is the processed hidden representation
-        next_state = x
-
-        return next_state, reward
+        return x, reward
 
 
 class PredictionNetwork(nnx.Module):
-    """fθ: Predict policy and value from hidden state."""
+    """The prediction network (f_theta) that predicts the policy and value from a hidden state."""
 
     def __init__(self, hidden_dim: int, action_space_size: int, rngs: Optional[nnx.Rngs] = None):
-        """Initialize prediction network with policy and value heads.
+        """Initializes the prediction network.
 
         Args:
-            hidden_dim: Dimension of input hidden states
-            action_space_size: Number of possible actions for policy head
-            rngs: Random number generators for initialization
+            hidden_dim: The dimension of the input hidden states.
+            action_space_size: The number of possible actions for the policy head.
+            rngs: Random number generators for layer initialization.
         """
         if rngs is None:
             rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
 
-        # Policy head: outputs action logits
         self.policy_head = nnx.Linear(hidden_dim, action_space_size, rngs=rngs)
-
-        # Value head: outputs single scalar value
         self.value_head = nnx.Linear(hidden_dim, 1, rngs=rngs)
 
     def __call__(self, hidden_state: chex.Array) -> Tuple[chex.Array, chex.Array]:
-        """Predict policy logits and value from hidden state.
+        """Predicts the policy logits and value from a hidden state.
 
         Args:
-            hidden_state: Hidden state tensor of shape (batch, hidden_dim)
+            hidden_state: A hidden state tensor of shape (batch, hidden_dim).
 
         Returns:
-            Tuple of (policy_logits, value) where:
-            - policy_logits: shape (batch, action_space_size)
-            - value: shape (batch, 1)
+            A tuple of (policy_logits, value).
         """
-        hidden_state_array = jnp.asarray(hidden_state, dtype=jnp.float32)
-        policy_logits = self.policy_head(hidden_state_array)
-        value = self.value_head(hidden_state_array)
+        x = jnp.asarray(hidden_state, dtype=jnp.float32)
+        policy_logits = self.policy_head(x)
+        value = self.value_head(x)
         return policy_logits, value
 
 
 class CuMindNetwork(nnx.Module):
-    """Complete CuMind neural network combining all three networks."""
+    """The complete CuMind network, combining representation, dynamics, and prediction."""
 
     def __init__(self, observation_shape: Tuple[int, ...], action_space_size: int, hidden_dim: int = 64, num_blocks: int = 4, rngs: Optional[nnx.Rngs] = None):
-        """Initialize complete CuMind network.
+        """Initializes the complete CuMind network.
 
         Args:
-            observation_shape: Shape of input observations
-            action_space_size: Number of possible actions
-            hidden_dim: Dimension of hidden representations
-            num_blocks: Number of processing blocks
-            rngs: Random number generators for initialization
+            observation_shape: The shape of the input observations.
+            action_space_size: The number of possible actions.
+            hidden_dim: The dimension of the hidden representations.
+            num_blocks: The number of processing blocks in the networks.
+            rngs: Random number generators for layer initialization.
         """
         if rngs is None:
             rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
 
-        # Create the three networks
         self.representation_network = RepresentationNetwork(observation_shape, hidden_dim, num_blocks, rngs)
         self.dynamics_network = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
         self.prediction_network = PredictionNetwork(hidden_dim, action_space_size, rngs)
 
     def initial_inference(self, observation: chex.Array) -> Tuple[chex.Array, chex.Array, chex.Array]:
-        """Initial step: observation -> hidden state -> policy, value.
+        """Performs the initial inference step from an observation.
 
         Args:
-            observation: Input observation tensor
+            observation: The input observation tensor.
 
         Returns:
-            Tuple of (hidden_state, policy_logits, value)
+            A tuple of (hidden_state, policy_logits, value).
         """
         hidden_state = self.representation_network(observation)
         policy_logits, value = self.prediction_network(hidden_state)
         return hidden_state, policy_logits, value
 
     def recurrent_inference(self, hidden_state: chex.Array, action: chex.Array) -> Tuple[chex.Array, chex.Array, chex.Array, chex.Array]:
-        """Recurrent step: hidden state + action -> next hidden state, reward, policy, value.
+        """Performs a recurrent inference step from a hidden state and action.
 
         Args:
-            hidden_state: Current hidden state
-            action: Action to take
+            hidden_state: The current hidden state.
+            action: The action to take.
 
         Returns:
-            Tuple of (next_hidden_state, reward, policy_logits, value)
+            A tuple of (next_hidden_state, reward, policy_logits, value).
         """
         next_hidden_state, reward = self.dynamics_network(hidden_state, action)
         policy_logits, value = self.prediction_network(next_hidden_state)

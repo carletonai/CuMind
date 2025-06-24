@@ -1,89 +1,183 @@
 """Training loop implementation."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import chex
 import jax
 import jax.numpy as jnp
-import optax  # type: ignore
+import optax
+from flax import nnx
 
 from ..config import Config
 from ..core.network import CuMindNetwork
+from ..data.memory_buffer import MemoryBuffer
+from ..data.self_play import SelfPlay
+from ..utils.checkpoint import load_checkpoint, save_checkpoint
+from ..utils.logger import Logger
 from .agent import Agent
 
 
 class Trainer:
-    """Training loop: sampling, unrolling, loss computation."""
+    """Orchestrates the training process, including sampling, updates, and logging."""
 
-    def __init__(self, config: Config):
-        """Initialize trainer with config and network components.
-
+    def __init__(self, agent: Agent, buffer: MemoryBuffer, config: Config, logger: Logger):
+        """Initializes the Trainer.
         Args:
-            config: CuMind configuration with training parameters
-
-        Implementation:
-            - Create CuMindNetwork instance
-            - Setup optimizer with config learning rate and weight decay
-            - Initialize training state and counters
+            agent: The agent to train.
+            buffer: The replay buffer for sampling training data.
+            config: The configuration object.
+            logger: The logger for recording metrics.
         """
-        # Branch: feature/trainer-init
-        raise NotImplementedError("Trainer.__init__ needs to be implemented")
+        self.agent = agent
+        self.buffer = buffer
+        self.config = config
+        self.logger = logger
+        self.train_step_count = 0
 
-    def _get_network_parameters(self) -> Any:
-        """Get network parameters for optimization.
-
-        Returns:
-            Network parameters iterator
-
-        Implementation:
-            - Return network.parameters() for optimizer
-        """
-        # Branch: feature/get-network-parameters
-        raise NotImplementedError("Trainer._get_network_parameters needs to be implemented")
-
-    def train_step(self, batch: List[Any]) -> Dict[str, float]:
-        """Perform one training step on a batch of data.
-
+    def run_training_loop(self, env: Any, num_episodes: int, train_frequency: int) -> None:
+        """Runs the main training loop.
         Args:
-            batch: List of training trajectories
-
-        Returns:
-            Dictionary of loss values for monitoring
-
-        Implementation:
-            - Extract observations, actions, targets from batch
-            - Run forward pass through network
-            - Compute CuMind losses (value, policy, reward)
-            - Perform backward pass and optimizer step
-            - Return loss metrics as dict
+            env: The environment to run episodes in.
+            num_episodes: The total number of episodes to run.
+            train_frequency: The number of episodes between training steps.
         """
-        # Branch: feature/trainer-step
-        raise NotImplementedError("Trainer.train_step needs to be implemented")
+        for episode in range(num_episodes):
+            self_play = SelfPlay(self.config, self.agent, self.buffer)
+            episode_data = self_play.run_episode(env)
+
+            episode_reward = sum(step["reward"] for step in episode_data)
+            episode_length = len(episode_data)
+            self.logger.log_scalar("episode_reward", episode_reward, episode)
+            self.logger.log_scalar("episode_length", episode_length, episode)
+            print(f"Episode {episode:3d}: Reward={episode_reward:6.1f}, Length={episode_length:3d}")
+
+            if episode % train_frequency == 0:
+                self.train_step()
+
+            if episode % 50 == 0 and episode > 0:
+                self.save_checkpoint(f"checkpoints/cartpole_episode_{episode}.pkl")
+
+    def train_step(self) -> None:
+        """Performs one full training step, including sampling and network update."""
+        if not self.buffer.is_ready(self.config.min_replay_size):
+            print("Buffer not ready for training, skipping step.")
+            return
+
+        batch = self.buffer.sample(self.config.batch_size)
+        observations, actions, targets = self._prepare_batch(batch)
+
+        params = nnx.state(self.agent.network, nnx.Param)
+
+        grad_fn = jax.value_and_grad(self._loss_fn, has_aux=True)
+        (total_loss, losses), grads = grad_fn(params, observations, actions, targets)
+
+        updates, self.agent.optimizer_state = self.agent.optimizer.update(grads, self.agent.optimizer_state, params)
+        updated_params = optax.apply_updates(params, updates)
+
+        nnx.update(self.agent.network, {"params": updated_params})
+
+        losses_float = {f"train/{k}": float(v) for k, v in losses.items()}
+        self.logger.log_scalars(losses_float, self.train_step_count)
+        print(f"  Training step {self.train_step_count} - Losses: {losses_float}")
+        self.train_step_count += 1
+
+    def _loss_fn(self, params: nnx.State, observations: chex.Array, actions: chex.Array, targets: Dict[str, chex.Array]) -> Tuple[chex.Array, Dict[str, chex.Array]]:
+        """Computes the total loss for a batch."""
+        temp_network = nnx.clone(self.agent.network)
+        nnx.update(temp_network, params)
+
+        losses = self._compute_losses(temp_network, observations, actions, targets)
+        total_loss = jnp.sum(jnp.array(list(losses.values())))
+        return total_loss, losses
+
+    def _prepare_batch(self, batch: List[Any]) -> Tuple[chex.Array, chex.Array, Dict[str, chex.Array]]:
+        """Prepares a batch of trajectories for training."""
+        observations, action_sequences, policy_targets, value_targets, reward_targets = [], [], [], [], []
+
+        for trajectory in batch:
+            if not trajectory:
+                continue
+
+            value = self._compute_n_step_return(trajectory)
+            value_targets.append(value)
+
+            policy_targets.append(trajectory[0]["policy"])
+            observations.append(trajectory[0]["observation"])
+
+            actions = [step["action"] for step in trajectory[: self.config.num_unroll_steps]]
+            rewards = [step["reward"] for step in trajectory[: self.config.num_unroll_steps]]
+            action_sequences.append(actions)
+            reward_targets.append(rewards)
+
+        for seq in action_sequences:
+            while len(seq) < self.config.num_unroll_steps:
+                seq.append(0)
+        for seq in reward_targets:
+            while len(seq) < self.config.num_unroll_steps:
+                seq.append(0.0)
+
+        return (
+            jnp.array(observations),
+            jnp.array(action_sequences, dtype=jnp.int32),
+            {
+                "values": jnp.array(value_targets, dtype=jnp.float32),
+                "rewards": jnp.array(reward_targets, dtype=jnp.float32),
+                "policies": jnp.array(policy_targets, dtype=jnp.float32),
+            },
+        )
+
+    def _compute_n_step_return(self, trajectory: List[Dict[str, Any]]) -> float:
+        """Computes the n-step return for a trajectory, with bootstrapping."""
+        n_steps = self.config.td_steps
+        discount = self.config.discount
+        rewards = [step["reward"] for step in trajectory]
+        n_step_return = 0.0
+
+        for i in range(min(len(rewards), n_steps)):
+            n_step_return += rewards[i] * (discount**i)
+
+        if len(trajectory) > n_steps:
+            last_obs = jnp.array(trajectory[n_steps]["observation"])[None, :]
+            _, _, value = self.agent.network.initial_inference(last_obs)
+            n_step_return += (discount**n_steps) * float(jnp.asarray(value)[0, 0])
+
+        return n_step_return
+
+    def _compute_losses(self, network: CuMindNetwork, observations: chex.Array, actions: chex.Array, targets: Dict[str, chex.Array]) -> Dict[str, chex.Array]:
+        """Computes the value, policy, and reward losses."""
+        hidden_states, policy_logits, values = network.initial_inference(observations)
+
+        values_squeezed = jnp.asarray(values).squeeze()
+        target_values = jnp.asarray(targets["values"])
+        value_loss = jnp.mean((values_squeezed - target_values) ** 2)
+
+        policy_log_probs = jax.nn.log_softmax(policy_logits, axis=-1)
+        target_policies = jnp.asarray(targets["policies"])
+        policy_loss = -jnp.mean(jnp.sum(target_policies * policy_log_probs, axis=-1))
+
+        reward_loss = jnp.array(0.0)
+        current_states = hidden_states
+
+        for step in range(self.config.num_unroll_steps):
+            step_actions = jnp.asarray(actions[:, step])
+            next_states, pred_rewards, _, _ = network.recurrent_inference(current_states, step_actions)
+
+            pred_rewards_squeezed = jnp.asarray(pred_rewards).squeeze()
+            target_rewards = jnp.asarray(targets["rewards"])[:, step]
+            reward_loss += jnp.mean((pred_rewards_squeezed - target_rewards) ** 2)
+            current_states = next_states
+
+        if self.config.num_unroll_steps > 0:
+            reward_loss /= self.config.num_unroll_steps
+
+        return {"value_loss": value_loss, "policy_loss": policy_loss, "reward_loss": reward_loss}
 
     def save_checkpoint(self, path: str) -> None:
-        """Save training checkpoint to disk.
-
-        Args:
-            path: File path to save checkpoint
-
-        Implementation:
-            - Create checkpoint dict with network state, optimizer state
-            - Use flax.training.checkpoints.save_checkpoint with msgpack serialization
-            - Include training step counter and config
-        """
-        # Branch: feature/trainer-save
-        raise NotImplementedError("Trainer.save_checkpoint needs to be implemented")
+        """Saves the agent's state to a checkpoint file."""
+        state = self.agent.save_state()
+        save_checkpoint(state, path)
 
     def load_checkpoint(self, path: str) -> None:
-        """Load training checkpoint from disk.
-
-        Args:
-            path: File path to load checkpoint from
-
-        Implementation:
-            - Use flax.training.checkpoints.restore_checkpoint to read checkpoint
-            - Restore network and optimizer state using from_state_dict
-            - Restore training step counter
-        """
-        # Branch: feature/trainer-load
-        raise NotImplementedError("Trainer.load_checkpoint needs to be implemented")
+        """Loads the agent's state from a checkpoint file."""
+        state = load_checkpoint(path)
+        self.agent.load_state(state)

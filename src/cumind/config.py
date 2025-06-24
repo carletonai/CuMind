@@ -1,5 +1,6 @@
 """Configuration for CuMind."""
 
+import dataclasses
 import json
 from pathlib import Path
 from typing import Tuple
@@ -9,12 +10,10 @@ import chex
 
 @chex.dataclass
 class Config:
-    """Hyperparameter configuration for CuMind.
+    """Hyperparameter configuration for the CuMind agent.
 
-    Note:
-        This dataclass lists all configurable hyperparameters for CuMind.
-        For more details and optimization strategies, see:
-        https://github.com/werner-duvaud/cumind-general/wiki/Hyperparameter-Optimization
+    This dataclass defines all configurable hyperparameters. For more details
+    on tuning, see the project's documentation.
     """
 
     # Network architecture
@@ -36,24 +35,24 @@ class Config:
     action_space_size: int = 4
     observation_shape: Tuple[int, ...] = (84, 84, 3)
 
-    # Training schedule
+    # Self-Play
     num_unroll_steps: int = 5
     td_steps: int = 10
     discount: float = 0.997
 
-    # Replay buffer
+    # Replay Buffer
     replay_buffer_size: int = 10000
     min_replay_size: int = 1000
 
     @classmethod
     def from_json(cls, json_path: str) -> "Config":
-        """Load configuration from JSON file.
+        """Loads a configuration from a JSON file.
 
         Args:
-            json_path: Path to JSON configuration file
+            json_path: Path to the JSON configuration file.
 
         Returns:
-            Config instance with loaded parameters
+            A Config instance with the loaded parameters.
         """
         json_file = Path(json_path)
         if not json_file.exists():
@@ -65,42 +64,22 @@ class Config:
         return cls(**config_dict)
 
     def to_json(self, json_path: str) -> None:
-        """Save configuration to JSON file.
+        """Saves the configuration to a JSON file.
 
         Args:
-            json_path: Path to save JSON configuration file
+            json_path: Path to save the JSON configuration file.
         """
-
-        # Convert chex dataclass to dict
-        config_dict = {
-            "hidden_dim": self.hidden_dim,
-            "num_blocks": self.num_blocks,
-            "batch_size": self.batch_size,
-            "learning_rate": self.learning_rate,
-            "weight_decay": self.weight_decay,
-            "num_simulations": self.num_simulations,
-            "c_puct": self.c_puct,
-            "dirichlet_alpha": self.dirichlet_alpha,
-            "exploration_fraction": self.exploration_fraction,
-            "action_space_size": self.action_space_size,
-            "observation_shape": self.observation_shape,
-            "num_unroll_steps": self.num_unroll_steps,
-            "td_steps": self.td_steps,
-            "discount": self.discount,
-            "replay_buffer_size": self.replay_buffer_size,
-            "min_replay_size": self.min_replay_size,
-        }
         json_file = Path(json_path)
         json_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(json_file, "w", encoding="utf-8") as f:
-            json.dump(config_dict, f, indent=2)
+            json.dump(dataclasses.asdict(self), f, indent=2)
 
     def validate(self) -> None:
-        """Validate configuration parameters.
+        """Validates the configuration parameters.
 
         Raises:
-            ValueError: If any parameter is invalid
+            ValueError: If any parameter is found to be invalid.
         """
         if self.hidden_dim <= 0:
             raise ValueError(f"hidden_dim must be positive, got {self.hidden_dim}")

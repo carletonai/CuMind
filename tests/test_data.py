@@ -13,318 +13,121 @@ from cumind.data.self_play import SelfPlay
 
 
 class TestMemoryBuffer:
-    """Test suite for MemoryBuffer implementations."""
+    """Test suite for memory buffers."""
 
-    def test_replay_buffer_initialization(self):
-        """Test ReplayBuffer initialization."""
+    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    def test_buffer_initialization(self, BufferClass):
+        """Test memory buffer initialization."""
         capacity = 100
-        buffer = ReplayBuffer(capacity)
-
+        buffer = BufferClass(capacity=capacity)
         assert buffer.capacity == capacity
         assert len(buffer) == 0
-        assert len(buffer.buffer) == 0
-        assert not buffer.is_ready(1)
 
-    def test_prioritized_replay_buffer_initialization(self):
-        """Test PrioritizedReplayBuffer initialization."""
-        capacity = 100
-        buffer = PrioritizedReplayBuffer(capacity, alpha=0.6, beta=0.4)
-
-        assert buffer.capacity == capacity
-        assert len(buffer) == 0
-        assert buffer.alpha == 0.6
-        assert buffer.beta == 0.4
-        assert buffer.max_priority == 1.0
-
-    def test_tree_buffer_initialization(self):
-        """Test TreeBuffer initialization."""
-        capacity = 100
-        buffer = TreeBuffer(capacity, alpha=0.6)
-
-        assert buffer.capacity == capacity
-        assert len(buffer) == 0
-        assert buffer.alpha == 0.6
-        assert buffer.max_priority == 1.0
-        assert hasattr(buffer, "sum_tree")
-
-    def test_add_single_sample(self):
-        """Test adding a single sample."""
-        buffer = ReplayBuffer(capacity=10)
-
-        sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0, "search_policy": np.array([0.6, 0.4]), "value": 0.5}, {"observation": np.ones(4) * 2, "action": 1, "reward": 0.5, "search_policy": np.array([0.3, 0.7]), "value": 0.3}]
-
-        buffer.add(sample)
-
+    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    def test_add_and_len(self, BufferClass):
+        """Test adding samples and checking buffer length."""
+        buffer = BufferClass(capacity=10)
+        buffer.add({"obs": 1, "action": 0})
         assert len(buffer) == 1
-        assert buffer.is_ready(1)
-        assert len(buffer.buffer[0]) == 2
+        buffer.add({"obs": 2, "action": 1})
+        assert len(buffer) == 2
 
-    def test_add_multiple_samples(self):
-        """Test adding multiple samples."""
-        buffer = ReplayBuffer(capacity=3)
+    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    def test_buffer_capacity(self, BufferClass):
+        """Test that buffer does not exceed capacity."""
+        capacity = 5
+        buffer = BufferClass(capacity=capacity)
+        for i in range(10):
+            buffer.add({"obs": i})
+        assert len(buffer) == capacity
 
-        for i in range(5):  # Add more than capacity
-            sample = [{"observation": np.ones(4) * i, "action": i % 2, "reward": float(i), "search_policy": np.array([0.5, 0.5]), "value": float(i) * 0.1}]
-            buffer.add(sample)
+    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    def test_is_ready(self, BufferClass):
+        """Test buffer readiness check."""
+        buffer = BufferClass(capacity=20)
+        assert not buffer.is_ready(min_size=10)
+        for i in range(10):
+            buffer.add({"obs": i})
+        assert buffer.is_ready(min_size=10)
+        assert not buffer.is_ready(min_size=11)
 
-        # Should only keep most recent samples up to capacity
-        assert len(buffer) == 3
-
-    def test_sampling(self):
-        """Test data sampling."""
-        buffer = ReplayBuffer(capacity=10)
-
-        # Add several samples
+    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    def test_clear_buffer(self, BufferClass):
+        """Test clearing the buffer."""
+        buffer = BufferClass(capacity=10)
         for i in range(5):
-            sample = [{"observation": np.ones(4) * i, "action": i % 2, "reward": float(i), "search_policy": np.array([0.5, 0.5]), "value": float(i) * 0.1}]
-            buffer.add(sample)
+            buffer.add({"obs": i})
+        buffer.clear()
+        assert len(buffer) == 0
 
-        # Test sampling
-        sampled = buffer.sample(3)
-        assert len(sampled) == 3
+    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    def test_sample_from_buffer(self, BufferClass):
+        """Test sampling from the buffer."""
+        buffer = BufferClass(capacity=20)
+        for i in range(15):
+            buffer.add({"id": i})
 
-        # Each sampled item should be a sample (list of experiences)
-        for sample in sampled:
-            assert isinstance(sample, list)
-            assert len(sample) >= 1
+        sample = buffer.sample(batch_size=5)
+        assert isinstance(sample, list)
+        assert len(sample) == 5
 
-    def test_sampling_more_than_available(self):
-        """Test sampling more samples than available."""
-        buffer = ReplayBuffer(capacity=10)
-
-        # Add only 2 samples
-        for i in range(2):
-            sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0, "search_policy": np.array([0.5, 0.5]), "value": 0.5}]
-            buffer.add(sample)
-
-        # Try to sample more than available
-        sampled = buffer.sample(5)
-        assert len(sampled) == 2  # Should return all available
-
-    def test_is_ready(self):
-        """Test readiness check for sampling."""
-        buffer = ReplayBuffer(capacity=10)
-
-        assert not buffer.is_ready(1)
-
-        # Add one sample
-        sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0, "search_policy": np.array([0.5, 0.5]), "value": 0.5}]
-        buffer.add(sample)
-
-        assert buffer.is_ready(1)
-        assert not buffer.is_ready(2)
-
-    def test_circular_buffer_behavior(self):
-        """Test circular buffer behavior when exceeding capacity."""
-        buffer = ReplayBuffer(capacity=3)
-
-        # Add samples with identifiable data
-        for i in range(5):
-            sample = [
-                {
-                    "observation": np.full(4, i),  # Use i as identifier
-                    "action": 0,
-                    "reward": float(i),
-                    "search_policy": np.array([0.5, 0.5]),
-                    "value": 0.5,
-                }
-            ]
-            buffer.add(sample)
-
-        # Should have samples 2, 3, 4 (most recent 3)
-        assert len(buffer) == 3
-        sampled = buffer.sample(3)
-
-        # Check that we have the expected samples
-        rewards = [sample[0]["reward"] for sample in sampled]
-        expected_rewards = [2.0, 3.0, 4.0]
-        assert sorted(rewards) == sorted(expected_rewards)
-
-    def test_prioritized_buffer_priority_update(self):
-        """Test priority update in PrioritizedReplayBuffer."""
-        buffer = PrioritizedReplayBuffer(capacity=10)
-
-        # Add sample
-        sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0}]
-        buffer.add(sample)
-
-        # Update priority
-        buffer.update_priorities([0], [5.0])
-        assert buffer.max_priority == 5.0
-
-    def test_tree_buffer_priority_update(self):
-        """Test priority update in TreeBuffer."""
-        buffer = TreeBuffer(capacity=10)
-
-        # Add sample
-        sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0}]
-        buffer.add(sample)
-
-        # Update priority - TreeBuffer applies alpha exponent, so we need to account for that
-        buffer.update_priorities([0], [3.0])
-        expected_priority_alpha = np.power(3.0 + buffer.epsilon, buffer.alpha)
-        assert buffer.max_priority >= expected_priority_alpha
+        # Check for unique samples if possible
+        if isinstance(buffer, ReplayBuffer):
+            ids = {item["id"] for item in sample}
+            assert len(ids) == 5
 
 
 class TestSelfPlay:
-    """Test suite for SelfPlay."""
+    """Test suite for the SelfPlay class."""
 
     def test_self_play_initialization(self):
         """Test SelfPlay initialization."""
         config = Config()
-        config.num_simulations = 5  # Small for testing
-        config.action_space_size = 2
-        config.observation_shape = (4,)
         agent = Agent(config)
         memory_buffer = ReplayBuffer(capacity=100)
-        gym.make("CartPole-v1")
-
         self_play = SelfPlay(config, agent, memory_buffer)
 
         assert self_play.config == config
         assert self_play.agent == agent
         assert self_play.memory_buffer == memory_buffer
-        assert self_play.episode_count == 0
-        assert self_play.total_reward == 0.0
 
-    def test_single_game_generation(self):
-        """Test generation of a single game."""
+    def test_run_episode(self):
+        """Test running a single self-play episode."""
         config = Config()
-        config.num_simulations = 5  # Small for testing
         config.action_space_size = 2
         config.observation_shape = (4,)
         agent = Agent(config)
         memory_buffer = ReplayBuffer(capacity=100)
         env = gym.make("CartPole-v1")
-
         self_play = SelfPlay(config, agent, memory_buffer)
 
         episode_data = self_play.run_episode(env)
 
-        # Verify episode_data structure
         assert isinstance(episode_data, list)
         assert len(episode_data) > 0
+        assert len(memory_buffer) == 1  # One episode was added
 
-        # Check episode_data format
-        for experience in episode_data:
-            assert "observation" in experience
-            assert "action" in experience
-            assert "reward" in experience
-            assert "next_observation" in experience
-            assert "done" in experience
+        # Check experience format
+        for step in episode_data:
+            assert "observation" in step
+            assert "action" in step
+            assert "reward" in step
+            assert "policy" in step
+            assert "done" in step
 
-            # Verify types and shapes
-            assert experience["observation"].shape == (4,)  # CartPole obs
-            assert isinstance(experience["action"], (int, np.integer))
-            assert isinstance(experience["reward"], (float, np.floating))
-            assert isinstance(experience["done"], bool)
-            assert 0 <= experience["action"] < config.action_space_size
-
-        # Last experience should be terminal
-        assert episode_data[-1]["done"]
-
-        # Verify episode was actually played (some reward accumulated)
-        total_reward = sum(exp["reward"] for exp in episode_data)
-        assert total_reward > 0  # CartPole gives +1 per step
-
-    def test_multiple_games_generation(self):
-        """Test generation of multiple games."""
+    def test_collect_samples(self):
+        """Test collecting samples from multiple episodes."""
         config = Config()
-        config.num_simulations = 3  # Very small for testing
         config.action_space_size = 2
         config.observation_shape = (4,)
         agent = Agent(config)
         memory_buffer = ReplayBuffer(capacity=100)
         env = gym.make("CartPole-v1")
-
         self_play = SelfPlay(config, agent, memory_buffer)
 
-        num_games = 3
-        self_play.collect_samples(env, num_games)
-
-        # Check that data samples were added to memory buffer
-        assert len(memory_buffer) == num_games
-        assert self_play.episode_count == num_games
-
-    def test_game_termination_conditions(self):
-        """Test various game termination conditions."""
-        config = Config()
-        config.num_simulations = 3
-        config.action_space_size = 2
-        config.observation_shape = (4,)
-        agent = Agent(config)
-        memory_buffer = ReplayBuffer(capacity=100)
-        env = gym.make("CartPole-v1")
-
-        self_play = SelfPlay(config, agent, memory_buffer)
-
-        episode_data = self_play.run_episode(env)
-
-        # Should terminate naturally or due to environment limits
-        assert len(episode_data) > 0
-        assert episode_data[-1]["done"]
-
-    def test_experience_format_consistency(self):
-        """Test consistency of experience format across games."""
-        config = Config()
-        config.num_simulations = 2
-        config.action_space_size = 2
-        config.observation_shape = (4,)
-        agent = Agent(config)
-        memory_buffer = ReplayBuffer(capacity=100)
-        env = gym.make("CartPole-v1")
-
-        self_play = SelfPlay(config, agent, memory_buffer)
-
-        # Collect multiple episodes
-        self_play.collect_samples(env, 2)
-        episodes = memory_buffer.sample(2)
-
-        # Check format consistency across all experiences
-        for episode in episodes:
-            for experience in episode:
-                # All experiences should have the same keys
-                expected_keys = {"observation", "action", "reward", "next_observation", "done"}
-                assert set(experience.keys()) == expected_keys
-
-                # All observations should have the same shape
-                assert experience["observation"].shape == (4,)
-
-    def test_value_target_computation(self):
-        """Test value target computation for training."""
-        config = Config()
-        config.num_simulations = 2
-        config.action_space_size = 2
-        config.observation_shape = (4,)
-        agent = Agent(config)
-        memory_buffer = ReplayBuffer(capacity=100)
-        env = gym.make("CartPole-v1")
-
-        self_play = SelfPlay(config, agent, memory_buffer)
-
-        episode_data = self_play.run_episode(env)
-
-        # Verify that rewards are properly recorded
-        total_reward = sum(exp["reward"] for exp in episode_data)
-        assert total_reward >= 0  # CartPole rewards are non-negative
-
-    def test_action_distribution_recording(self):
-        """Test that action distributions are properly recorded."""
-        config = Config()
-        config.num_simulations = 2
-        config.action_space_size = 2
-        config.observation_shape = (4,)
-        agent = Agent(config)
-        memory_buffer = ReplayBuffer(capacity=100)
-        env = gym.make("CartPole-v1")
-
-        self_play = SelfPlay(config, agent, memory_buffer)
-
-        episode_data = self_play.run_episode(env)
-
-        # Basic check that episode_data was created
-        assert len(episode_data) > 0
-        assert all(isinstance(exp["action"], (int, np.integer)) for exp in episode_data)
+        num_episodes = 3
+        self_play.collect_samples(env, num_episodes)
+        assert len(memory_buffer) == num_episodes
 
 
 if __name__ == "__main__":

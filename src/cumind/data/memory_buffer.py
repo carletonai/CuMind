@@ -1,97 +1,85 @@
-"""Memory buffer implementations with unified API for storing and sampling data samples."""
+"""Memory buffer implementations for storing and sampling training data."""
 
 import random
 from abc import ABC, abstractmethod
 from collections import deque
-from typing import Any, Deque, List, Optional, Union
+from typing import Any, Deque, List
 
 import numpy as np
 
 
 class MemoryBuffer(ABC):
-    """Abstract base class for memory buffers with unified API."""
+    """Abstract base class for memory buffers."""
 
     def __init__(self, capacity: int):
-        """Initialize memory buffer.
+        """Initializes the memory buffer.
 
         Args:
-            capacity: Maximum number of samples to store
+            capacity: Maximum number of samples to store.
         """
         self.capacity = capacity
         self.buffer: Deque[Any] = deque(maxlen=capacity)
 
     @abstractmethod
     def add(self, sample: Any) -> None:
-        """Add a sample to the buffer.
+        """Adds a sample to the buffer.
 
         Args:
-            sample: Data sample to store
+            sample: The data sample to store.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def sample(self, batch_size: int) -> List[Any]:
-        """Sample a batch of data.
+        """Samples a batch of data from the buffer.
 
         Args:
-            batch_size: Number of samples to retrieve
+            batch_size: The number of samples to retrieve.
 
         Returns:
-            List of sampled data
+            A list of sampled data points.
         """
-        pass
+        raise NotImplementedError
 
     def __len__(self) -> int:
-        """Get number of samples in buffer.
-
-        Returns:
-            Current number of stored samples
-        """
+        """Returns the current number of samples in the buffer."""
         return len(self.buffer)
 
     def is_ready(self, min_size: int) -> bool:
-        """Check if buffer has enough samples for training.
+        """Checks if the buffer has enough samples for training.
 
         Args:
-            min_size: Minimum number of samples required
+            min_size: The minimum number of samples required.
 
         Returns:
-            True if buffer has at least min_size samples
+            True if the buffer contains at least `min_size` samples.
         """
         return len(self.buffer) >= min_size
 
     def clear(self) -> None:
-        """Clear all samples from the buffer."""
+        """Removes all samples from the buffer."""
         self.buffer.clear()
 
 
 class ReplayBuffer(MemoryBuffer):
-    """Standard replay buffer with uniform sampling."""
-
-    def __init__(self, capacity: int):
-        """Initialize replay buffer.
-
-        Args:
-            capacity: Maximum number of samples to store
-        """
-        super().__init__(capacity)
+    """A standard replay buffer with uniform sampling."""
 
     def add(self, sample: Any) -> None:
-        """Add a sample to the buffer.
+        """Adds a sample to the buffer.
 
         Args:
-            sample: Data sample to store
+            sample: The data sample to store.
         """
         self.buffer.append(sample)
 
     def sample(self, batch_size: int) -> List[Any]:
-        """Sample a batch of data using uniform sampling.
+        """Samples a batch of data using uniform random sampling.
 
         Args:
-            batch_size: Number of samples to retrieve
+            batch_size: The number of samples to retrieve.
 
         Returns:
-            List of sampled data
+            A list of sampled data points.
         """
         if len(self.buffer) < batch_size:
             return list(self.buffer)
@@ -99,16 +87,16 @@ class ReplayBuffer(MemoryBuffer):
 
 
 class PrioritizedReplayBuffer(MemoryBuffer):
-    """Prioritized replay buffer with importance sampling."""
+    """A replay buffer that uses priority-based sampling."""
 
     def __init__(self, capacity: int, alpha: float = 0.6, beta: float = 0.4, epsilon: float = 1e-6):
-        """Initialize prioritized replay buffer.
+        """Initializes the prioritized replay buffer.
 
         Args:
-            capacity: Maximum number of samples to store
-            alpha: Priority exponent (0 = uniform, 1 = greedy)
-            beta: Importance sampling exponent for bias correction
-            epsilon: Small value to avoid zero priorities
+            capacity: Maximum number of samples to store.
+            alpha: The priority exponent (0=uniform, 1=greedy).
+            beta: The importance sampling exponent for bias correction.
+            epsilon: A small value to avoid zero priorities.
         """
         super().__init__(capacity)
         self.alpha = alpha
@@ -118,41 +106,38 @@ class PrioritizedReplayBuffer(MemoryBuffer):
         self.max_priority = 1.0
 
     def add(self, sample: Any) -> None:
-        """Add a sample to the buffer with maximum priority.
+        """Adds a sample to the buffer with maximum priority.
 
         Args:
-            sample: Data sample to store
+            sample: The data sample to store.
         """
         self.buffer.append(sample)
         self.priorities.append(self.max_priority)
 
     def sample(self, batch_size: int) -> List[Any]:
-        """Sample a batch of data using priority-based sampling.
+        """Samples a batch of data using priority-based sampling.
 
         Args:
-            batch_size: Number of samples to retrieve
+            batch_size: The number of samples to retrieve.
 
         Returns:
-            List of sampled data
+            A list of sampled data points.
         """
         if len(self.buffer) < batch_size:
             return list(self.buffer)
 
-        # Calculate sampling probabilities
         priorities = np.array(self.priorities)
-        priorities_alpha = np.power(priorities + self.epsilon, self.alpha)
-        probabilities = priorities_alpha / np.sum(priorities_alpha)
+        probabilities = (priorities**self.alpha) / np.sum(priorities**self.alpha)
 
-        # Sample indices
         indices = np.random.choice(len(self.buffer), size=batch_size, p=probabilities, replace=False)
         return [self.buffer[i] for i in indices]
 
     def update_priorities(self, indices: List[int], priorities: List[float]) -> None:
-        """Update priorities for sampled data.
+        """Updates the priorities of sampled data.
 
         Args:
-            indices: Indices of samples to update
-            priorities: New priority values
+            indices: The indices of the samples to update.
+            priorities: The new priority values.
         """
         for idx, priority in zip(indices, priorities):
             if idx < len(self.priorities):
@@ -160,21 +145,21 @@ class PrioritizedReplayBuffer(MemoryBuffer):
                 self.max_priority = max(self.max_priority, priority)
 
     def clear(self) -> None:
-        """Clear all samples and priorities from the buffer."""
+        """Removes all samples and priorities from the buffer."""
         super().clear()
         self.priorities.clear()
         self.max_priority = 1.0
 
 
 class TreeBuffer(MemoryBuffer):
-    """Tree-based buffer for efficient priority sampling using sum tree."""
+    """A tree-based buffer for efficient priority sampling using a sum tree."""
 
     def __init__(self, capacity: int, alpha: float = 0.6):
-        """Initialize tree buffer.
+        """Initializes the tree buffer.
 
         Args:
-            capacity: Maximum number of samples to store
-            alpha: Priority exponent (0 = uniform, 1 = greedy)
+            capacity: Maximum number of samples to store.
+            alpha: The priority exponent (0=uniform, 1=greedy).
         """
         super().__init__(capacity)
         self.alpha = alpha
@@ -191,27 +176,14 @@ class TreeBuffer(MemoryBuffer):
         self.n_entries = 0
 
     def _propagate(self, idx: int, change: float) -> None:
-        """Propagate priority change up the tree.
-
-        Args:
-            idx: Tree index to update
-            change: Priority change value
-        """
+        """Propagates a priority change up the sum tree."""
         parent = (idx - 1) // 2
         self.sum_tree[parent] += change
         if parent != 0:
             self._propagate(parent, change)
 
     def _retrieve(self, idx: int, s: float) -> int:
-        """Retrieve index for given priority sum.
-
-        Args:
-            idx: Current tree index
-            s: Priority sum to search for
-
-        Returns:
-            Index of the leaf node
-        """
+        """Retrieves the leaf index for a given priority sum."""
         left = 2 * idx + 1
         right = left + 1
 
@@ -224,14 +196,13 @@ class TreeBuffer(MemoryBuffer):
             return self._retrieve(right, s - self.sum_tree[left])
 
     def add(self, sample: Any) -> None:
-        """Add a sample to the buffer with maximum priority.
+        """Adds a sample to the buffer with maximum priority.
 
         Args:
-            sample: Data sample to store
+            sample: The data sample to store.
         """
         self.buffer.append(sample)
 
-        # Update sum tree
         tree_idx = self.data_pointer + self.tree_size - 1
         self._update(tree_idx, self.max_priority)
 
@@ -240,24 +211,19 @@ class TreeBuffer(MemoryBuffer):
             self.n_entries += 1
 
     def _update(self, tree_idx: int, priority: float) -> None:
-        """Update priority in the sum tree.
-
-        Args:
-            tree_idx: Tree index to update
-            priority: New priority value
-        """
+        """Updates a priority value in the sum tree."""
         change = priority - self.sum_tree[tree_idx]
         self.sum_tree[tree_idx] = priority
         self._propagate(tree_idx, change)
 
     def sample(self, batch_size: int) -> List[Any]:
-        """Sample a batch of data using sum tree.
+        """Samples a batch of data using the sum tree.
 
         Args:
-            batch_size: Number of samples to retrieve
+            batch_size: The number of samples to retrieve.
 
         Returns:
-            List of sampled data
+            A list of sampled data points.
         """
         if len(self.buffer) < batch_size:
             return list(self.buffer)
@@ -274,21 +240,21 @@ class TreeBuffer(MemoryBuffer):
         return sampled_data
 
     def update_priorities(self, indices: List[int], priorities: List[float]) -> None:
-        """Update priorities for sampled data.
+        """Updates the priorities of sampled data in the sum tree.
 
         Args:
-            indices: Indices of samples to update
-            priorities: New priority values
+            indices: The indices of the samples to update.
+            priorities: The new priority values.
         """
         for idx, priority in zip(indices, priorities):
             if idx < self.n_entries:
                 tree_idx = idx + self.tree_size - 1
-                priority_alpha = np.power(priority + self.epsilon, self.alpha)
+                priority_alpha = (priority + self.epsilon) ** self.alpha
                 self._update(tree_idx, priority_alpha)
                 self.max_priority = max(self.max_priority, priority_alpha)
 
     def clear(self) -> None:
-        """Clear all samples and reset sum tree."""
+        """Removes all samples and resets the sum tree."""
         super().clear()
         self.sum_tree.fill(0)
         self.data_pointer = 0

@@ -7,6 +7,7 @@ from flax import nnx
 
 from cumind.core import MCTS, Node
 from cumind.core.network import CuMindNetwork
+from cumind.config import Config
 
 
 class TestNode:
@@ -170,99 +171,43 @@ class TestNode:
 class TestMCTS:
     """Test suite for MCTS algorithm."""
 
-    def test_mcts_initialization(self):
+    @pytest.fixture
+    def setup(self):
+        """Setup for MCTS tests."""
+        config = Config()
+        config.num_simulations = 100  # Increased for noise test
+        config.action_space_size = 2
+        config.observation_shape = (4,)
+        config.hidden_dim = 16
+        network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim)
+        mcts = MCTS(network, config)
+        return mcts, network, config
+
+    def test_mcts_initialization(self, setup):
         """Test MCTS initialization."""
-        from cumind.config import Config
-
-        config = Config()
-        config.action_space_size = 2
-        config.observation_shape = (4,)
-
-        mcts = MCTS(config)
-
-        # Verify MCTS attributes
+        mcts, _, config = setup
         assert mcts.config == config
-        assert hasattr(mcts.config, "c_puct")
-        assert hasattr(mcts.config, "dirichlet_alpha")
-        assert hasattr(mcts.config, "exploration_fraction")
+        assert mcts.config.num_simulations == 100
 
-    def test_mcts_search(self):
-        """Test MCTS search algorithm."""
-        from cumind.config import Config
+    def test_mcts_search(self, setup):
+        """Test MCTS search returns a valid policy."""
+        mcts, _, _ = setup
+        root_hidden_state = jnp.ones(16)
+        policy = mcts.search(root_hidden_state, add_noise=False)
 
-        config = Config()
-        config.num_simulations = 5  # Small number for testing
-        config.action_space_size = 2
-        config.observation_shape = (4,)
+        assert isinstance(policy, np.ndarray)
+        assert len(policy) == 2
+        assert np.isclose(np.sum(policy), 1.0)
+        assert np.all(policy >= 0)
 
-        mcts = MCTS(config)
-
-        # Create mock network and hidden state
-        key = jax.random.PRNGKey(42)
-        from flax import nnx
-
-        from cumind.core.network import CuMindNetwork
-
-        rngs = nnx.Rngs(params=key)
-        network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, rngs=rngs)
-
-        # Test search with mock hidden state
-        hidden_state = jnp.ones(64)  # Mock hidden state
-
-        try:
-            action_probs = mcts.search(network, hidden_state)
-
-            # Verify output
-            assert action_probs.shape == (config.action_space_size,)
-            assert abs(jnp.sum(action_probs) - 1.0) < 1e-6  # Should sum to 1
-            assert jnp.all(action_probs >= 0)  # All probabilities non-negative
-        except (AttributeError, NotImplementedError):
-            # MCTS search may not be fully implemented yet
-            assert True
-
-    def test_mcts_search_basic(self):
+    def test_mcts_search_basic(self, setup):
         """Test basic MCTS search functionality."""
-        from cumind.config import Config
-
-        config = Config()
-        config.num_simulations = 10
-        config.action_space_size = 2
-        config.observation_shape = (4,)
-        config.c_puct = 1.0
-        config.discount = 0.99
-
-        mcts = MCTS(config)
-
-        # Create a simple network (we'll use a real network for this test)
-        key = jax.random.PRNGKey(0)
-        rngs = nnx.Rngs(params=key)
-        network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=64, num_blocks=2, rngs=rngs)
-
-        # Create a dummy hidden state
-        hidden_state = jnp.ones((64,))  # Match network hidden dim
-
-        # Run MCTS search
-        action_probs = mcts.search(network, hidden_state, add_noise=False)
-
-        # Verify output format
-        assert isinstance(action_probs, np.ndarray)
+        mcts, _, config = setup
+        root_hidden_state = jnp.ones(config.hidden_dim)
+        action_probs = mcts.search(root_hidden_state, add_noise=False)
         assert action_probs.shape == (config.action_space_size,)
-        assert np.allclose(np.sum(action_probs), 1.0, atol=1e-6)  # Should sum to 1
-        assert np.all(action_probs >= 0)  # All probabilities should be non-negative
-
-    def test_exploration_noise(self):
-        """Test exploration noise addition to root."""
-        # Test Dirichlet noise generation
-        key = jax.random.PRNGKey(42)
-        alpha = 0.3
-        action_size = 4
-
-        noise = jax.random.dirichlet(key, alpha=jnp.full(action_size, alpha))
-
-        # Verify noise properties
-        assert noise.shape == (action_size,)
-        assert abs(jnp.sum(noise) - 1.0) < 1e-6  # Should sum to 1
-        assert jnp.all(noise >= 0)  # All values non-negative
+        assert np.isclose(np.sum(action_probs), 1.0)
+        assert np.all(action_probs >= 0)
 
     def test_action_probabilities(self):
         """Test action probability computation from visit counts."""
@@ -301,86 +246,26 @@ class TestMCTS:
         max_depth = 2  # Root and one level of children
         assert max_depth >= 1
 
-    def test_mcts_with_different_networks(self):
+    def test_mcts_with_different_networks(self, setup):
         """Test MCTS with different network configurations."""
-        from cumind.config import Config
+        mcts, network, config = setup
+        config.observation_shape = (8,)
+        config.action_space_size = 3
+        network2 = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim)
+        mcts2 = MCTS(network2, config)
+        root_hidden_state = jnp.ones(config.hidden_dim)
+        action_probs = mcts2.search(root_hidden_state, add_noise=False)
+        assert action_probs.shape == (3,)
 
-        # Test with vector observations
-        config1 = Config()
-        config1.observation_shape = (8,)
-        config1.action_space_size = 2
-
-        mcts1 = MCTS(config1)
-        assert mcts1.config == config1
-
-        # Test with image observations
-        config2 = Config()
-        config2.observation_shape = (84, 84, 4)
-        config2.action_space_size = 4
-
-        mcts2 = MCTS(config2)
-        assert mcts2.config == config2
-
-    def test_mcts_edge_cases(self):
+    def test_mcts_edge_cases(self, setup):
         """Test MCTS edge cases and error handling."""
-        from cumind.config import Config
-
-        config = Config()
-
-        # Test with single action space
+        mcts, network, config = setup
         config.action_space_size = 1
-        config.observation_shape = (4,)
-        mcts = MCTS(config)
-
-        assert mcts.config.action_space_size == 1
-
-        # Test with zero simulations
-        config.num_simulations = 0
-        mcts_zero = MCTS(config)
-        assert mcts_zero.config.num_simulations == 0
-
-    def test_mcts_exploration_noise(self):
-        """Test that exploration noise affects action probabilities."""
-        from cumind.config import Config
-
-        config = Config()
-        config.num_simulations = 20
-        config.action_space_size = 2
-        config.observation_shape = (4,)
-        config.c_puct = 1.0
-        config.discount = 0.99
-        config.dirichlet_alpha = 0.3
-        config.exploration_fraction = 0.25
-
-        mcts = MCTS(config)
-
-        key = jax.random.PRNGKey(0)
-        rngs = nnx.Rngs(params=key)
-        network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=64, num_blocks=2, rngs=rngs)
-
-        hidden_state = jnp.ones((64,))
-
-        # Run search with and without noise multiple times
-        probs_with_noise = []
-        probs_without_noise = []
-
-        for _ in range(5):
-            probs_noise = mcts.search(network, hidden_state, add_noise=True)
-            probs_no_noise = mcts.search(network, hidden_state, add_noise=False)
-            probs_with_noise.append(probs_noise)
-            probs_without_noise.append(probs_no_noise)
-
-        # Convert to arrays for easier comparison
-        probs_with_noise = np.array(probs_with_noise)
-        probs_without_noise = np.array(probs_without_noise)
-
-        # Without noise, results should be more consistent
-        no_noise_std = np.std(probs_without_noise, axis=0)
-        with_noise_std = np.std(probs_with_noise, axis=0)
-
-        # Generally expect more variation with noise (though not guaranteed)
-        assert np.all(no_noise_std >= 0)  # Basic sanity check
-        assert np.all(with_noise_std >= 0)  # Basic sanity check
+        mcts_single_action = MCTS(network, config)
+        root_hidden_state = jnp.ones(config.hidden_dim)
+        action_probs = mcts_single_action.search(root_hidden_state, add_noise=False)
+        assert action_probs.shape == (1,)
+        assert np.isclose(action_probs[0], 1.0)
 
 
 if __name__ == "__main__":

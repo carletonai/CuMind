@@ -79,7 +79,7 @@ def test_agent_creation_and_action_selection():
 
     # Test action selection
     observation = np.ones(4)
-    action = agent.select_action(observation, training=False)
+    action, _ = agent.select_action(observation, training=False)
 
     assert isinstance(action, (int, np.integer))
     assert 0 <= action < config.action_space_size
@@ -163,7 +163,7 @@ def test_basic_integration():
 
         # Generate some dummy experience
         observation = np.ones(4)
-        action = agent.select_action(observation, training=True)
+        action, _ = agent.select_action(observation, training=True)
 
         # Create experience entry
         experience = {"observation": observation, "action": action, "reward": 1.0, "search_policy": np.array([0.5, 0.5]), "value": 0.5}

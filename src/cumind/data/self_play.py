@@ -1,6 +1,6 @@
 """Self-play runner for collecting training data samples."""
 
-from typing import Any, List
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -10,65 +10,58 @@ from .memory_buffer import MemoryBuffer
 
 
 class SelfPlay:
-    """Self-play runner: collects (s, a, r, s′) data samples."""
+    """Self-play runner: collects game data and stores it in a buffer."""
 
     def __init__(self, config: Config, agent: Agent, memory_buffer: MemoryBuffer):
         """Initialize self-play runner.
 
         Args:
-            config: CuMind configuration
-            agent: Trained agent for self-play
-            memory_buffer: Buffer to store collected data samples
+            config: CuMind configuration.
+            agent: Agent for self-play.
+            memory_buffer: Buffer to store collected data.
         """
         self.config = config
         self.agent = agent
         self.memory_buffer = memory_buffer
-        self.episode_count = 0
-        self.total_reward = 0.0
 
-    def run_episode(self, environment: Any) -> List[Any]:
-        """Run one self-play episode.
+    def run_episode(self, environment: Any) -> List[Dict[str, Any]]:
+        """Run one self-play episode and collect data.
 
         Args:
-            environment: Game environment
+            environment: The game environment.
 
         Returns:
-            List of (observation, action, reward, next_observation) data samples
+            A list of dictionaries, where each dictionary contains data for a single step.
         """
         episode_data = []
-        observation, _ = environment.reset()  # Unpack observation and info
+        observation, _ = environment.reset()
         done = False
 
         while not done:
-            # Agent selects action
-            action = self.agent.select_action(observation, training=True)
+            # Agent selects action and gets MCTS policy
+            action, policy = self.agent.select_action(observation, training=True)
 
             # Environment step
             next_observation, reward, terminated, truncated, _ = environment.step(action)
             done = terminated or truncated
 
-            # Store episode step
-            episode_data.append({"observation": observation, "action": action, "reward": reward, "next_observation": next_observation, "done": done})
+            # Store step data
+            episode_data.append({"observation": observation, "action": action, "reward": reward, "policy": policy, "done": done})
 
             observation = next_observation
 
+        self.memory_buffer.add(episode_data)
         return episode_data
 
     def collect_samples(self, environment: Any, num_episodes: int) -> None:
-        """Collect multiple data samples from self-play.
+        """Collect data from multiple self-play episodes.
 
         Args:
-            environment: Game environment
-            num_episodes: Number of episodes to collect
+            environment: The game environment.
+            num_episodes: Number of episodes to run.
         """
         for _ in range(num_episodes):
-            episode_data = self.run_episode(environment)
-            self.memory_buffer.add(episode_data)
-            self.episode_count += 1
-
-            # Track statistics
-            episode_reward = sum(step["reward"] for step in episode_data)
-            self.total_reward += episode_reward
+            self.run_episode(environment)
 
     def get_memory_buffer(self) -> MemoryBuffer:
         """Get the memory buffer with collected data.
