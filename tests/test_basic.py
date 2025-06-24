@@ -9,7 +9,7 @@ from flax import nnx
 from cumind.agent.agent import Agent
 from cumind.config import Config
 from cumind.core.network import CuMindNetwork
-from cumind.data.replay_buffer import ReplayBuffer
+from cumind.data.memory_buffer import MemoryBuffer, PrioritizedReplayBuffer, ReplayBuffer, TreeBuffer
 
 
 def test_network_creation():
@@ -85,25 +85,63 @@ def test_agent_creation_and_action_selection():
     assert 0 <= action < config.action_space_size
 
 
-def test_replay_buffer_functionality():
-    """Test replay buffer operations."""
+def test_memory_buffer_functionality():
+    """Test memory buffer operations for all buffer types."""
+    # Test ReplayBuffer
     replay_buffer = ReplayBuffer(capacity=100)
+    _test_buffer_operations(replay_buffer, "ReplayBuffer")
 
+    # Test PrioritizedReplayBuffer
+    prioritized_buffer = PrioritizedReplayBuffer(capacity=100)
+    _test_buffer_operations(prioritized_buffer, "PrioritizedReplayBuffer")
+
+    # Test TreeBuffer
+    tree_buffer = TreeBuffer(capacity=100)
+    _test_buffer_operations(tree_buffer, "TreeBuffer")
+
+
+def _test_buffer_operations(buffer: MemoryBuffer, buffer_name: str):
+    """Helper function to test buffer operations."""
     # Test empty buffer
-    assert len(replay_buffer) == 0
-    assert not replay_buffer.is_ready(1)
+    assert len(buffer) == 0, f"{buffer_name}: Empty buffer should have length 0"
+    assert not buffer.is_ready(1), f"{buffer_name}: Empty buffer should not be ready"
 
-    # Add dummy trajectory
-    dummy_trajectory = [{"observation": np.ones(4), "action": 0, "reward": 1.0, "search_policy": np.array([0.6, 0.4]), "value": 0.5}, {"observation": np.ones(4), "action": 1, "reward": 0.5, "search_policy": np.array([0.3, 0.7]), "value": 0.3}]
-    replay_buffer.add(dummy_trajectory)
+    # Add dummy sample
+    dummy_sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0, "search_policy": np.array([0.6, 0.4]), "value": 0.5}, {"observation": np.ones(4), "action": 1, "reward": 0.5, "search_policy": np.array([0.3, 0.7]), "value": 0.3}]
+    buffer.add(dummy_sample)
 
-    assert len(replay_buffer) == 1
-    assert replay_buffer.is_ready(1)
+    assert len(buffer) == 1, f"{buffer_name}: Buffer should have 1 sample after adding"
+    assert buffer.is_ready(1), f"{buffer_name}: Buffer should be ready after adding sample"
 
     # Sample from buffer
-    sampled = replay_buffer.sample(1)
-    assert len(sampled) == 1
-    assert len(sampled[0]) == 2  # Two experiences in trajectory
+    sampled = buffer.sample(1)
+    assert len(sampled) == 1, f"{buffer_name}: Should sample 1 item"
+    assert len(sampled[0]) == 2, f"{buffer_name}: Sampled item should have 2 experiences"
+
+    # Test priority update for prioritized buffers
+    if hasattr(buffer, "update_priorities"):
+        buffer.update_priorities([0], [2.0])
+
+
+def test_prioritized_buffer_priority_update():
+    """Test priority update functionality for prioritized buffers."""
+    # Test PrioritizedReplayBuffer priority update
+    prioritized_buffer = PrioritizedReplayBuffer(capacity=10)
+    sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0}]
+    prioritized_buffer.add(sample)
+
+    # Update priority
+    prioritized_buffer.update_priorities([0], [5.0])
+    assert prioritized_buffer.max_priority == 5.0
+
+    # Test TreeBuffer priority update
+    tree_buffer = TreeBuffer(capacity=10)
+    tree_buffer.add(sample)
+
+    # Update priority - TreeBuffer applies alpha exponent, so we need to account for that
+    tree_buffer.update_priorities([0], [3.0])
+    expected_priority_alpha = np.power(3.0 + tree_buffer.epsilon, tree_buffer.alpha)
+    assert tree_buffer.max_priority >= expected_priority_alpha
 
 
 def test_basic_integration():
@@ -116,22 +154,26 @@ def test_basic_integration():
     # Create agent
     agent = Agent(config)
 
-    # Create replay buffer
-    replay_buffer = ReplayBuffer(capacity=10)
+    # Test with different buffer types
+    buffer_types = [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer]
 
-    # Generate some dummy experience
-    observation = np.ones(4)
-    action = agent.select_action(observation, training=True)
+    for BufferClass in buffer_types:  # noqa: N806
+        # Create memory buffer
+        memory_buffer = BufferClass(capacity=10)
 
-    # Create experience entry
-    experience = {"observation": observation, "action": action, "reward": 1.0, "search_policy": np.array([0.5, 0.5]), "value": 0.5}
+        # Generate some dummy experience
+        observation = np.ones(4)
+        action = agent.select_action(observation, training=True)
 
-    # Add to replay buffer
-    replay_buffer.add([experience])
+        # Create experience entry
+        experience = {"observation": observation, "action": action, "reward": 1.0, "search_policy": np.array([0.5, 0.5]), "value": 0.5}
 
-    # Verify integration
-    assert len(replay_buffer) == 1
-    assert 0 <= action < config.action_space_size
+        # Add to memory buffer
+        memory_buffer.add([experience])
+
+        # Verify integration
+        assert len(memory_buffer) == 1, f"{BufferClass.__name__}: Should have 1 experience"
+        assert 0 <= action < config.action_space_size
 
 
 if __name__ == "__main__":

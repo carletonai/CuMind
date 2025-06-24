@@ -5,7 +5,7 @@ import numpy as np
 
 from cumind.agent.agent import Agent
 from cumind.config import Config
-from cumind.data.replay_buffer import ReplayBuffer
+from cumind.data.memory_buffer import ReplayBuffer
 from cumind.data.self_play import SelfPlay
 from cumind.utils.logger import Logger
 
@@ -21,8 +21,8 @@ def train_cartpole() -> None:
 
     # Initialize components
     agent = Agent(config)
-    replay_buffer = ReplayBuffer(capacity=config.replay_buffer_size)
-    self_play = SelfPlay(config, agent, replay_buffer)
+    memory_buffer = ReplayBuffer(capacity=config.replay_buffer_size)
+    self_play = SelfPlay(config, agent, memory_buffer)
     logger = Logger(log_dir="logs/cartpole")
 
     print("Starting CuMind training on CartPole...")
@@ -33,10 +33,10 @@ def train_cartpole() -> None:
     train_frequency = 10  # Train every N episodes
 
     for episode in range(num_episodes):
-        # Collect trajectory
-        trajectory = self_play.run_episode(env)
-        episode_reward = sum(step["reward"] for step in trajectory)
-        episode_length = len(trajectory)
+        # Collect episode data
+        episode_data = self_play.run_episode(env)
+        episode_reward = sum(step["reward"] for step in episode_data)
+        episode_length = len(episode_data)
 
         logger.log_scalar("episode_reward", episode_reward, episode)
         logger.log_scalar("episode_length", episode_length, episode)
@@ -44,9 +44,9 @@ def train_cartpole() -> None:
         print(f"Episode {episode:3d}: Reward={episode_reward:6.1f}, Length={episode_length:3d}")
 
         # Train if we have enough data
-        if episode % train_frequency == 0 and replay_buffer.is_ready(config.min_replay_size):
+        if episode % train_frequency == 0 and memory_buffer.is_ready(config.min_replay_size):
             # Sample batch and train
-            batch = replay_buffer.sample(config.batch_size)
+            batch = memory_buffer.sample(config.batch_size)
             losses = agent.train_step(batch)
 
             # Log training metrics

@@ -96,17 +96,32 @@ class TestAgent:
         # Create mock batch data in the correct format (list of trajectories)
         batch = []
         for _ in range(config.batch_size):
-            trajectory = [{"observation": np.random.normal(0, 1, 4), "action": np.random.randint(0, 2), "reward": np.random.normal(0, 1), "search_policy": np.array([0.6, 0.4]), "value": np.random.normal(0, 1)} for _ in range(config.num_unroll_steps + 1)]
+            trajectory = []
+            for step in range(config.num_unroll_steps + 1):
+                exp = {
+                    "observation": np.random.normal(0, 1, 4),
+                    "action": np.random.randint(0, 2),
+                    "reward": np.random.normal(0, 1),
+                    "search_policy": np.array([0.6, 0.4]),
+                    "value": np.random.normal(0, 1)
+                }
+                trajectory.append(exp)
             batch.append(trajectory)
 
-        # Test training step (basic functionality check)
-        try:
-            metrics = agent.train_step(batch)
-            # If we get here, the method exists and runs
-            assert isinstance(metrics, dict)
-        except (AttributeError, NotImplementedError):
-            # Method may not be fully implemented yet
-            assert True
+        # Test training step
+        metrics = agent.train_step(batch)
+
+        # Verify metrics structure
+        assert isinstance(metrics, dict)
+        assert "value_loss" in metrics
+        assert "policy_loss" in metrics
+        assert "reward_loss" in metrics
+
+        # Verify loss values are finite floats
+        for loss_name, loss_value in metrics.items():
+            assert isinstance(loss_value, float)
+            assert np.isfinite(loss_value), f"{loss_name} should be finite"
+            assert loss_value >= 0, f"{loss_name} should be non-negative"
 
     def test_prepare_batch(self):
         """Test batch preparation from replay buffer."""

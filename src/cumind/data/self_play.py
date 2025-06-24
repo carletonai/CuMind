@@ -1,4 +1,4 @@
-"""Self-play runner for collecting training trajectories."""
+"""Self-play runner for collecting training data samples."""
 
 from typing import Any, List
 
@@ -6,23 +6,23 @@ import numpy as np
 
 from ..agent.agent import Agent
 from ..config import Config
-from .replay_buffer import ReplayBuffer
+from .memory_buffer import MemoryBuffer
 
 
 class SelfPlay:
-    """Self-play runner: collects (o, a, r, o′) trajectories."""
+    """Self-play runner: collects (s, a, r, s′) data samples."""
 
-    def __init__(self, config: Config, agent: Agent, replay_buffer: ReplayBuffer):
+    def __init__(self, config: Config, agent: Agent, memory_buffer: MemoryBuffer):
         """Initialize self-play runner.
 
         Args:
             config: CuMind configuration
             agent: Trained agent for self-play
-            replay_buffer: Buffer to store collected trajectories
+            memory_buffer: Buffer to store collected data samples
         """
         self.config = config
         self.agent = agent
-        self.replay_buffer = replay_buffer
+        self.memory_buffer = memory_buffer
         self.episode_count = 0
         self.total_reward = 0.0
 
@@ -33,9 +33,9 @@ class SelfPlay:
             environment: Game environment
 
         Returns:
-            List of (observation, action, reward, next_observation) tuples
+            List of (observation, action, reward, next_observation) data samples
         """
-        trajectory = []
+        episode_data = []
         observation, _ = environment.reset()  # Unpack observation and info
         done = False
 
@@ -47,33 +47,33 @@ class SelfPlay:
             next_observation, reward, terminated, truncated, _ = environment.step(action)
             done = terminated or truncated
 
-            # Store trajectory step
-            trajectory.append({"observation": observation, "action": action, "reward": reward, "next_observation": next_observation, "done": done})
+            # Store episode step
+            episode_data.append({"observation": observation, "action": action, "reward": reward, "next_observation": next_observation, "done": done})
 
             observation = next_observation
 
-        return trajectory
+        return episode_data
 
-    def collect_trajectories(self, environment: Any, num_episodes: int) -> None:
-        """Collect multiple trajectories from self-play.
+    def collect_samples(self, environment: Any, num_episodes: int) -> None:
+        """Collect multiple data samples from self-play.
 
         Args:
             environment: Game environment
             num_episodes: Number of episodes to collect
         """
         for _ in range(num_episodes):
-            trajectory = self.run_episode(environment)
-            self.replay_buffer.add(trajectory)
+            episode_data = self.run_episode(environment)
+            self.memory_buffer.add(episode_data)
             self.episode_count += 1
 
             # Track statistics
-            episode_reward = sum(step["reward"] for step in trajectory)
+            episode_reward = sum(step["reward"] for step in episode_data)
             self.total_reward += episode_reward
 
-    def get_replay_buffer(self) -> ReplayBuffer:
-        """Get the replay buffer with collected data.
+    def get_memory_buffer(self) -> MemoryBuffer:
+        """Get the memory buffer with collected data.
 
         Returns:
-            Replay buffer containing collected trajectories
+            Memory buffer containing collected data samples
         """
-        return self.replay_buffer
+        return self.memory_buffer

@@ -90,12 +90,12 @@ class Agent:
             return total_loss, losses
 
         # Compute gradients
-        grad_fn = jax.value_and_grad(lambda p: loss_fn(p)[0], has_aux=True)
-        (_, losses), grads = grad_fn(params)
+        grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+        (total_loss, losses), grads = grad_fn(params)
 
         # Apply gradients
-        updates, self.optimizer_state = self.optimizer.update(grads, self.optimizer_state, params) # type: ignore
-        updated_params = optax.apply_updates(params, updates) # type: ignore
+        updates, self.optimizer_state = self.optimizer.update(grads, self.optimizer_state, params)
+        updated_params = optax.apply_updates(params, updates)
 
         # Update network with new parameters
         nnx.update(self.network, {"params": updated_params})
