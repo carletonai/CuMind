@@ -105,18 +105,18 @@ class Trainer:
         """Prepares a batch of trajectories for training."""
         observations, action_sequences, policy_targets, value_targets, reward_targets = [], [], [], [], []
 
-        for trajectory in batch:
-            if not trajectory:
-                raise RuntimeError("Encountered empty trajectory in batch.")
+        for item in batch:
+            if not item:
+                raise RuntimeError("Encountered empty item in batch.")
 
-            value = self._compute_n_step_return(trajectory)
+            value = self._compute_n_step_return(item)
             value_targets.append(value)
 
-            policy_targets.append(trajectory[0]["policy"])
-            observations.append(trajectory[0]["observation"])
+            policy_targets.append(item[0]["policy"])
+            observations.append(item[0]["observation"])
 
-            actions = [step["action"] for step in trajectory[: self.config.num_unroll_steps]]
-            rewards = [step["reward"] for step in trajectory[: self.config.num_unroll_steps]]
+            actions = [step["action"] for step in item[: self.config.num_unroll_steps]]
+            rewards = [step["reward"] for step in item[: self.config.num_unroll_steps]]
             action_sequences.append(actions)
             reward_targets.append(rewards)
 
@@ -137,18 +137,18 @@ class Trainer:
             },
         )
 
-    def _compute_n_step_return(self, trajectory: List[Dict[str, Any]]) -> float:
-        """Computes the n-step return for a trajectory, with bootstrapping."""
+    def _compute_n_step_return(self, item: List[Dict[str, Any]]) -> float:
+        """Computes the n-step return for a item, with bootstrapping."""
         n_steps = self.config.td_steps
         discount = self.config.discount
-        rewards = [step["reward"] for step in trajectory]
+        rewards = [step["reward"] for step in item]
         n_step_return = 0.0
 
         for i in range(min(len(rewards), n_steps)):
             n_step_return += rewards[i] * (discount**i)
 
-        if len(trajectory) > n_steps:
-            last_obs = jnp.array(trajectory[n_steps]["observation"])[None, :]
+        if len(item) > n_steps:
+            last_obs = jnp.array(item[n_steps]["observation"])[None, :]
             _, _, value = self.agent.network.initial_inference(last_obs)
             n_step_return += (discount**n_steps) * float(jnp.asarray(value)[0, 0])
 
