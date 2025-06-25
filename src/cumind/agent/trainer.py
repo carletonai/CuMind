@@ -60,7 +60,7 @@ class Trainer:
                     "Reward": f"{episode_reward:.2f}",
                     "Length": episode_steps,
                     "Loss": f"{loss_info.get('total_loss', 0):.4f}",
-                    "Memory": f"{self.buffer.get_pct():0.1f}%",
+                    "Memory": f"{self.buffer.get_pct():2.2f}",
                 }
             )
 
