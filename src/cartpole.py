@@ -13,7 +13,7 @@ from cumind.utils.checkpoint import load_checkpoint
 from cumind.utils.logger import Logger
 
 
-def train(config: Config, run_name: str = "cartpole") -> tuple[Logger, str]:
+def train(config: Config, run_name: str = "cartpole") -> str:
     """Train the agent on CartPole environment."""
     env = gym.make("CartPole-v1")
 
@@ -30,7 +30,8 @@ def train(config: Config, run_name: str = "cartpole") -> tuple[Logger, str]:
     print("Training completed!")
 
     env.close()
-    return logger, trainer.checkpoint_dir
+    logger.close()
+    return trainer.checkpoint_dir
 
 
 def get_latest_checkpoint(checkpoint_dir: str) -> str | None:
@@ -85,22 +86,29 @@ def main() -> None:
         num_blocks=2,
         action_space_size=2,
         observation_shape=(4,),
-        num_simulations=25,
+        num_simulations=10,
         batch_size=32,
         learning_rate=1e-3,
         replay_buffer_size=1000,
         min_replay_size=5,
         td_steps=5,
         num_unroll_steps=3,
+        target_update_frequency=100,
     )
 
-    # logger, checkpoint_dir = train(config)
-    # logger.close()
+    if True:
+        checkpoint_dir = train(config)
 
-    # latest_checkpoint = get_latest_checkpoint(checkpoint_dir)
-    latest_checkpoint = "/home/dreamland/workspace/cumind/checkpoints/cartpole_episode_04950.pkl"
-    if latest_checkpoint:
-        inference(config, latest_checkpoint)
+    if False:
+        manual_checkpoint = "/home/dreamland/workspace/cumind/checkpoints/cartpole_episode_04950.pkl"
+        latest_checkpoint = get_latest_checkpoint(checkpoint_dir)
+        if latest_checkpoint:
+            inference(config, latest_checkpoint)
+        elif os.path.isfile(manual_checkpoint):
+            print(f"Using manual checkpoint: {manual_checkpoint}")
+            inference(config, manual_checkpoint)
+        else:
+            print("No checkpoint found.")
 
 
 if __name__ == "__main__":

@@ -24,6 +24,7 @@ class Config:
     batch_size: int = 32
     learning_rate: float = 1e-3
     weight_decay: float = 1e-4
+    target_update_frequency: int = 200
 
     # MCTS
     num_simulations: int = 50

@@ -33,6 +33,9 @@ class Agent:
 
         self.network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, rngs=rngs)
 
+        # Create a target network for stable value bootstrapping
+        self.target_network = nnx.clone(self.network)
+
         # Setup optimizer
         self.optimizer = optax.adamw(learning_rate=config.learning_rate, weight_decay=config.weight_decay)
 
@@ -71,6 +74,11 @@ class Agent:
 
         return int(action_idx), action_probs
 
+    def update_target_network(self) -> None:
+        """Update the target network's weights with the main network's weights."""
+        online_params = nnx.state(self.network, nnx.Param)
+        nnx.update(self.target_network, online_params)
+
     def save_state(self) -> Dict[str, Any]:
         """Get the current state of the agent for checkpointing.
 
@@ -90,3 +98,5 @@ class Agent:
         """
         nnx.update(self.network, state["network_state"])
         self.optimizer_state = state["optimizer_state"]
+        # Also update the target network to match the loaded state
+        self.update_target_network()
