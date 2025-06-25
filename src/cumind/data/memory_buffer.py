@@ -3,7 +3,7 @@
 import random
 from abc import ABC, abstractmethod
 from collections import deque
-from typing import Any, Deque, List
+from typing import Any, Deque, Dict, List
 
 import numpy as np
 
@@ -21,7 +21,7 @@ class MemoryBuffer(ABC):
         self.buffer: Deque[Any] = deque(maxlen=capacity)
 
     @abstractmethod
-    def add(self, sample: Any) -> None:
+    def add(self, sample: List[Dict[str, Any]]) -> None:
         """Adds a sample to the buffer.
 
         Args:
@@ -45,7 +45,17 @@ class MemoryBuffer(ABC):
         """Returns the current number of samples in the buffer."""
         return len(self.buffer)
 
-    def is_ready(self, min_size: int) -> bool:
+    def get_size(self) -> int:
+        """Returns the current size of the buffer."""
+        return len(self)
+
+    def get_pct(self) -> float:
+        """Returns the percentage of the buffer that is filled."""
+        if self.capacity == 0:
+            raise ValueError("Buffer capacity is zero, cannot calculate percentage.")
+        return float((len(self) / self.capacity) * 100)
+
+    def is_ready(self, min_size: int = 0, min_fill_pct: int = 0) -> bool:
         """Checks if the buffer has enough samples for training.
 
         Args:
@@ -54,7 +64,13 @@ class MemoryBuffer(ABC):
         Returns:
             True if the buffer contains at least `min_size` samples.
         """
-        return len(self.buffer) >= min_size
+        if min_size < 0 or min_fill_pct < 0 or min_fill_pct > 1:
+            raise ValueError("min_size must be non-negative and min_fill_pct must be between 0 and 1.")
+        if self.capacity == 0:
+            raise ValueError("Buffer capacity is zero, cannot check readiness.")
+        if min_size == 0 and min_fill_pct == 0:
+            raise ValueError("At least one of min_size or min_fill_pct must be greater than zero.")
+        return (len(self) >= min_size) and (len(self) >= min_fill_pct * self.capacity)
 
     def clear(self) -> None:
         """Removes all samples from the buffer."""
@@ -64,7 +80,7 @@ class MemoryBuffer(ABC):
 class ReplayBuffer(MemoryBuffer):
     """A standard replay buffer with uniform sampling."""
 
-    def add(self, sample: Any) -> None:
+    def add(self, sample: List[Dict[str, Any]]) -> None:
         """Adds a sample to the buffer.
 
         Args:
@@ -105,7 +121,7 @@ class PrioritizedReplayBuffer(MemoryBuffer):
         self.priorities: Deque[float] = deque(maxlen=capacity)
         self.max_priority = 1.0
 
-    def add(self, sample: Any) -> None:
+    def add(self, sample: List[Dict[str, Any]]) -> None:
         """Adds a sample to the buffer with maximum priority.
 
         Args:
@@ -195,7 +211,7 @@ class TreeBuffer(MemoryBuffer):
         else:
             return self._retrieve(right, s - self.sum_tree[left])
 
-    def add(self, sample: Any) -> None:
+    def add(self, sample: List[Dict[str, Any]]) -> None:
         """Adds a sample to the buffer with maximum priority.
 
         Args:

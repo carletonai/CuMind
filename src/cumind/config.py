@@ -43,6 +43,7 @@ class Config:
     # Replay Buffer
     replay_buffer_size: int = 10000
     min_replay_size: int = 1000
+    min_replay_fill_pct: float = 0.1
 
     @classmethod
     def from_json(cls, json_path: str) -> "Config":

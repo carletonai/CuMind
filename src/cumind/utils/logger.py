@@ -34,17 +34,17 @@ class Logger:
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S")
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
-
-        # Optional TensorBoard writer
+        # TensorBoard writer
         self.tensorboard_writer = None
+        '''
         try:
             from tensorboard import SummaryWriter  # type: ignore
 
             self.tensorboard_writer = SummaryWriter(log_dir=str(self.log_dir))
         except ImportError:
             self.logger.info("TensorBoard not available, skipping TensorBoard logging")
-
-        # Optional W&B setup
+        '''
+        # W&B setup
         self.use_wandb = wandb_project is not None
         if self.use_wandb:
             wandb.init(project=wandb_project, config=wandb_config, dir=str(self.log_dir))

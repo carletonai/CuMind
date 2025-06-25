@@ -42,16 +42,15 @@ class Trainer:
             num_episodes: The total number of episodes to run.
             train_frequency: The number of episodes between training steps.
         """
+        self.logger.log_text(f"Starting training loop for {num_episodes} episodes with train frequency {train_frequency}.")
+        loss_info = {}
         pbar = tqdm(range(num_episodes), desc="Training Progress")
         for episode in pbar:
             self_play = SelfPlay(self.config, self.agent, self.buffer)
-            episode_data = self_play.run_episode(env)
+            episode_reward, episode_steps, _ = self_play.run_episode(env)
 
-            episode_reward = sum(step["reward"] for step in episode_data)
-            episode_length = len(episode_data)
-            self.logger.log_text(f"Episode {episode:3d}: Reward={episode_reward:6.1f}, Length={episode_length:3d}")
+            self.logger.log_text(f"Episode {episode:3d}: Reward={episode_reward:6.1f}, Length={episode_steps:3d}")
 
-            loss_info = {}
             if episode % train_frequency == 0:
                 loss_info = self.train_step()
 
@@ -59,8 +58,9 @@ class Trainer:
                 {
                     "Episode": episode,
                     "Reward": f"{episode_reward:.2f}",
-                    "Length": episode_length,
+                    "Length": episode_steps,
                     "Loss": f"{loss_info.get('total_loss', 0):.4f}",
+                    "Memory": f"{self.buffer.get_pct():0.1f}%",
                 }
             )
 
@@ -72,7 +72,7 @@ class Trainer:
         if not self.buffer.is_ready(self.config.min_replay_size):
             self.logger.log_text("Buffer not ready for training, skipping step.")
             return {}
-
+        self.logger.log_text("Starting training step...")
         batch = self.buffer.sample(self.config.batch_size)
         observations, actions, targets = self._prepare_batch(batch)
 
@@ -107,7 +107,7 @@ class Trainer:
 
         for trajectory in batch:
             if not trajectory:
-                continue
+                raise RuntimeError("Encountered empty trajectory in batch.")
 
             value = self._compute_n_step_return(trajectory)
             value_targets.append(value)

@@ -24,18 +24,21 @@ class SelfPlay:
         self.agent = agent
         self.memory_buffer = memory_buffer
 
-    def run_episode(self, environment: Any) -> List[Dict[str, Any]]:
+    def run_episode(self, environment: Any) -> tuple[float, int, List[Dict[str, Any]]]:
         """Run one self-play episode and collect data.
 
         Args:
             environment: The game environment.
 
         Returns:
-            A list of dictionaries, where each dictionary contains data for a single step.
+            A tuple containing total reward, episode length, and a list of step data dictionaries.
         """
         episode_data = []
         observation, _ = environment.reset()
         done = False
+
+        total_reward = 0.0
+        episode_steps = 0
 
         while not done:
             # Agent selects action and gets MCTS policy
@@ -50,8 +53,11 @@ class SelfPlay:
 
             observation = next_observation
 
+            total_reward += reward
+            episode_steps += 1
+
         self.memory_buffer.add(episode_data)
-        return episode_data
+        return total_reward, episode_steps, episode_data
 
     def collect_samples(self, environment: Any, num_episodes: int) -> None:
         """Collect data from multiple self-play episodes.
