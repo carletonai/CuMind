@@ -55,7 +55,7 @@ class MemoryBuffer(ABC):
             raise ValueError("Buffer capacity is zero, cannot calculate percentage.")
         return float((len(self) / self.capacity) * 100)
 
-    def is_ready(self, min_size: int = 0, min_fill_pct: int = 0) -> bool:
+    def is_ready(self, min_size: int = 0, min_fill_pct: float = 0) -> bool:
         """Checks if the buffer has enough samples for training.
 
         Args:

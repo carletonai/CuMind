@@ -69,7 +69,7 @@ class Trainer:
 
     def train_step(self) -> Dict[str, float]:
         """Performs one full training step, including sampling and network update."""
-        if not self.buffer.is_ready(self.config.min_replay_size):
+        if not self.buffer.is_ready(self.config.min_replay_size, self.config.min_replay_fill_pct):
             self.logger.log_text("Buffer not ready for training, skipping step.")
             return {}
         self.logger.log_text("Starting training step...")
