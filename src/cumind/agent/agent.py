@@ -44,7 +44,7 @@ class Agent:
         # Initialize MCTS
         self.mcts = MCTS(self.network, config)
 
-    def select_action(self, observation: np.ndarray, training: bool = True) -> Tuple[int, np.ndarray]:
+    def select_action(self, observation: np.ndarray, training: bool = False) -> Tuple[int, np.ndarray]:
         """Select action using MCTS search from current observation.
 
         Args:

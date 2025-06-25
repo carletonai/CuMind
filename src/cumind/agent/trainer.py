@@ -1,5 +1,7 @@
 """Training loop implementation."""
 
+import os
+from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
 import chex
@@ -21,18 +23,22 @@ from .agent import Agent
 class Trainer:
     """Orchestrates the training process, including sampling, updates, and logging."""
 
-    def __init__(self, agent: Agent, buffer: MemoryBuffer, config: Config, logger: Logger):
+    def __init__(self, agent: Agent, buffer: MemoryBuffer, config: Config, logger: Logger, run_name: str):
         """Initializes the Trainer.
         Args:
             agent: The agent to train.
             buffer: The replay buffer for sampling training data.
             config: The configuration object.
             logger: The logger for recording metrics.
+            run_name: The name for the run, used for creating checkpoint directories.
         """
         self.agent = agent
         self.buffer = buffer
         self.config = config
         self.logger = logger
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.checkpoint_dir = f"checkpoints/{run_name}/{timestamp}"
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.train_step_count = 0
 
     def run_training_loop(self, env: Any, num_episodes: int, train_frequency: int) -> None:
@@ -65,7 +71,7 @@ class Trainer:
             )
 
             if episode % 50 == 0 and episode > 0:
-                self.save_checkpoint(f"checkpoints/cartpole_episode_{episode}.pkl")
+                self.save_checkpoint(episode)
 
     def train_step(self) -> Dict[str, float]:
         """Performs one full training step, including sampling and network update."""
@@ -183,9 +189,10 @@ class Trainer:
 
         return {"value_loss": value_loss, "policy_loss": policy_loss, "reward_loss": reward_loss}
 
-    def save_checkpoint(self, path: str) -> None:
+    def save_checkpoint(self, episode: int) -> None:
         """Saves the agent's state to a checkpoint file."""
         state = self.agent.save_state()
+        path = f"{self.checkpoint_dir}/episode_{episode:05d}.pkl"
         save_checkpoint(state, path)
 
     def load_checkpoint(self, path: str) -> None:

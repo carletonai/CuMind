@@ -16,6 +16,8 @@ dependencies = [
     "chex>=0.1.89",
     "wandb>=0.20.1",
     "tqdm>=4.67.1",
+    "pygame>=2.6.1",
+
 ]
 
 # JAX Dependencies:
