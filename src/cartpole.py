@@ -23,10 +23,10 @@ def train(config: Config, run_name: str = "cartpole") -> str:
     trainer = Trainer(agent, memory_buffer, config, logger, run_name=run_name)
 
     print("Starting CuMind training on CartPole...")
-    print(f"Config: {config}")
+    # print(f"Config: {config}")
     print(f"Checkpoints will be saved in: {trainer.checkpoint_dir}")
 
-    trainer.run_training_loop(env, num_episodes=5000, train_frequency=10)
+    trainer.run_training_loop(env, num_episodes=500, train_frequency=5)
     print("Training completed!")
 
     env.close()
@@ -90,10 +90,11 @@ def main() -> None:
         batch_size=32,
         learning_rate=1e-3,
         replay_buffer_size=1000,
-        min_replay_size=5,
+        min_replay_size=3,
+        min_replay_fill_pct=0.00,
         td_steps=5,
         num_unroll_steps=3,
-        target_update_frequency=100,
+        target_update_frequency=15,
     )
 
     if True:

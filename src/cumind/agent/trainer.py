@@ -74,6 +74,7 @@ class Trainer:
                 }
             )
 
+            # if epi are upto 500 it only saves upto 450..
             if episode % 50 == 0 and episode > 0:
                 self.save_checkpoint(episode)
 
