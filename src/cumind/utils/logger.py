@@ -93,7 +93,7 @@ class Logger:
         self.tb_writer: Optional[Any] = None
 
         # Create a single formatter for all handlers
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p")
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p")  # %(name)s sub logger
 
         # Setup file handler
         if use_timestamp:
