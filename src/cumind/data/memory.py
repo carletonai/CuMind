@@ -10,7 +10,7 @@ import numpy as np
 from ..utils.logger import log
 
 
-class MemoryBuffer(ABC):
+class Memory(ABC):
     """Abstract base class for memory buffers."""
 
     def __init__(self, capacity: int):
@@ -85,8 +85,8 @@ class MemoryBuffer(ABC):
         self.buffer.clear()
 
 
-class ReplayBuffer(MemoryBuffer):
-    """A standard replay buffer with uniform sampling."""
+class MemoryBuffer(Memory):
+    """A standard memory buffer with uniform sampling."""
 
     def add(self, sample: List[Dict[str, Any]]) -> None:
         """Adds a sample to the buffer.
@@ -94,7 +94,7 @@ class ReplayBuffer(MemoryBuffer):
         Args:
             sample: The data sample to store.
         """
-        log.debug(f"Adding sample to ReplayBuffer. Current size: {len(self)}.")
+        log.debug(f"Adding sample to MemoryBuffer. Current size: {len(self)}.")
         self.buffer.append(sample)
 
     def sample(self, batch_size: int) -> List[Any]:
@@ -106,18 +106,18 @@ class ReplayBuffer(MemoryBuffer):
         Returns:
             A list of sampled data points.
         """
-        log.debug(f"Sampling {batch_size} samples from ReplayBuffer.")
+        log.debug(f"Sampling {batch_size} samples from MemoryBuffer.")
         if len(self.buffer) < batch_size:
             log.warning(f"Requested batch size {batch_size} is larger than buffer size {len(self)}. Returning all samples.")
             return list(self.buffer)
         return random.sample(list(self.buffer), batch_size)
 
 
-class PrioritizedReplayBuffer(MemoryBuffer):
-    """A replay buffer that uses priority-based sampling."""
+class PrioritizedMemoryBuffer(Memory):
+    """A memory buffer that uses priority-based sampling."""
 
-    def __init__(self, capacity: int, alpha: float = 0.6, beta: float = 0.4, epsilon: float = 1e-6):
-        """Initializes the prioritized replay buffer.
+    def __init__(self, capacity: int, alpha: float, epsilon: float, beta: float):
+        """Initializes the prioritized memory buffer.
 
         Args:
             capacity: Maximum number of samples to store.
@@ -126,7 +126,7 @@ class PrioritizedReplayBuffer(MemoryBuffer):
             epsilon: A small value to avoid zero priorities.
         """
         super().__init__(capacity)
-        log.info(f"Initializing PrioritizedReplayBuffer with capacity {capacity}, alpha={alpha}, beta={beta}.")
+        log.info(f"Initializing PrioritizedMemoryBuffer with capacity {capacity}, alpha={alpha}, epsilon={epsilon}, beta={beta}.")
         self.alpha = alpha
         self.beta = beta
         self.epsilon = epsilon
@@ -139,7 +139,7 @@ class PrioritizedReplayBuffer(MemoryBuffer):
         Args:
             sample: The data sample to store.
         """
-        log.debug(f"Adding sample to PrioritizedReplayBuffer with max priority. Current size: {len(self)}.")
+        log.debug(f"Adding sample to PrioritizedMemoryBuffer with max priority. Current size: {len(self)}.")
         self.buffer.append(sample)
         self.priorities.append(self.max_priority)
 
@@ -152,7 +152,7 @@ class PrioritizedReplayBuffer(MemoryBuffer):
         Returns:
             A list of sampled data points.
         """
-        log.debug(f"Sampling {batch_size} samples from PrioritizedReplayBuffer.")
+        log.debug(f"Sampling {batch_size} samples from PrioritizedMemoryBuffer.")
         if len(self.buffer) < batch_size:
             log.warning(f"Requested batch size {batch_size} is larger than buffer size {len(self)}. Returning all samples.")
             return list(self.buffer)
@@ -170,7 +170,7 @@ class PrioritizedReplayBuffer(MemoryBuffer):
             indices: The indices of the samples to update.
             priorities: The new priority values.
         """
-        log.debug(f"Updating priorities for {len(indices)} samples in PrioritizedReplayBuffer.")
+        log.debug(f"Updating priorities for {len(indices)} samples in PrioritizedMemoryBuffer.")
         for idx, priority in zip(indices, priorities):
             if idx < len(self.priorities):
                 self.priorities[idx] = priority
@@ -178,26 +178,27 @@ class PrioritizedReplayBuffer(MemoryBuffer):
 
     def clear(self) -> None:
         """Removes all samples and priorities from the buffer."""
-        log.info(f"Clearing PrioritizedReplayBuffer of size {len(self)}.")
+        log.info(f"Clearing PrioritizedMemoryBuffer of size {len(self)}.")
         super().clear()
         self.priorities.clear()
         self.max_priority = 1.0
 
 
-class TreeBuffer(MemoryBuffer):
+class TreeBuffer(Memory):
     """A tree-based buffer for efficient priority sampling using a sum tree."""
 
-    def __init__(self, capacity: int, alpha: float = 0.6):
+    def __init__(self, capacity: int, alpha: float, epsilon: float):
         """Initializes the tree buffer.
 
         Args:
             capacity: Maximum number of samples to store.
             alpha: The priority exponent (0=uniform, 1=greedy).
+            epsilon: A small value to avoid zero priorities.
         """
         super().__init__(capacity)
-        log.info(f"Initializing TreeBuffer with capacity {capacity}, alpha={alpha}.")
+        log.info(f"Initializing TreeBuffer with capacity {capacity}, alpha={alpha}, epsilon={epsilon}.")
         self.alpha = alpha
-        self.epsilon = 1e-6
+        self.epsilon = epsilon
         self.max_priority = 1.0
 
         # Initialize sum tree
@@ -213,7 +214,7 @@ class TreeBuffer(MemoryBuffer):
         """Propagates a priority change up the sum tree."""
         parent = (idx - 1) // 2
         self.sum_tree[parent] += change
-        if parent != 0:
+        if idx > 0:
             self._propagate(parent, change)
 
     def _retrieve(self, idx: int, s: float) -> int:

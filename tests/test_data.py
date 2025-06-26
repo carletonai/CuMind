@@ -8,14 +8,14 @@ import pytest
 
 from cumind.agent.agent import Agent
 from cumind.config import Config
-from cumind.data.memory_buffer import MemoryBuffer, PrioritizedReplayBuffer, ReplayBuffer, TreeBuffer
+from cumind.data.memory import Memory, MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer
 from cumind.data.self_play import SelfPlay
 
 
 class TestMemoryBuffer:
     """Test suite for memory buffers."""
 
-    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    @pytest.mark.parametrize("BufferClass", [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer])
     def test_buffer_initialization(self, BufferClass):  # noqa: N803
         """Test memory buffer initialization."""
         capacity = 100
@@ -23,7 +23,7 @@ class TestMemoryBuffer:
         assert buffer.capacity == capacity
         assert len(buffer) == 0
 
-    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    @pytest.mark.parametrize("BufferClass", [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer])
     def test_add_and_len(self, BufferClass):  # noqa: N803
         """Test adding samples and checking buffer length."""
         buffer = BufferClass(capacity=10)
@@ -32,7 +32,7 @@ class TestMemoryBuffer:
         buffer.add({"obs": 2, "action": 1})
         assert len(buffer) == 2
 
-    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    @pytest.mark.parametrize("BufferClass", [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer])
     def test_buffer_capacity(self, BufferClass):  # noqa: N803
         """Test that buffer does not exceed capacity."""
         capacity = 5
@@ -41,7 +41,7 @@ class TestMemoryBuffer:
             buffer.add({"obs": i})
         assert len(buffer) == capacity
 
-    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    @pytest.mark.parametrize("BufferClass", [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer])
     def test_is_ready(self, BufferClass):  # noqa: N803
         """Test buffer readiness check."""
         buffer = BufferClass(capacity=20)
@@ -51,7 +51,7 @@ class TestMemoryBuffer:
         assert buffer.is_ready(min_size=10)
         assert not buffer.is_ready(min_size=11)
 
-    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    @pytest.mark.parametrize("BufferClass", [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer])
     def test_clear_buffer(self, BufferClass):  # noqa: N803
         """Test clearing the buffer."""
         buffer = BufferClass(capacity=10)
@@ -60,7 +60,7 @@ class TestMemoryBuffer:
         buffer.clear()
         assert len(buffer) == 0
 
-    @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
+    @pytest.mark.parametrize("BufferClass", [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer])
     def test_sample_from_buffer(self, BufferClass):  # noqa: N803
         """Test sampling from the buffer."""
         buffer = BufferClass(capacity=20)
@@ -72,7 +72,7 @@ class TestMemoryBuffer:
         assert len(sample) == 5
 
         # Check for unique samples if possible
-        if isinstance(buffer, ReplayBuffer):
+        if isinstance(buffer, MemoryBuffer):
             ids = {item["id"] for item in sample}
             assert len(ids) == 5
 
@@ -84,12 +84,12 @@ class TestSelfPlay:
         """Test SelfPlay initialization."""
         config = Config()
         agent = Agent(config)
-        memory_buffer = ReplayBuffer(capacity=100)
+        memory_buffer = MemoryBuffer(capacity=100)
         self_play = SelfPlay(config, agent, memory_buffer)
 
         assert self_play.config == config
         assert self_play.agent == agent
-        assert self_play.memory_buffer == memory_buffer
+        assert self_play.memory == memory_buffer
 
     def test_run_episode(self):
         """Test running a single self-play episode."""
@@ -97,7 +97,7 @@ class TestSelfPlay:
         config.action_space_size = 2
         config.observation_shape = (4,)
         agent = Agent(config)
-        memory_buffer = ReplayBuffer(capacity=100)
+        memory_buffer = MemoryBuffer(capacity=100)
         env = gym.make("CartPole-v1")
         self_play = SelfPlay(config, agent, memory_buffer)
 
@@ -121,7 +121,7 @@ class TestSelfPlay:
         config.action_space_size = 2
         config.observation_shape = (4,)
         agent = Agent(config)
-        memory_buffer = ReplayBuffer(capacity=100)
+        memory_buffer = MemoryBuffer(capacity=100)
         env = gym.make("CartPole-v1")
         self_play = SelfPlay(config, agent, memory_buffer)
 

@@ -15,5 +15,5 @@ observation_shape:
 num_unroll_steps: 5
 td_steps: 10
 discount: 0.997
-replay_buffer_size: 10000
-min_replay_size: 1000
+memory_capacity: 10000
+min_memory_size: 1000

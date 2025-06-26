@@ -9,7 +9,7 @@ from flax import nnx
 from cumind.agent.agent import Agent
 from cumind.config import Config
 from cumind.core.network import CuMindNetwork
-from cumind.data.memory_buffer import MemoryBuffer, PrioritizedReplayBuffer, ReplayBuffer, TreeBuffer
+from cumind.data.memory import Memory, MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer
 
 
 def test_network_creation():
@@ -23,7 +23,7 @@ def test_network_creation():
     key = jax.random.PRNGKey(42)
     rngs = nnx.Rngs(params=key)
 
-    network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, rngs=rngs)
+    network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
 
     assert hasattr(network, "representation_network")
     assert hasattr(network, "dynamics_network")
@@ -41,7 +41,7 @@ def test_network_inference():
     key = jax.random.PRNGKey(42)
     rngs = nnx.Rngs(params=key)
 
-    network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, rngs=rngs)
+    network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
 
     # Test initial inference
     batch_size = 2
@@ -87,20 +87,20 @@ def test_agent_creation_and_action_selection():
 
 def test_memory_buffer_functionality():
     """Test memory buffer operations for all buffer types."""
-    # Test ReplayBuffer
-    replay_buffer = ReplayBuffer(capacity=100)
-    _test_buffer_operations(replay_buffer, "ReplayBuffer")
+    # Test MemoryBuffer
+    memory_buffer = MemoryBuffer(capacity=100)
+    _test_buffer_operations(memory_buffer, "MemoryBuffer")
 
-    # Test PrioritizedReplayBuffer
-    prioritized_buffer = PrioritizedReplayBuffer(capacity=100)
-    _test_buffer_operations(prioritized_buffer, "PrioritizedReplayBuffer")
+    # Test PrioritizedMemoryBuffer
+    prioritized_buffer = PrioritizedMemoryBuffer(capacity=100)
+    _test_buffer_operations(prioritized_buffer, "PrioritizedMemoryBuffer")
 
     # Test TreeBuffer
     tree_buffer = TreeBuffer(capacity=100)
     _test_buffer_operations(tree_buffer, "TreeBuffer")
 
 
-def _test_buffer_operations(buffer: MemoryBuffer, buffer_name: str):
+def _test_buffer_operations(buffer: Memory, buffer_name: str):
     """Helper function to test buffer operations."""
     # Test empty buffer
     assert len(buffer) == 0, f"{buffer_name}: Empty buffer should have length 0"
@@ -125,8 +125,8 @@ def _test_buffer_operations(buffer: MemoryBuffer, buffer_name: str):
 
 def test_prioritized_buffer_priority_update():
     """Test priority update functionality for prioritized buffers."""
-    # Test PrioritizedReplayBuffer priority update
-    prioritized_buffer = PrioritizedReplayBuffer(capacity=10)
+    # Test PrioritizedMemoryBuffer priority update
+    prioritized_buffer = PrioritizedMemoryBuffer(capacity=10)
     sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0}]
     prioritized_buffer.add(sample)
 
@@ -155,7 +155,7 @@ def test_basic_integration():
     agent = Agent(config)
 
     # Test with different buffer types
-    buffer_types = [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer]
+    buffer_types = [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer]
 
     for BufferClass in buffer_types:  # noqa: N806
         # Create memory buffer

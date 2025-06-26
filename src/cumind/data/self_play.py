@@ -7,24 +7,24 @@ import numpy as np
 from ..agent.agent import Agent
 from ..config import Config
 from ..utils.logger import log
-from .memory_buffer import MemoryBuffer
+from .memory import Memory
 
 
 class SelfPlay:
     """Self-play runner: collects game data and stores it in a buffer."""
 
-    def __init__(self, config: Config, agent: Agent, memory_buffer: MemoryBuffer):
+    def __init__(self, config: Config, agent: Agent, memory: Memory):
         """Initialize self-play runner.
 
         Args:
             config: CuMind configuration.
             agent: Agent for self-play.
-            memory_buffer: Buffer to store collected data.
+            memory: Buffer to store collected data.
         """
         log.info("Initializing SelfPlay runner.")
         self.config = config
         self.agent = agent
-        self.memory_buffer = memory_buffer
+        self.memory = memory
 
     def run_episode(self, environment: Any) -> tuple[float, int, List[Dict[str, Any]]]:
         """Run one self-play episode and collect data.
@@ -60,8 +60,8 @@ class SelfPlay:
             episode_steps += 1
 
         log.debug(f"Episode finished. Total reward: {total_reward}, Steps: {episode_steps}.")
-        self.memory_buffer.add(episode_data)
-        log.debug(f"Added episode data to memory buffer. Buffer size: {len(self.memory_buffer)}.")
+        self.memory.add(episode_data)
+        log.debug(f"Added episode data to memory buffer. Buffer size: {len(self.memory)}.")
         return total_reward, episode_steps, episode_data
 
     def collect_samples(self, environment: Any, num_episodes: int) -> None:
@@ -77,10 +77,10 @@ class SelfPlay:
             self.run_episode(environment)
         log.info(f"Finished collecting samples for {num_episodes} episodes.")
 
-    def get_memory_buffer(self) -> MemoryBuffer:
+    def get_memory(self) -> Memory:
         """Get the memory buffer with collected data.
 
         Returns:
             Memory buffer containing collected data samples
         """
-        return self.memory_buffer
+        return self.memory

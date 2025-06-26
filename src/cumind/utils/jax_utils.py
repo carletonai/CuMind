@@ -43,7 +43,7 @@ def tree_unstack(tree: Any) -> Tuple[Any, ...]:
     return tuple(unstacked_trees)
 
 
-def batched_apply[T](fn: Callable[[Any], T], *args: Any, batch_size: int = 32) -> T:
+def batched_apply[T](fn: Callable[[Any], T], *args: Any, batch_size: int) -> T:
     """Apply function in batches to avoid memory issues.
 
     Args:

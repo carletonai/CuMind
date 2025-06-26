@@ -31,10 +31,10 @@ class Agent:
 
         # Create network with random initialization
         log.info(f"Creating CuMindNetwork with observation shape {config.observation_shape} and action space size {config.action_space_size}")
-        key = jax.random.PRNGKey(0)
+        key = jax.random.PRNGKey(config.random_seed)
         rngs = nnx.Rngs(params=key)
 
-        self.network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, rngs=rngs)
+        self.network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
 
         # Create a target network for stable value bootstrapping
         log.info("Creating target network.")

@@ -179,7 +179,9 @@ class TestMCTS:
         config.action_space_size = 2
         config.observation_shape = (4,)
         config.hidden_dim = 16
-        network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim)
+        key = jax.random.PRNGKey(config.random_seed)
+        rngs = nnx.Rngs(params=key)
+        network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
         mcts = MCTS(network, config)
         return mcts, network, config
 
@@ -251,7 +253,9 @@ class TestMCTS:
         mcts, network, config = setup
         config.observation_shape = (8,)
         config.action_space_size = 3
-        network2 = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim)
+        key = jax.random.PRNGKey(config.random_seed)
+        rngs = nnx.Rngs(params=key)
+        network2 = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
         mcts2 = MCTS(network2, config)
         root_hidden_state = jnp.ones(config.hidden_dim)
         action_probs = mcts2.search(root_hidden_state, add_noise=False)

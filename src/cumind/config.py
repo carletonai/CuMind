@@ -28,6 +28,9 @@ class Config:
     weight_decay: float = 1e-4
     target_update_frequency: int = 200
     checkpoint_interval: int = 50
+    num_episodes: int = 500
+    train_frequency: int = 5
+    checkpoint_root_dir: str = "checkpoints"
 
     # MCTS
     num_simulations: int = 50
@@ -36,6 +39,7 @@ class Config:
     exploration_fraction: float = 0.25
 
     # Environment
+    env_name: str = "CartPole-v1"
     action_space_size: int = 4
     observation_shape: Tuple[int, ...] = (84, 84, 3)
 
@@ -44,10 +48,19 @@ class Config:
     td_steps: int = 10
     discount: float = 0.997
 
-    # Replay Buffer
-    replay_buffer_size: int = 10000
-    min_replay_size: int = 1000
-    min_replay_fill_pct: float = 0.1
+    # Memory
+    memory_capacity: int = 10000
+    min_memory_size: int = 1000
+    min_memory_pct: float = 0.1
+    # Tree
+    per_alpha: float = 0.6
+    per_epsilon: float = 1e-6
+    # Prioritized Buffer
+    per_beta: float = 0.4
+
+    # Network Architecture
+    random_seed: int = 0
+    conv_channels: int = 32
 
     @classmethod
     def from_json(cls, json_path: str) -> "Config":

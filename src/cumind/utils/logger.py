@@ -81,6 +81,7 @@ class Logger:
         log_dir: str = "logs",
         level: str = "INFO",
         log_console: bool = False,
+        use_timestamp: bool = True,
         wandb_config: Optional[Dict[str, Any]] = None,
         tensorboard_config: Optional[Dict[str, Any]] = None,
     ):
@@ -95,8 +96,11 @@ class Logger:
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p")
 
         # Setup file handler
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_dir = Path(log_dir) / timestamp
+        if use_timestamp:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.log_dir = Path(log_dir) / timestamp
+        else:
+            self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(self.log_dir / "training.log")
         file_handler.setFormatter(formatter)

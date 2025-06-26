@@ -13,7 +13,7 @@ from tqdm import tqdm  # type: ignore
 
 from ..config import Config
 from ..core.network import CuMindNetwork
-from ..data.memory_buffer import MemoryBuffer
+from ..data.memory import Memory
 from ..data.self_play import SelfPlay
 from ..utils.checkpoint import load_checkpoint, save_checkpoint
 from ..utils.logger import log
@@ -23,36 +23,37 @@ from .agent import Agent
 class Trainer:
     """Orchestrates the training process, including sampling, updates, and logging."""
 
-    def __init__(self, agent: Agent, buffer: MemoryBuffer, config: Config, run_name: str):
+    def __init__(self, agent: Agent, memory: Memory, config: Config):
         """Initializes the Trainer.
         Args:
             agent: The agent to train.
-            buffer: The replay buffer for sampling training data.
+            buffer: The memory buffer for sampling training data.
             config: The configuration object.
-            run_name: The name for the run, used for creating checkpoint directories.
+            env_name: The name for the environment, used for creating checkpoint directories.
         """
-        log.info(f"Initializing trainer for run: {run_name}")
+        log.info(f"Initializing trainer for environment: {config.env_name}")
         self.agent = agent
-        self.buffer = buffer
+        self.memory = memory
         self.config = config
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.checkpoint_dir = f"checkpoints/{run_name}/{timestamp}"
+        self.checkpoint_dir = f"{config.checkpoint_root_dir}/{config.env_name}/{timestamp}"
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         log.info(f"Checkpoints will be saved to {self.checkpoint_dir}")
         self.train_step_count = 0
 
-    def run_training_loop(self, env: Any, num_episodes: int, train_frequency: int) -> None:
+    def run_training_loop(self, env: Any) -> None:
         """Runs the main training loop.
         Args:
             env: The environment to run episodes in.
-            num_episodes: The total number of episodes to run.
-            train_frequency: The number of episodes between training steps.
         """
+        num_episodes = self.config.num_episodes
+        train_frequency = self.config.train_frequency
+
         log.info(f"Starting training loop for {num_episodes} episodes with train frequency {train_frequency}.")
         loss_info = {}
         pbar = tqdm(range(num_episodes), desc="Training Progress")
         for episode in pbar:
-            self_play = SelfPlay(self.config, self.agent, self.buffer)
+            self_play = SelfPlay(self.config, self.agent, self.memory)
             episode_reward, episode_steps, _ = self_play.run_episode(env)
 
             log.info(f"Episode {episode:3d}: Reward={episode_reward:6.1f}, Length={episode_steps:3d}")
@@ -70,21 +71,21 @@ class Trainer:
                     "Reward": f"{episode_reward:.2f}",
                     "Length": episode_steps,
                     "Loss": f"{loss_info.get('total_loss', 0):.4f}",
-                    "Memory": f"{self.buffer.get_pct():2.2f}",
+                    "Memory": f"{self.memory.get_pct():2.2f}",
                 }
             )
 
             # if epi are upto 500 it only saves upto 450..
-            if episode % 50 == 0 and episode > 0:
+            if episode > 0 and episode % self.config.checkpoint_interval == 0:
                 self.save_checkpoint(episode)
 
     def train_step(self) -> Dict[str, float]:
         """Performs one full training step, including sampling and network update."""
-        if not self.buffer.is_ready(self.config.min_replay_size, self.config.min_replay_fill_pct):
+        if not self.memory.is_ready(self.config.min_memory_size, self.config.min_memory_pct):
             log.warning("Buffer not ready for training, skipping step.")
             return {}
         log.debug(f"Starting training step {self.train_step_count}...")
-        batch = self.buffer.sample(self.config.batch_size)
+        batch = self.memory.sample(self.config.batch_size)
         observations, actions, targets = self._prepare_batch(batch)
 
         params = nnx.state(self.agent.network, nnx.Param)

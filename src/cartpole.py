@@ -8,42 +8,26 @@ import gymnasium as gym
 from cumind.agent.agent import Agent
 from cumind.agent.trainer import Trainer
 from cumind.config import Config
-from cumind.data.memory_buffer import ReplayBuffer
-from cumind.utils.checkpoint import load_checkpoint
+from cumind.data.memory import MemoryBuffer
+from cumind.utils.checkpoint import find_latest_checkpoint_in_dir, load_checkpoint
 from cumind.utils.logger import log
 
 
-def train(config: Config, run_name: str = "cartpole") -> str:
+def train(config: Config) -> str:
     """Train the agent on CartPole environment."""
-    env = gym.make("CartPole-v1")
+    env = gym.make(config.env_name)
 
     agent = Agent(config)
-    memory_buffer = ReplayBuffer(capacity=config.replay_buffer_size)
-    trainer = Trainer(agent, memory_buffer, config, run_name=run_name)
+    memory_buffer = MemoryBuffer(capacity=config.memory_capacity)
+    trainer = Trainer(agent, memory_buffer, config)
 
     log.info(f"Checkpoints will be saved in: {trainer.checkpoint_dir}")
     log.info("Starting training...")
-    trainer.run_training_loop(env, num_episodes=500, train_frequency=5)
+    trainer.run_training_loop(env)
     log.info("Training completed!")
 
     env.close()  # type: ignore
     return trainer.checkpoint_dir
-
-
-def get_latest_checkpoint(checkpoint_dir: str) -> str | None:
-    """Gets the latest checkpoint file from a directory."""
-    if not os.path.isdir(checkpoint_dir):
-        log.warning(f"Checkpoint directory not found: {checkpoint_dir}")
-        return None
-
-    checkpoints = sorted([f for f in os.listdir(checkpoint_dir) if f.endswith(".pkl")])
-    if not checkpoints:
-        log.warning(f"No checkpoints found in {checkpoint_dir}.")
-        return None
-
-    latest_checkpoint = os.path.join(checkpoint_dir, checkpoints[-1])
-    log.info(f"Found latest checkpoint: {latest_checkpoint}")
-    return latest_checkpoint
 
 
 def inference(config: Config, checkpoint_file: str) -> None:
@@ -62,7 +46,7 @@ def inference(config: Config, checkpoint_file: str) -> None:
     inference_agent.load_state(state)
 
     # Run inference episodes
-    env = gym.make("CartPole-v1", render_mode="human")
+    env = gym.make(config.env_name, render_mode="human")
     for episode in range(5):
         obs, _ = env.reset()
         done = False
@@ -87,12 +71,16 @@ def main() -> None:
         num_simulations=10,
         batch_size=32,
         learning_rate=1e-3,
-        replay_buffer_size=1000,
-        min_replay_size=3,
-        min_replay_fill_pct=0.00,
+        memory_capacity=1000,
+        min_memory_size=3,
+        min_memory_pct=0.00,
         td_steps=5,
         num_unroll_steps=3,
         target_update_frequency=15,
+        env_name="CartPole-v1",
+        num_episodes=500,
+        train_frequency=5,
+        checkpoint_interval=100,
     )
     log.info(f"Using configuration: {config}")
     config.validate()
@@ -107,7 +95,7 @@ def main() -> None:
     if should_infer:
         manual_checkpoint = ""
         # Or use the one from the recent training run
-        latest_checkpoint = get_latest_checkpoint(checkpoint_dir) if checkpoint_dir else None
+        latest_checkpoint = find_latest_checkpoint_in_dir(checkpoint_dir) if checkpoint_dir else None
 
         if latest_checkpoint:
             inference(config, latest_checkpoint)

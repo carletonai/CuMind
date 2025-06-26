@@ -111,21 +111,22 @@ class VectorEncoder(BaseEncoder):
 class ConvEncoder(BaseEncoder):
     """An encoder for 3D image observations using convolutional layers."""
 
-    def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int, rngs: nnx.Rngs):
+    def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int, conv_channels: int, rngs: nnx.Rngs):
         """Initializes the convolutional encoder.
 
         Args:
             observation_shape: The shape of the 3D observation (height, width, channels).
             hidden_dim: The output hidden dimension.
             num_blocks: The number of residual blocks.
+            conv_channels: The number of channels for the convolutional layers.
             rngs: Random number generators for layer initialization.
         """
         super().__init__(observation_shape, hidden_dim, num_blocks, rngs)
         log.debug(f"Initializing ConvEncoder with input shape {observation_shape}, hidden dim {hidden_dim}, and {num_blocks} blocks.")
 
-        self.initial_conv = nnx.Conv(observation_shape[-1], 32, kernel_size=(3, 3), strides=(2, 2), padding=1, rngs=rngs)
-        self.residual_blocks = [ResidualBlock(32, rngs) for _ in range(num_blocks)]
-        self.final_dense = nnx.Linear(32, hidden_dim, rngs=rngs)
+        self.initial_conv = nnx.Conv(observation_shape[-1], conv_channels, kernel_size=(3, 3), strides=(2, 2), padding=1, rngs=rngs)
+        self.residual_blocks = [ResidualBlock(conv_channels, rngs) for _ in range(num_blocks)]
+        self.final_dense = nnx.Linear(conv_channels, hidden_dim, rngs=rngs)
 
     def __call__(self, observation: chex.Array) -> chex.Array:
         """Encodes a 3D observation into a hidden state.
@@ -149,22 +150,21 @@ class ConvEncoder(BaseEncoder):
 class RepresentationNetwork(nnx.Module):
     """The representation network (r_theta) that encodes raw observations into hidden states."""
 
-    def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int = 64, num_blocks: int = 4, rngs: Optional[nnx.Rngs] = None):
+    def __init__(self, observation_shape: Tuple[int, ...], hidden_dim: int, num_blocks: int, conv_channels: int, rngs: nnx.Rngs):
         """Initializes the representation network.
 
         Args:
             observation_shape: The shape of the input observations.
             hidden_dim: The dimension of the hidden representation.
             num_blocks: The number of processing blocks in the encoder.
+            conv_channels: The number of channels for the convolutional layers.
             rngs: Random number generators for layer initialization.
         """
-        if rngs is None:
-            rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
-
         log.info(f"Initializing RepresentationNetwork with hidden dim {hidden_dim} and {num_blocks} blocks.")
         self.observation_shape = observation_shape
         self.hidden_dim = hidden_dim
         self.num_blocks = num_blocks
+        self.conv_channels = conv_channels
         self.encoder = self._create_encoder(rngs)
 
     def _create_encoder(self, rngs: nnx.Rngs) -> BaseEncoder:
@@ -175,7 +175,7 @@ class RepresentationNetwork(nnx.Module):
             return VectorEncoder(self.observation_shape, self.hidden_dim, self.num_blocks, rngs)
         if len(self.observation_shape) == 3:
             log.info("Using ConvEncoder for 3D observations.")
-            return ConvEncoder(self.observation_shape, self.hidden_dim, self.num_blocks, rngs)
+            return ConvEncoder(self.observation_shape, self.hidden_dim, self.num_blocks, self.conv_channels, rngs)
         log.critical(f"Unsupported observation shape: {self.observation_shape}")
         raise ValueError(f"Unsupported observation shape: {self.observation_shape}")
 
@@ -194,7 +194,7 @@ class RepresentationNetwork(nnx.Module):
 class DynamicsNetwork(nnx.Module):
     """The dynamics network (g_theta) that predicts the next hidden state and reward."""
 
-    def __init__(self, hidden_dim: int, action_space_size: int, num_blocks: int = 4, rngs: Optional[nnx.Rngs] = None):
+    def __init__(self, hidden_dim: int, action_space_size: int, num_blocks: int, rngs: nnx.Rngs):
         """Initializes the dynamics network.
 
         Args:
@@ -203,9 +203,6 @@ class DynamicsNetwork(nnx.Module):
             num_blocks: The number of processing blocks.
             rngs: Random number generators for layer initialization.
         """
-        if rngs is None:
-            rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
-
         log.info(f"Initializing DynamicsNetwork with hidden dim {hidden_dim}, action space size {action_space_size}, and {num_blocks} blocks.")
         self.hidden_dim = hidden_dim
         self.action_space_size = action_space_size
@@ -242,7 +239,7 @@ class DynamicsNetwork(nnx.Module):
 class PredictionNetwork(nnx.Module):
     """The prediction network (f_theta) that predicts the policy and value from a hidden state."""
 
-    def __init__(self, hidden_dim: int, action_space_size: int, rngs: Optional[nnx.Rngs] = None):
+    def __init__(self, hidden_dim: int, action_space_size: int, rngs: nnx.Rngs):
         """Initializes the prediction network.
 
         Args:
@@ -250,9 +247,6 @@ class PredictionNetwork(nnx.Module):
             action_space_size: The number of possible actions for the policy head.
             rngs: Random number generators for layer initialization.
         """
-        if rngs is None:
-            rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
-
         log.info(f"Initializing PredictionNetwork with hidden dim {hidden_dim} and action space size {action_space_size}.")
         self.policy_head = nnx.Linear(hidden_dim, action_space_size, rngs=rngs)
         self.value_head = nnx.Linear(hidden_dim, 1, rngs=rngs)
@@ -275,7 +269,7 @@ class PredictionNetwork(nnx.Module):
 class CuMindNetwork(nnx.Module):
     """The complete CuMind network, combining representation, dynamics, and prediction."""
 
-    def __init__(self, observation_shape: Tuple[int, ...], action_space_size: int, hidden_dim: int = 64, num_blocks: int = 4, rngs: Optional[nnx.Rngs] = None):
+    def __init__(self, observation_shape: Tuple[int, ...], action_space_size: int, hidden_dim: int, num_blocks: int, conv_channels: int, rngs: nnx.Rngs):
         """Initializes the complete CuMind network.
 
         Args:
@@ -283,13 +277,11 @@ class CuMindNetwork(nnx.Module):
             action_space_size: The number of possible actions.
             hidden_dim: The dimension of the hidden representations.
             num_blocks: The number of processing blocks in the networks.
+            conv_channels: The number of channels for the convolutional layers.
             rngs: Random number generators for layer initialization.
         """
-        if rngs is None:
-            rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
-
         log.info(f"Initializing CuMindNetwork for observation shape {observation_shape} and action space size {action_space_size}.")
-        self.representation_network = RepresentationNetwork(observation_shape, hidden_dim, num_blocks, rngs)
+        self.representation_network = RepresentationNetwork(observation_shape, hidden_dim, num_blocks, conv_channels, rngs)
         self.dynamics_network = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
         self.prediction_network = PredictionNetwork(hidden_dim, action_space_size, rngs)
 
