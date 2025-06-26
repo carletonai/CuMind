@@ -25,6 +25,7 @@ class Config:
     learning_rate: float = 1e-3
     weight_decay: float = 1e-4
     target_update_frequency: int = 200
+    checkpoint_interval: int = 50
 
     # MCTS
     num_simulations: int = 50

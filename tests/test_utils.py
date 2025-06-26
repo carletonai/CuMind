@@ -55,15 +55,15 @@ class TestLogger:
             # Verify logging doesn't crash
             assert True  # If we get here, logging worked
 
-    def test_log_text(self):
+    def test_log_info(self):
         """Test text logging functionality."""
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = os.path.join(temp_dir, "test_logs")
             logger = Logger(log_dir)
 
             # Log text message
-            logger.log_text("Training started")
-            logger.log_text("Epoch 1 completed")
+            logger.info("Training started")
+            logger.info("Epoch 1 completed")
 
             # Verify no errors occurred
             assert True

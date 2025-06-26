@@ -6,6 +6,8 @@ from typing import Any, Dict, cast
 
 from flax import nnx
 
+from .logger import log
+
 
 def save_checkpoint(state: Dict[str, Any], path: str) -> None:
     """Save training checkpoint to a file.
@@ -14,11 +16,15 @@ def save_checkpoint(state: Dict[str, Any], path: str) -> None:
         state: A dictionary containing the state to save (e.g., network, optimizer).
         path: File path to save the checkpoint.
     """
-    path_obj = Path(path)
-    path_obj.parent.mkdir(parents=True, exist_ok=True)
-    with open(path_obj, "wb") as f:
-        pickle.dump(state, f)
-    print(f"Checkpoint saved to {path}")
+    try:
+        path_obj = Path(path)
+        path_obj.parent.mkdir(parents=True, exist_ok=True)
+        with open(path_obj, "wb") as f:
+            pickle.dump(state, f)
+        log.info(f"Checkpoint saved to {path}")
+    except (IOError, pickle.PicklingError) as e:
+        log.exception(f"Failed to save checkpoint to {path}: {e}")
+        raise
 
 
 def load_checkpoint(path: str) -> Dict[str, Any]:
@@ -30,7 +36,11 @@ def load_checkpoint(path: str) -> Dict[str, Any]:
     Returns:
         The loaded state dictionary.
     """
-    with open(path, "rb") as f:
-        state = pickle.load(f)
-    print(f"Checkpoint loaded from {path}")
-    return cast(Dict[str, Any], state)
+    try:
+        with open(path, "rb") as f:
+            state = pickle.load(f)
+        log.info(f"Checkpoint loaded from {path}")
+        return cast(Dict[str, Any], state)
+    except (IOError, pickle.UnpicklingError, FileNotFoundError) as e:
+        log.exception(f"Failed to load checkpoint from {path}: {e}")
+        raise

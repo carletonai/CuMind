@@ -1,145 +1,160 @@
 """Unified logger with TensorBoard and Weights & Biases support."""
 
 import logging
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import wandb
+# import tensorboard as tb
+# import wandb
+
+
+def get_logger():
+    """Get the logger instance.
+    Usage:
+        from cumind.utils.logger import get_logger
+        logger = get_logger()
+        logger.info("hello world")
+        logger.info("this is how you use this")
+    """
+    return Logger()
+
+
+class _LogFunctor:
+    """A functor to provide direct access to the get_logger() instance's methods,
+    but restricts to only known logging methods.
+    Usage:
+        from cumind.utils.logger import log
+        log.info("hello world")
+        log.info("this is how you use this")
+    """
+
+    _allowed_methods = {
+        "debug",
+        "info",
+        "warning",
+        "error",
+        "exception",
+        "critical",
+        "log",
+        "log_scalar",
+        "log_scalars",
+        "close",
+    }
+
+    def __getattr__(self, name):
+        if name not in self._allowed_methods:
+            raise AttributeError(f"'log' object has no attribute '{name}'")
+        return getattr(get_logger(), name)
+
+
+log = _LogFunctor()
 
 
 class Logger:
-    """Unified logger for training metrics and visualizations."""
+    """A wrapper around the standard Python logger to provide a unified, configurable interface."""
+
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(
         self,
         log_dir: str = "logs",
-        wandb_project: Optional[str] = None,
+        level: str = "INFO",
         wandb_config: Optional[Dict[str, Any]] = None,
-        level: int = logging.DEBUG,
+        tensorboard_config: Optional[Dict[str, Any]] = None,
     ):
-        """Initialize logger with optional TensorBoard and W&B support.
+        """Initialize and configure the logger.
 
         Args:
-            log_dir: Directory to store log files
-            wandb_project: Weights & Biases project name (optional)
-            wandb_config: Configuration dict for W&B (optional)
-            level: Logging level (default: logging.INFO)
+            log_dir: Directory to store log files.
+            level: Logging level.
+            wandb_config: Configuration dict for W&B (optional).
+            tensorboard_config: Configuration dict for TensorBoard (optional).
         """
+        # Only initialize once
+        if hasattr(self, "_logger"):
+            return
+
+        self._logger = logging.getLogger("CuMindLogger")
+        self._logger.setLevel(getattr(logging, level.upper(), logging.INFO))
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
-        # Setup file logging
-        self.logger = logging.getLogger("CuMind")
-        self.logger.setLevel(level)
+        self.use_wandb = wandb_config is not None  # wandb.run
+        self.use_tensorboard = tensorboard_config is not None
 
-        handler = logging.FileHandler(self.log_dir / "training.log")
-        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S")
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-        # TensorBoard writer
-        self.tensorboard_writer = None
-        '''
-        try:
-            from tensorboard import SummaryWriter  # type: ignore
+        # Prevent adding handlers multiple times
+        if not self._logger.handlers:
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p")
 
-            self.tensorboard_writer = SummaryWriter(log_dir=str(self.log_dir))
-        except ImportError:
-            self.logger.info("TensorBoard not available, skipping TensorBoard logging")
-        '''
-        # W&B setup
-        self.use_wandb = wandb_project is not None
+            file_handler = logging.FileHandler(self.log_dir / "training.log")
+            file_handler.setFormatter(formatter)
+            self._logger.addHandler(file_handler)
+
+        # Initialize W&B
         if self.use_wandb:
-            wandb.init(project=wandb_project, config=wandb_config, dir=str(self.log_dir))
+            raise NotImplementedError("Weights & Biases is not implemented yet.")
+
+        # Initialize TensorBoard
+        if self.use_tensorboard:
+            raise NotImplementedError("TensorBoard is not implemented yet.")
+
+    def debug(self, msg: str, *args, **kwargs):
+        """Logs a message with level DEBUG."""
+        self._logger.debug(msg, *args, **kwargs)
+
+    def info(self, msg: str, *args, **kwargs):
+        """Logs a message with level INFO."""
+        self._logger.info(msg, *args, **kwargs)
+
+    def warning(self, msg: str, *args, **kwargs):
+        """Logs a message with level WARNING."""
+        self._logger.warning(msg, *args, **kwargs)
+
+    def error(self, msg: str, *args, **kwargs):
+        """Logs a message with level ERROR."""
+        self._logger.error(msg, *args, **kwargs)
+
+    def exception(self, msg: str, *args, **kwargs):
+        """Logs a message with level ERROR, including exception info."""
+        self._logger.exception(msg, *args, **kwargs)
+
+    def critical(self, msg: str, *args, **kwargs):
+        """Logs a message with level CRITICAL."""
+        self._logger.critical(msg, *args, **kwargs)
+
+    def log(self, level: int, msg: str, *args, **kwargs):
+        """Logs a message with the specified level."""
+        self._logger.log(level, msg, *args, **kwargs)
 
     def log_scalar(self, name: str, value: float, step: int) -> None:
-        """Log a scalar value.
-
-        Args:
-            name: Name of the metric
-            value: Scalar value to log
-            step: Training step/epoch
-        """
-        self.logger.info("Step %d: %s = %.6f", step, name, value)
-
-        if self.tensorboard_writer is not None:
-            self.tensorboard_writer.add_scalar(name, value, step)
-
+        """Log a scalar value to the console and to W&B."""
+        self.info(f"Step {step:4d}: {name} = {value:.6f}")
         if self.use_wandb:
-            wandb.log({name: value}, step=step)
+            raise NotImplementedError("Weights & Biases is not implemented yet.")
+        if self.use_tensorboard:
+            raise NotImplementedError("TensorBoard is not implemented yet.")
 
     def log_scalars(self, metrics: Dict[str, float], step: int) -> None:
-        """Log multiple scalar values.
-
-        Args:
-            metrics: Dictionary of metric names and values
-            step: Training step/epoch
-        """
+        """Log multiple scalar values."""
         for name, value in metrics.items():
             self.log_scalar(name, value, step)
 
-    def log(self, level: int, msg: str, *args, **kwargs) -> None:
-        """Log a message at a specific logging level."""
-        self.logger.log(level, msg, *args, **kwargs)
-        if self.use_wandb:
-            wandb.log({logging.getLevelName(level).lower(): msg % args if args else msg})
-
-    def log_critical(self, text: str) -> None:
-        """Log critical message."""
-        self.logger.critical(text)
-        if self.use_wandb:
-            wandb.log({"critical": text})
-
-    def log_fatal(self, text: str) -> None:
-        """Log fatal message (alias for critical)."""
-        self.logger.fatal(text)
-        if self.use_wandb:
-            wandb.log({"fatal": text})
-
-    def log_error(self, text: str) -> None:
-        """Log error message."""
-        self.logger.error(text)
-        if self.use_wandb:
-            wandb.log({"error": text})
-
-    def log_exception(self, text: str) -> None:
-        """Log exception message (with traceback)."""
-        self.logger.exception(text)
-        if self.use_wandb:
-            wandb.log({"exception": text})
-
-    def log_warning(self, text: str) -> None:
-        """Log warning message."""
-        self.logger.warning(text)
-        if self.use_wandb:
-            wandb.log({"warning": text})
-
-    def log_warn(self, text: str) -> None:
-        """Log warn message (alias for warning)."""
-        self.logger.warn(text)
-        if self.use_wandb:
-            wandb.log({"warn": text})
-
-    def log_info(self, text: str) -> None:
-        """Log info message."""
-        self.logger.info(text)
-        if self.use_wandb:
-            wandb.log({"info": text})
-
-    def log_debug(self, text: str) -> None:
-        """Log debug message."""
-        self.logger.debug(text)
-        if self.use_wandb:
-            wandb.log({"debug": text})
-
     def close(self) -> None:
-        """Close logger and cleanup resources."""
-        if self.tensorboard_writer is not None:
-            self.tensorboard_writer.close()
-
+        """Close logger and cleanup resources, like file handlers and W&B run."""
         if self.use_wandb:
-            wandb.finish()
+            raise NotImplementedError("Weights & Biases is not implemented yet.")
+        if self.use_tensorboard:
+            raise NotImplementedError("TensorBoard is not implemented yet.")
 
-        # Close logging handlers
-        for handler in self.logger.handlers[:]:
+        for handler in self._logger.handlers[:]:
             handler.close()
-            self.logger.removeHandler(handler)
+            self._logger.removeHandler(handler)
+
+        self._logger.info("Logger is cleaning up resources.")
+        logging.shutdown()
