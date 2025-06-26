@@ -6,6 +6,7 @@ import numpy as np
 
 from ..agent.agent import Agent
 from ..config import Config
+from ..utils.logger import log
 from .memory_buffer import MemoryBuffer
 
 
@@ -20,6 +21,7 @@ class SelfPlay:
             agent: Agent for self-play.
             memory_buffer: Buffer to store collected data.
         """
+        log.info("Initializing SelfPlay runner.")
         self.config = config
         self.agent = agent
         self.memory_buffer = memory_buffer
@@ -33,6 +35,7 @@ class SelfPlay:
         Returns:
             A tuple containing total reward, episode length, and a list of step data dictionaries.
         """
+        log.debug("Starting new self-play episode.")
         episode_data = []
         observation, _ = environment.reset()
         done = False
@@ -56,7 +59,9 @@ class SelfPlay:
             total_reward += reward
             episode_steps += 1
 
+        log.debug(f"Episode finished. Total reward: {total_reward}, Steps: {episode_steps}.")
         self.memory_buffer.add(episode_data)
+        log.debug(f"Added episode data to memory buffer. Buffer size: {len(self.memory_buffer)}.")
         return total_reward, episode_steps, episode_data
 
     def collect_samples(self, environment: Any, num_episodes: int) -> None:
@@ -66,8 +71,11 @@ class SelfPlay:
             environment: The game environment.
             num_episodes: Number of episodes to run.
         """
-        for _ in range(num_episodes):
+        log.info(f"Starting sample collection for {num_episodes} episodes.")
+        for i in range(num_episodes):
+            log.debug(f"Running episode {i + 1}/{num_episodes}.")
             self.run_episode(environment)
+        log.info(f"Finished collecting samples for {num_episodes} episodes.")
 
     def get_memory_buffer(self) -> MemoryBuffer:
         """Get the memory buffer with collected data.

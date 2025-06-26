@@ -7,6 +7,8 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
+from ..utils.logger import log
+
 
 class ResidualBlock(nnx.Module):
     """A standard residual block with two convolutional layers."""
@@ -18,6 +20,7 @@ class ResidualBlock(nnx.Module):
             channels: The number of input and output channels.
             rngs: Random number generators for layer initialization.
         """
+        log.debug(f"Initializing ResidualBlock with {channels} channels.")
         self.conv1 = nnx.Conv(channels, channels, kernel_size=(3, 3), padding=1, rngs=rngs)
         self.bn1 = nnx.BatchNorm(channels, use_running_average=True, rngs=rngs)
         self.conv2 = nnx.Conv(channels, channels, kernel_size=(3, 3), padding=1, rngs=rngs)
@@ -77,6 +80,7 @@ class VectorEncoder(BaseEncoder):
             rngs: Random number generators for layer initialization.
         """
         super().__init__(observation_shape, hidden_dim, num_blocks, rngs)
+        log.debug(f"Initializing VectorEncoder with input dim {observation_shape[0]}, hidden dim {hidden_dim}, and {num_blocks} blocks.")
 
         input_dim = observation_shape[0]
         self.layers = []
@@ -117,6 +121,7 @@ class ConvEncoder(BaseEncoder):
             rngs: Random number generators for layer initialization.
         """
         super().__init__(observation_shape, hidden_dim, num_blocks, rngs)
+        log.debug(f"Initializing ConvEncoder with input shape {observation_shape}, hidden dim {hidden_dim}, and {num_blocks} blocks.")
 
         self.initial_conv = nnx.Conv(observation_shape[-1], 32, kernel_size=(3, 3), strides=(2, 2), padding=1, rngs=rngs)
         self.residual_blocks = [ResidualBlock(32, rngs) for _ in range(num_blocks)]
@@ -156,6 +161,7 @@ class RepresentationNetwork(nnx.Module):
         if rngs is None:
             rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
 
+        log.info(f"Initializing RepresentationNetwork with hidden dim {hidden_dim} and {num_blocks} blocks.")
         self.observation_shape = observation_shape
         self.hidden_dim = hidden_dim
         self.num_blocks = num_blocks
@@ -163,10 +169,14 @@ class RepresentationNetwork(nnx.Module):
 
     def _create_encoder(self, rngs: nnx.Rngs) -> BaseEncoder:
         """Creates the appropriate encoder based on the observation shape."""
+        log.debug(f"Creating encoder for observation shape: {self.observation_shape}")
         if len(self.observation_shape) == 1:
+            log.info("Using VectorEncoder for 1D observations.")
             return VectorEncoder(self.observation_shape, self.hidden_dim, self.num_blocks, rngs)
         if len(self.observation_shape) == 3:
+            log.info("Using ConvEncoder for 3D observations.")
             return ConvEncoder(self.observation_shape, self.hidden_dim, self.num_blocks, rngs)
+        log.critical(f"Unsupported observation shape: {self.observation_shape}")
         raise ValueError(f"Unsupported observation shape: {self.observation_shape}")
 
     def __call__(self, observation: chex.Array) -> chex.Array:
@@ -196,6 +206,7 @@ class DynamicsNetwork(nnx.Module):
         if rngs is None:
             rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
 
+        log.info(f"Initializing DynamicsNetwork with hidden dim {hidden_dim}, action space size {action_space_size}, and {num_blocks} blocks.")
         self.hidden_dim = hidden_dim
         self.action_space_size = action_space_size
         self.action_embedding = nnx.Embed(action_space_size, hidden_dim, rngs=rngs)
@@ -242,6 +253,7 @@ class PredictionNetwork(nnx.Module):
         if rngs is None:
             rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
 
+        log.info(f"Initializing PredictionNetwork with hidden dim {hidden_dim} and action space size {action_space_size}.")
         self.policy_head = nnx.Linear(hidden_dim, action_space_size, rngs=rngs)
         self.value_head = nnx.Linear(hidden_dim, 1, rngs=rngs)
 
@@ -276,6 +288,7 @@ class CuMindNetwork(nnx.Module):
         if rngs is None:
             rngs = nnx.Rngs(params=jax.random.PRNGKey(0))
 
+        log.info(f"Initializing CuMindNetwork for observation shape {observation_shape} and action space size {action_space_size}.")
         self.representation_network = RepresentationNetwork(observation_shape, hidden_dim, num_blocks, rngs)
         self.dynamics_network = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
         self.prediction_network = PredictionNetwork(hidden_dim, action_space_size, rngs)
@@ -289,6 +302,7 @@ class CuMindNetwork(nnx.Module):
         Returns:
             A tuple of (hidden_state, policy_logits, value).
         """
+        log.debug(f"Initial inference with observation shape: {observation.shape}")
         hidden_state = self.representation_network(observation)
         policy_logits, value = self.prediction_network(hidden_state)
         return hidden_state, policy_logits, value
@@ -303,6 +317,7 @@ class CuMindNetwork(nnx.Module):
         Returns:
             A tuple of (next_hidden_state, reward, policy_logits, value).
         """
+        log.debug(f"Recurrent inference with hidden state shape: {hidden_state.shape} and action shape: {action.shape}")
         next_hidden_state, reward = self.dynamics_network(hidden_state, action)
         policy_logits, value = self.prediction_network(next_hidden_state)
         return next_hidden_state, reward, policy_logits, value

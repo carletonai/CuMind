@@ -3,7 +3,7 @@
 from cumind.utils.logger import log as logger
 
 
-def main():
+def main() -> None:
     """Main function for the cumind package."""
     logger.info("Welcome to CuMind!")
     logger.info("This is the main entry point for the CuMind package.")

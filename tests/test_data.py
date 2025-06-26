@@ -16,7 +16,7 @@ class TestMemoryBuffer:
     """Test suite for memory buffers."""
 
     @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
-    def test_buffer_initialization(self, BufferClass):
+    def test_buffer_initialization(self, BufferClass):  # noqa: N803
         """Test memory buffer initialization."""
         capacity = 100
         buffer = BufferClass(capacity=capacity)
@@ -24,7 +24,7 @@ class TestMemoryBuffer:
         assert len(buffer) == 0
 
     @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
-    def test_add_and_len(self, BufferClass):
+    def test_add_and_len(self, BufferClass):  # noqa: N803
         """Test adding samples and checking buffer length."""
         buffer = BufferClass(capacity=10)
         buffer.add({"obs": 1, "action": 0})
@@ -33,7 +33,7 @@ class TestMemoryBuffer:
         assert len(buffer) == 2
 
     @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
-    def test_buffer_capacity(self, BufferClass):
+    def test_buffer_capacity(self, BufferClass):  # noqa: N803
         """Test that buffer does not exceed capacity."""
         capacity = 5
         buffer = BufferClass(capacity=capacity)
@@ -42,7 +42,7 @@ class TestMemoryBuffer:
         assert len(buffer) == capacity
 
     @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
-    def test_is_ready(self, BufferClass):
+    def test_is_ready(self, BufferClass):  # noqa: N803
         """Test buffer readiness check."""
         buffer = BufferClass(capacity=20)
         assert not buffer.is_ready(min_size=10)
@@ -52,7 +52,7 @@ class TestMemoryBuffer:
         assert not buffer.is_ready(min_size=11)
 
     @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
-    def test_clear_buffer(self, BufferClass):
+    def test_clear_buffer(self, BufferClass):  # noqa: N803
         """Test clearing the buffer."""
         buffer = BufferClass(capacity=10)
         for i in range(5):
@@ -61,7 +61,7 @@ class TestMemoryBuffer:
         assert len(buffer) == 0
 
     @pytest.mark.parametrize("BufferClass", [ReplayBuffer, PrioritizedReplayBuffer, TreeBuffer])
-    def test_sample_from_buffer(self, BufferClass):
+    def test_sample_from_buffer(self, BufferClass):  # noqa: N803
         """Test sampling from the buffer."""
         buffer = BufferClass(capacity=20)
         for i in range(15):

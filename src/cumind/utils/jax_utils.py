@@ -7,6 +7,8 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
+from .logger import log
+
 
 def tree_stack(trees: Sequence[Any]) -> Any:
     """Stack a sequence of PyTrees along a new first axis.
@@ -17,6 +19,7 @@ def tree_stack(trees: Sequence[Any]) -> Any:
     Returns:
         PyTree with arrays stacked along new axis 0
     """
+    log.debug(f"Stacking {len(trees)} trees.")
     return jax.tree_util.tree_map(lambda *arrays: jnp.stack(arrays, axis=0), *trees)
 
 
@@ -29,6 +32,8 @@ def tree_unstack(tree: Any) -> Tuple[Any, ...]:
     Returns:
         Tuple of PyTrees unstacked along axis 0
     """
+    num_leaves = len(jax.tree_util.tree_leaves(tree))
+    log.debug(f"Unstacking tree with {num_leaves} leaves.")
     leaves, treedef = jax.tree_util.tree_flatten(tree)
     unstacked_leaves = [jnp.split(leaf, leaf.shape[0], axis=0) for leaf in leaves]
     unstacked_trees = []
@@ -53,10 +58,13 @@ def batched_apply[T](fn: Callable[[Any], T], *args: Any, batch_size: int = 32) -
     total_size = jax.tree_util.tree_leaves(args[0])[0].shape[0]
 
     if total_size <= batch_size:
+        log.debug("Total size is smaller than batch size, applying function directly.")
         return fn(*args)
 
+    log.info(f"Applying function in batches of size {batch_size} for total size {total_size}.")
     results = []
     for i in range(0, total_size, batch_size):
+        log.debug(f"Processing batch {i // batch_size + 1}/{total_size // batch_size + 1}")
         end_idx = min(i + batch_size, total_size)
         batch_args = jax.tree_util.tree_map(lambda x: x[i:end_idx], args)
         batch_result = fn(*batch_args)
@@ -93,5 +101,6 @@ def create_rngs(key: chex.PRNGKey, *names: str) -> nnx.Rngs:
     if not names:
         names = ("params", "dropout")
 
+    log.debug(f"Creating RNGs for: {names}")
     keys = jax.random.split(key, len(names))
     return nnx.Rngs(**dict(zip(names, keys)))

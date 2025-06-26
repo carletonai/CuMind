@@ -7,6 +7,8 @@ from typing import Any, Deque, Dict, List
 
 import numpy as np
 
+from ..utils.logger import log
+
 
 class MemoryBuffer(ABC):
     """Abstract base class for memory buffers."""
@@ -17,6 +19,7 @@ class MemoryBuffer(ABC):
         Args:
             capacity: Maximum number of samples to store.
         """
+        log.info(f"Initializing memory buffer with capacity {capacity}.")
         self.capacity = capacity
         self.buffer: Deque[Any] = deque(maxlen=capacity)
 
@@ -52,6 +55,7 @@ class MemoryBuffer(ABC):
     def get_pct(self) -> float:
         """Returns the percentage of the buffer that is filled."""
         if self.capacity == 0:
+            log.critical("Buffer capacity is zero, cannot calculate percentage.")
             raise ValueError("Buffer capacity is zero, cannot calculate percentage.")
         return float((len(self) / self.capacity) * 100)
 
@@ -65,15 +69,19 @@ class MemoryBuffer(ABC):
             True if the buffer contains at least `min_size` samples.
         """
         if min_size < 0 or min_fill_pct < 0 or min_fill_pct > 1:
+            log.critical(f"Invalid arguments for is_ready: min_size={min_size}, min_fill_pct={min_fill_pct}")
             raise ValueError("min_size must be non-negative and min_fill_pct must be between 0 and 1.")
         if self.capacity == 0:
+            log.critical("Buffer capacity is zero, cannot check readiness.")
             raise ValueError("Buffer capacity is zero, cannot check readiness.")
         if min_size == 0 and min_fill_pct == 0:
+            log.critical("At least one of min_size or min_fill_pct must be greater than zero.")
             raise ValueError("At least one of min_size or min_fill_pct must be greater than zero.")
         return (len(self) >= min_size) and (len(self) >= min_fill_pct * self.capacity)
 
     def clear(self) -> None:
         """Removes all samples from the buffer."""
+        log.info(f"Clearing buffer of size {len(self)}.")
         self.buffer.clear()
 
 
@@ -86,6 +94,7 @@ class ReplayBuffer(MemoryBuffer):
         Args:
             sample: The data sample to store.
         """
+        log.debug(f"Adding sample to ReplayBuffer. Current size: {len(self)}.")
         self.buffer.append(sample)
 
     def sample(self, batch_size: int) -> List[Any]:
@@ -97,7 +106,9 @@ class ReplayBuffer(MemoryBuffer):
         Returns:
             A list of sampled data points.
         """
+        log.debug(f"Sampling {batch_size} samples from ReplayBuffer.")
         if len(self.buffer) < batch_size:
+            log.warning(f"Requested batch size {batch_size} is larger than buffer size {len(self)}. Returning all samples.")
             return list(self.buffer)
         return random.sample(list(self.buffer), batch_size)
 
@@ -115,6 +126,7 @@ class PrioritizedReplayBuffer(MemoryBuffer):
             epsilon: A small value to avoid zero priorities.
         """
         super().__init__(capacity)
+        log.info(f"Initializing PrioritizedReplayBuffer with capacity {capacity}, alpha={alpha}, beta={beta}.")
         self.alpha = alpha
         self.beta = beta
         self.epsilon = epsilon
@@ -127,6 +139,7 @@ class PrioritizedReplayBuffer(MemoryBuffer):
         Args:
             sample: The data sample to store.
         """
+        log.debug(f"Adding sample to PrioritizedReplayBuffer with max priority. Current size: {len(self)}.")
         self.buffer.append(sample)
         self.priorities.append(self.max_priority)
 
@@ -139,7 +152,9 @@ class PrioritizedReplayBuffer(MemoryBuffer):
         Returns:
             A list of sampled data points.
         """
+        log.debug(f"Sampling {batch_size} samples from PrioritizedReplayBuffer.")
         if len(self.buffer) < batch_size:
+            log.warning(f"Requested batch size {batch_size} is larger than buffer size {len(self)}. Returning all samples.")
             return list(self.buffer)
 
         priorities = np.array(self.priorities)
@@ -155,6 +170,7 @@ class PrioritizedReplayBuffer(MemoryBuffer):
             indices: The indices of the samples to update.
             priorities: The new priority values.
         """
+        log.debug(f"Updating priorities for {len(indices)} samples in PrioritizedReplayBuffer.")
         for idx, priority in zip(indices, priorities):
             if idx < len(self.priorities):
                 self.priorities[idx] = priority
@@ -162,6 +178,7 @@ class PrioritizedReplayBuffer(MemoryBuffer):
 
     def clear(self) -> None:
         """Removes all samples and priorities from the buffer."""
+        log.info(f"Clearing PrioritizedReplayBuffer of size {len(self)}.")
         super().clear()
         self.priorities.clear()
         self.max_priority = 1.0
@@ -178,6 +195,7 @@ class TreeBuffer(MemoryBuffer):
             alpha: The priority exponent (0=uniform, 1=greedy).
         """
         super().__init__(capacity)
+        log.info(f"Initializing TreeBuffer with capacity {capacity}, alpha={alpha}.")
         self.alpha = alpha
         self.epsilon = 1e-6
         self.max_priority = 1.0
@@ -217,6 +235,7 @@ class TreeBuffer(MemoryBuffer):
         Args:
             sample: The data sample to store.
         """
+        log.debug(f"Adding sample to TreeBuffer. Current size: {self.n_entries}.")
         self.buffer.append(sample)
 
         tree_idx = self.data_pointer + self.tree_size - 1
@@ -242,8 +261,10 @@ class TreeBuffer(MemoryBuffer):
             A list of sampled data points.
         """
         if len(self.buffer) < batch_size:
+            log.warning(f"Requested batch size {batch_size} is larger than buffer size {len(self)}. Returning all samples.")
             return list(self.buffer)
 
+        log.debug(f"Sampling {batch_size} samples from TreeBuffer.")
         sampled_data = []
         segment = self.sum_tree[0] / batch_size
 
@@ -262,15 +283,15 @@ class TreeBuffer(MemoryBuffer):
             indices: The indices of the samples to update.
             priorities: The new priority values.
         """
-        for idx, priority in zip(indices, priorities):
-            if idx < self.n_entries:
-                tree_idx = idx + self.tree_size - 1
-                priority_alpha = (priority + self.epsilon) ** self.alpha
-                self._update(tree_idx, priority_alpha)
-                self.max_priority = max(self.max_priority, priority_alpha)
+        log.debug(f"Updating priorities for {len(indices)} samples in TreeBuffer.")
+        for tree_idx, priority in zip(indices, priorities):
+            p = (priority + self.epsilon) ** self.alpha
+            self._update(tree_idx, p)
+            self.max_priority = max(self.max_priority, p)
 
     def clear(self) -> None:
         """Removes all samples and resets the sum tree."""
+        log.info(f"Clearing TreeBuffer of size {self.n_entries}.")
         super().clear()
         self.sum_tree.fill(0)
         self.data_pointer = 0

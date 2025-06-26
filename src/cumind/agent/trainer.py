@@ -16,29 +16,29 @@ from ..core.network import CuMindNetwork
 from ..data.memory_buffer import MemoryBuffer
 from ..data.self_play import SelfPlay
 from ..utils.checkpoint import load_checkpoint, save_checkpoint
-from ..utils.logger import Logger
+from ..utils.logger import log
 from .agent import Agent
 
 
 class Trainer:
     """Orchestrates the training process, including sampling, updates, and logging."""
 
-    def __init__(self, agent: Agent, buffer: MemoryBuffer, config: Config, logger: Logger, run_name: str):
+    def __init__(self, agent: Agent, buffer: MemoryBuffer, config: Config, run_name: str):
         """Initializes the Trainer.
         Args:
             agent: The agent to train.
             buffer: The replay buffer for sampling training data.
             config: The configuration object.
-            logger: The logger for recording metrics.
             run_name: The name for the run, used for creating checkpoint directories.
         """
+        log.info(f"Initializing trainer for run: {run_name}")
         self.agent = agent
         self.buffer = buffer
         self.config = config
-        self.logger = logger
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         self.checkpoint_dir = f"checkpoints/{run_name}/{timestamp}"
         os.makedirs(self.checkpoint_dir, exist_ok=True)
+        log.info(f"Checkpoints will be saved to {self.checkpoint_dir}")
         self.train_step_count = 0
 
     def run_training_loop(self, env: Any, num_episodes: int, train_frequency: int) -> None:
@@ -48,20 +48,20 @@ class Trainer:
             num_episodes: The total number of episodes to run.
             train_frequency: The number of episodes between training steps.
         """
-        self.logger.log_text(f"Starting training loop for {num_episodes} episodes with train frequency {train_frequency}.")
+        log.info(f"Starting training loop for {num_episodes} episodes with train frequency {train_frequency}.")
         loss_info = {}
         pbar = tqdm(range(num_episodes), desc="Training Progress")
         for episode in pbar:
             self_play = SelfPlay(self.config, self.agent, self.buffer)
             episode_reward, episode_steps, _ = self_play.run_episode(env)
 
-            self.logger.log_text(f"Episode {episode:3d}: Reward={episode_reward:6.1f}, Length={episode_steps:3d}")
+            log.info(f"Episode {episode:3d}: Reward={episode_reward:6.1f}, Length={episode_steps:3d}")
 
             if episode > 0 and episode % train_frequency == 0:
                 loss_info = self.train_step()
 
                 if self.train_step_count > 0 and self.train_step_count % self.config.target_update_frequency == 0:
-                    self.logger.log_text(f"Updating target network at step {self.train_step_count}")
+                    log.info(f"Updating target network at training step {self.train_step_count}")
                     self.agent.update_target_network()
 
             pbar.set_postfix(
@@ -81,9 +81,9 @@ class Trainer:
     def train_step(self) -> Dict[str, float]:
         """Performs one full training step, including sampling and network update."""
         if not self.buffer.is_ready(self.config.min_replay_size, self.config.min_replay_fill_pct):
-            self.logger.log_text("Buffer not ready for training, skipping step.")
+            log.warning("Buffer not ready for training, skipping step.")
             return {}
-        self.logger.log_text("Starting training step...")
+        log.debug(f"Starting training step {self.train_step_count}...")
         batch = self.buffer.sample(self.config.batch_size)
         observations, actions, targets = self._prepare_batch(batch)
 
@@ -96,10 +96,11 @@ class Trainer:
         updated_params = optax.apply_updates(params, updates)
 
         nnx.update(self.agent.network, updated_params)
+        log.debug(f"Training step {self.train_step_count} complete.")
 
         losses_float = {f"train/{k}": float(v) for k, v in losses.items()}
         losses_float["total_loss"] = float(total_loss)
-        self.logger.log_scalars(losses_float, self.train_step_count)
+        log.log_scalars(losses_float, self.train_step_count)
         self.train_step_count += 1
         return {"total_loss": float(total_loss), **losses_float}
 
@@ -118,6 +119,7 @@ class Trainer:
 
         for item in batch:
             if not item:
+                log.critical("Encountered empty item in batch.")
                 raise RuntimeError("Encountered empty item in batch.")
 
             value = self._compute_n_step_return(item)
@@ -197,11 +199,12 @@ class Trainer:
 
             current_states = next_states
 
-        # Scale losses
+        # Losses
         if self.config.num_unroll_steps > 0:
             reward_loss /= self.config.num_unroll_steps
-            value_loss /= self.config.num_unroll_steps + 1  # +1 for the initial step
-            policy_loss /= self.config.num_unroll_steps + 1  # +1 for the initial step
+            value_loss /= self.config.num_unroll_steps + 1
+            policy_loss /= self.config.num_unroll_steps + 1
+            log.info(f"Value loss: {value_loss}, Policy loss: {policy_loss}, Reward loss: {reward_loss}")
 
         return {"value_loss": value_loss, "policy_loss": policy_loss, "reward_loss": reward_loss}
 
@@ -209,9 +212,12 @@ class Trainer:
         """Saves the agent's state to a checkpoint file."""
         state = self.agent.save_state()
         path = f"{self.checkpoint_dir}/episode_{episode:05d}.pkl"
+        log.info(f"Saving checkpoint at episode {episode} to {path}")
         save_checkpoint(state, path)
 
     def load_checkpoint(self, path: str) -> None:
         """Loads the agent's state from a checkpoint file."""
+        log.info(f"Loading checkpoint from {path}")
         state = load_checkpoint(path)
         self.agent.load_state(state)
+        log.info("Checkpoint loaded successfully.")

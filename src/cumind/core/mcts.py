@@ -8,6 +8,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from ..utils.logger import log
+
 if TYPE_CHECKING:
     from ..config import Config
     from .network import CuMindNetwork
@@ -106,6 +108,7 @@ class MCTS:
             network: The CuMind network for model-based rollouts.
             config: CuMind configuration with MCTS parameters.
         """
+        log.info("Initializing MCTS...")
         self.network = network
         self.config = config
 
@@ -119,6 +122,7 @@ class MCTS:
         Returns:
             Action probability distribution.
         """
+        log.debug(f"Starting MCTS search with {self.config.num_simulations} simulations. Noise: {add_noise}")
         # Get initial prediction for root
         root_hidden_state_batched = jnp.expand_dims(root_hidden_state, 0)
         policy_logits, _ = self.network.prediction_network(root_hidden_state_batched)
@@ -134,6 +138,7 @@ class MCTS:
             self._add_exploration_noise(root)
 
         # Run simulations
+        log.debug(f"Running {self.config.num_simulations} simulations...")
         for _ in range(self.config.num_simulations):
             self._simulate(root)
 
@@ -145,9 +150,12 @@ class MCTS:
         # Normalize to probabilities
         total_visits = np.sum(visit_counts)
         if total_visits == 0:
+            log.warning("MCTS search resulted in zero visits. Returning uniform probabilities.")
             return np.ones(self.config.action_space_size) / self.config.action_space_size
 
-        return visit_counts / total_visits
+        action_probs = visit_counts / total_visits
+        log.debug(f"MCTS search complete. Action probabilities: {action_probs}")
+        return action_probs
 
     def _simulate(self, root: Node) -> None:
         """Run one MCTS simulation from the root.
@@ -156,6 +164,7 @@ class MCTS:
             root: The root node of the search tree.
         """
         # Selection: traverse tree using UCB until a leaf is reached
+        log.debug("MCTS simulation: Selection phase.")
         path = []
         node = root
 
@@ -166,8 +175,10 @@ class MCTS:
 
         leaf_value = 0.0
         # Expansion and evaluation at the leaf
+        log.debug("MCTS simulation: Expansion and evaluation phase.")
         if node.hidden_state is None:
             # This can happen if the leaf was just created. Its state needs to be computed.
+            log.debug("MCTS simulation: Leaf node has no hidden state, computing it.")
             if len(path) > 0:
                 parent_node, action = path[-1]
                 if parent_node.hidden_state is not None:
@@ -176,6 +187,7 @@ class MCTS:
                     node.hidden_state = jnp.asarray(next_state)[0]
             else:
                 # This case is for the root, which should always have a state.
+                log.debug("MCTS simulation: Node is root, using its hidden state.")
                 node.hidden_state = root.hidden_state
 
         # Evaluate the leaf and expand it
@@ -188,8 +200,10 @@ class MCTS:
 
             actions = list(range(self.config.action_space_size))
             node.expand(actions, priors_array, jnp.asarray(node.hidden_state))
+            log.debug(f"MCTS simulation: Expanded leaf node with value {leaf_value:.4f}.")
 
         # Backup: propagate the leaf's value up the path
+        log.debug(f"MCTS simulation: Backup phase with value {leaf_value:.4f}.")
         for node, _ in reversed(path):
             node.backup(leaf_value)
         root.backup(leaf_value)
@@ -200,7 +214,9 @@ class MCTS:
         Args:
             root: The root node to add noise to.
         """
+        log.debug("Adding exploration noise to root node.")
         if not root.children:
+            log.warning("Cannot add exploration noise to a root node with no children.")
             return
 
         # Sample Dirichlet noise

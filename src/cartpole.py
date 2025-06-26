@@ -10,7 +10,7 @@ from cumind.agent.trainer import Trainer
 from cumind.config import Config
 from cumind.data.memory_buffer import ReplayBuffer
 from cumind.utils.checkpoint import load_checkpoint
-from cumind.utils.logger import Logger
+from cumind.utils.logger import log
 
 
 def train(config: Config, run_name: str = "cartpole") -> str:
@@ -19,44 +19,42 @@ def train(config: Config, run_name: str = "cartpole") -> str:
 
     agent = Agent(config)
     memory_buffer = ReplayBuffer(capacity=config.replay_buffer_size)
-    logger = Logger(log_dir="logs/cartpole")
-    trainer = Trainer(agent, memory_buffer, config, logger, run_name=run_name)
+    trainer = Trainer(agent, memory_buffer, config, run_name=run_name)
 
-    print("Starting CuMind training on CartPole...")
-    # print(f"Config: {config}")
-    print(f"Checkpoints will be saved in: {trainer.checkpoint_dir}")
-
+    log.info(f"Checkpoints will be saved in: {trainer.checkpoint_dir}")
+    log.info("Starting training...")
     trainer.run_training_loop(env, num_episodes=500, train_frequency=5)
-    print("Training completed!")
+    log.info("Training completed!")
 
     env.close()
-    logger.close()
     return trainer.checkpoint_dir
 
 
 def get_latest_checkpoint(checkpoint_dir: str) -> str | None:
     """Gets the latest checkpoint file from a directory."""
     if not os.path.isdir(checkpoint_dir):
-        print(f"Checkpoint directory not found: {checkpoint_dir}")
+        log.warning(f"Checkpoint directory not found: {checkpoint_dir}")
         return None
 
     checkpoints = sorted([f for f in os.listdir(checkpoint_dir) if f.endswith(".pkl")])
     if not checkpoints:
-        print(f"No checkpoints found in {checkpoint_dir}.")
+        log.warning(f"No checkpoints found in {checkpoint_dir}.")
         return None
 
-    return os.path.join(checkpoint_dir, checkpoints[-1])
+    latest_checkpoint = os.path.join(checkpoint_dir, checkpoints[-1])
+    log.info(f"Found latest checkpoint: {latest_checkpoint}")
+    return latest_checkpoint
 
 
 def inference(config: Config, checkpoint_file: str) -> None:
     """Run inference with the trained agent from a checkpoint file."""
-    print("\nStarting inference...")
+    log.info("\nStarting inference...")
 
     if not os.path.isfile(checkpoint_file):
-        print(f"Checkpoint file not found: {checkpoint_file}")
+        log.error(f"Checkpoint file not found: {checkpoint_file}")
         return
 
-    print(f"Loading agent from: {checkpoint_file}")
+    log.info(f"Loading agent from: {checkpoint_file}")
 
     # Load agent from checkpoint
     inference_agent = Agent(config)
@@ -74,7 +72,7 @@ def inference(config: Config, checkpoint_file: str) -> None:
             obs, reward, terminated, truncated, _ = inference_env.step(action)
             total_reward += float(reward)
             done = terminated or truncated
-        print(f"Inference Episode {episode + 1}: Total Reward = {total_reward}")
+        log.info(f"Inference Episode {episode + 1}: Total Reward = {total_reward}")
 
     inference_env.close()
 
@@ -96,20 +94,30 @@ def main() -> None:
         num_unroll_steps=3,
         target_update_frequency=15,
     )
+    log.info(f"Using configuration: {config}")
+    config.validate()
 
-    if True:
+    should_train = True
+    should_infer = False
+
+    checkpoint_dir = ""
+    if should_train:
         checkpoint_dir = train(config)
 
-    if False:
-        manual_checkpoint = "/home/dreamland/workspace/cumind/checkpoints/cartpole_episode_04950.pkl"
-        latest_checkpoint = get_latest_checkpoint(checkpoint_dir)
+    if should_infer:
+        manual_checkpoint = ""
+        # Or use the one from the recent training run
+        latest_checkpoint = get_latest_checkpoint(checkpoint_dir) if checkpoint_dir else None
+
         if latest_checkpoint:
             inference(config, latest_checkpoint)
-        elif os.path.isfile(manual_checkpoint):
-            print(f"Using manual checkpoint: {manual_checkpoint}")
+        elif manual_checkpoint and os.path.isfile(manual_checkpoint):
+            log.info(f"Using manual checkpoint: {manual_checkpoint}")
             inference(config, manual_checkpoint)
         else:
-            print("No checkpoint found.")
+            log.warning("No checkpoint found for inference.")
+
+    log.close()
 
 
 if __name__ == "__main__":

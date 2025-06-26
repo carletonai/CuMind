@@ -7,6 +7,8 @@ from typing import Tuple
 
 import chex
 
+from .utils.logger import log
+
 
 @chex.dataclass
 class Config:
@@ -57,13 +59,16 @@ class Config:
         Returns:
             A Config instance with the loaded parameters.
         """
+        log.info(f"Loading configuration from {json_path}...")
         json_file = Path(json_path)
         if not json_file.exists():
+            log.critical(f"Config file not found: {json_path}")
             raise FileNotFoundError(f"Config file not found: {json_path}")
 
         with open(json_file, "r", encoding="utf-8") as f:
             config_dict = json.load(f)
 
+        log.info("Configuration loaded successfully.")
         return cls(**config_dict)
 
     def to_json(self, json_path: str) -> None:
@@ -72,11 +77,13 @@ class Config:
         Args:
             json_path: Path to save the JSON configuration file.
         """
+        log.info(f"Saving configuration to {json_path}...")
         json_file = Path(json_path)
         json_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(json_file, "w", encoding="utf-8") as f:
             json.dump(dataclasses.asdict(self), f, indent=2)
+        log.info("Configuration saved successfully.")
 
     def validate(self) -> None:
         """Validates the configuration parameters.
@@ -84,17 +91,26 @@ class Config:
         Raises:
             ValueError: If any parameter is found to be invalid.
         """
+        log.info("Validating configuration...")
         if self.hidden_dim <= 0:
+            log.critical(f"Invalid hidden_dim: {self.hidden_dim}. Must be positive.")
             raise ValueError(f"hidden_dim must be positive, got {self.hidden_dim}")
         if self.action_space_size <= 0:
+            log.critical(f"Invalid action_space_size: {self.action_space_size}. Must be positive.")
             raise ValueError(f"action_space_size must be positive, got {self.action_space_size}")
         if not self.observation_shape:
+            log.critical("observation_shape cannot be empty.")
             raise ValueError("observation_shape cannot be empty")
         if len(self.observation_shape) not in [1, 3]:
+            log.critical(f"Unsupported observation_shape dimensionality: {len(self.observation_shape)}D. Must be 1D or 3D.")
             raise ValueError(f"observation_shape must be 1D or 3D, got {len(self.observation_shape)}D")
         if self.learning_rate <= 0:
+            log.critical(f"Invalid learning_rate: {self.learning_rate}. Must be positive.")
             raise ValueError(f"learning_rate must be positive, got {self.learning_rate}")
         if self.batch_size <= 0:
+            log.critical(f"Invalid batch_size: {self.batch_size}. Must be positive.")
             raise ValueError(f"batch_size must be positive, got {self.batch_size}")
         if self.num_simulations <= 0:
+            log.critical(f"Invalid num_simulations: {self.num_simulations}. Must be positive.")
             raise ValueError(f"num_simulations must be positive, got {self.num_simulations}")
+        log.info("Configuration validation successful.")
