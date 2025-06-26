@@ -7,9 +7,9 @@ from typing import Any, Dict, List, Tuple
 import chex
 import jax
 import jax.numpy as jnp
-import optax
+import optax  # type: ignore
 from flax import nnx
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 from ..config import Config
 from ..core.network import CuMindNetwork
@@ -104,7 +104,7 @@ class Trainer:
         self.train_step_count += 1
         return {"total_loss": float(total_loss), **losses_float}
 
-    def _loss_fn(self, params: nnx.State, observations: chex.Array, actions: chex.Array, targets: Dict[str, chex.Array]) -> Tuple[chex.Array, Dict[str, chex.Array]]:
+    def _loss_fn(self, params: nnx.State[Any, Any], observations: chex.Array, actions: chex.Array, targets: Dict[str, chex.Array]) -> Tuple[chex.Array, Dict[str, chex.Array]]:
         """Computes the total loss for a batch."""
         temp_network = nnx.clone(self.agent.network)
         nnx.update(temp_network, params)
@@ -180,7 +180,7 @@ class Trainer:
         current_states = hidden_states
 
         for step in range(self.config.num_unroll_steps):
-            step_actions = jnp.asarray(actions[:, step])
+            step_actions = jnp.asarray(actions)[:, step]
             next_states, pred_rewards, pred_policy_logits, pred_values = network.recurrent_inference(current_states, step_actions)
 
             # Accumulate reward loss

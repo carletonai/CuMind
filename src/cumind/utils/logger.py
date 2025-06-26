@@ -4,9 +4,9 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional, cast
 
-import tensorboard as tb
+import tensorboard as tb  # type: ignore
 import wandb
 
 
@@ -30,25 +30,50 @@ class _LogFunctor:
         "log_scalar",
         "log_scalars",
         "close",
+        "set_level",
     }
 
-    def __getattr__(self, name) -> None:
+    def __getattr__(self, name: str) -> Callable[..., None]:
         if name not in self._allowed_methods:
             raise AttributeError(f"'log' object has no attribute '{name}'")
-        return getattr(get_logger(), name)
+        return cast(Callable[..., None], getattr(Logger(), name))
 
 
 log = _LogFunctor()
 
 
 class Logger:
-    """A wrapper around the standard Python logger to provide a unified, configurable interface."""
+    """A singleton logger that provides a unified, configurable interface.
+
+    The Logger is implemented as a singleton, meaning that it is configured
+    only once when the first instance is created. Subsequent calls to the
+    constructor will return the already-existing instance without
+    re-initializing it. This ensures a single, consistent logging setup
+    throughout the application.
+
+    The primary way to use the logger is through the `log` object, which
+    provides a direct, convenient interface.
+
+    Usage:
+        from cumind.utils.logger import log
+
+        # Use the `log` object directly - no setup required!
+        def my_function():
+            log.info("This is an informational message.")
+            log.debug("This is a debug message.")
+
+        # You can change the log level at runtime if needed.
+        log.set_level("DEBUG")
+        my_function()
+    """
 
     _instance = None
+    _initialized: bool
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any) -> "Logger":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
         return cls._instance
 
     def __init__(
@@ -59,74 +84,70 @@ class Logger:
         wandb_config: Optional[Dict[str, Any]] = None,
         tensorboard_config: Optional[Dict[str, Any]] = None,
     ):
-        """Initialize and configure the logger.
-
-        Args:
-            log_dir: Directory to store log files.
-            level: Logging level.
-            wandb_config: Configuration dict for W&B (optional).
-            tensorboard_config: Configuration dict for TensorBoard (optional).
-        """
-        # Only initialize once
-        if hasattr(self, "_logger"):
-            raise ValueError("Logger already initialized")
+        """Initialize and configure the logger. This method runs only once."""
+        if hasattr(self, "_initialized") and self._initialized:
+            return
 
         self._logger = logging.getLogger("CuMindLogger")
-        self._logger.setLevel(getattr(logging, level.upper(), logging.INFO))
+        self.tb_writer: Optional[Any] = None
+
+        # Create a single formatter for all handlers
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p")
+
+        # Setup file handler
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_dir = Path(log_dir) / timestamp
         self.log_dir.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(self.log_dir / "training.log")
+        file_handler.setFormatter(formatter)
+        self._logger.addHandler(file_handler)
 
+        # Setup console handler if requested
+        if log_console:
+            stdout_handler = logging.StreamHandler(sys.stdout)
+            stdout_handler.setFormatter(formatter)
+            self._logger.addHandler(stdout_handler)
+
+        self.set_level(level)
+
+        # Initialize integrations
         self.use_wandb = wandb_config is not None
         self.use_tensorboard = tensorboard_config is not None
-
-        if not self._logger.handlers:
-            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p")
-
-            file_handler = logging.FileHandler(self.log_dir / "training.log")
-            file_handler.setFormatter(formatter)
-            self._logger.addHandler(file_handler)
-
-            if log_console:
-                stdout_handler = logging.StreamHandler(sys.stdout)
-                stdout_handler.setFormatter(formatter)
-                self._logger.addHandler(stdout_handler)
-
-        # Initialize W&B
         if self.use_wandb:
             assert wandb_config is not None
             if wandb.run is None:
                 wandb.init(**wandb_config)
-
-        # Initialize TensorBoard
         if self.use_tensorboard:
             self.tb_writer = tb.summary.create_file_writer(str(self.log_dir))
 
-    def debug(self, msg: str, *args, **kwargs) -> None:
+        self._initialized = True
+        self.info(f"Unified logger initialized. Logging to: {self.log_dir}")
+
+    def debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
         """Logs a message with level DEBUG."""
         self._logger.debug(msg, *args, **kwargs)
 
-    def info(self, msg: str, *args, **kwargs) -> None:
+    def info(self, msg: str, *args: Any, **kwargs: Any) -> None:
         """Logs a message with level INFO."""
         self._logger.info(msg, *args, **kwargs)
 
-    def warning(self, msg: str, *args, **kwargs) -> None:
+    def warning(self, msg: str, *args: Any, **kwargs: Any) -> None:
         """Logs a message with level WARNING."""
         self._logger.warning(msg, *args, **kwargs)
 
-    def error(self, msg: str, *args, **kwargs) -> None:
+    def error(self, msg: str, *args: Any, **kwargs: Any) -> None:
         """Logs a message with level ERROR."""
         self._logger.error(msg, *args, **kwargs)
 
-    def exception(self, msg: str, *args, **kwargs) -> None:
-        """Logs a message with level ERROR, including exception info."""
+    def exception(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Logs a message with level ERROR, including exception info. Place in except block."""
         self._logger.exception(msg, *args, **kwargs)
 
-    def critical(self, msg: str, *args, **kwargs) -> None:
+    def critical(self, msg: str, *args: Any, **kwargs: Any) -> None:
         """Logs a message with level CRITICAL."""
         self._logger.critical(msg, *args, **kwargs)
 
-    def log(self, level: int, msg: str, *args, **kwargs) -> None:
+    def log(self, level: int, msg: str, *args: Any, **kwargs: Any) -> None:
         """Logs a message with the specified level."""
         self._logger.log(level, msg, *args, **kwargs)
 
@@ -135,7 +156,7 @@ class Logger:
         self.info(f"Step {step:4d}: {name} = {value:.6f}")
         if self.use_wandb:
             wandb.log({name: value}, step=step)
-        if self.use_tensorboard:
+        if self.use_tensorboard and self.tb_writer:
             with self.tb_writer.as_default():
                 tb.summary.scalar(name, value, step=step)
 
@@ -144,27 +165,24 @@ class Logger:
         for name, value in metrics.items():
             self.log_scalar(name, value, step)
 
+    def set_level(self, level: str) -> None:
+        """Change the logging level at runtime.
+        Args:
+            level: The new logging level (e.g., "DEBUG", "INFO").
+        """
+        self.info(f"Changing logger level to {level.upper()}")
+        self._logger.setLevel(getattr(logging, level.upper(), logging.INFO))
+
     def close(self) -> None:
         """Close logger and cleanup resources, like file handlers and W&B run."""
         if self.use_wandb and wandb.run is not None:
             wandb.finish()
-        if self.use_tensorboard:
+        if self.use_tensorboard and self.tb_writer is not None:
             self.tb_writer.close()
 
+        self.info("Closing logger handlers and shutting down logging system.")
         for handler in self._logger.handlers[:]:
             handler.close()
             self._logger.removeHandler(handler)
 
-        self._logger.info("Logger is cleaning up resources.")
         logging.shutdown()
-
-
-def get_logger() -> Logger:
-    """Get the logger instance.
-    Usage:
-        from cumind.utils.logger import get_logger
-        logger = get_logger()
-        logger.info("hello world")
-        logger.info("this is how you use this")
-    """
-    return Logger(log_dir="logs", level="DEBUG")

@@ -26,7 +26,7 @@ def train(config: Config, run_name: str = "cartpole") -> str:
     trainer.run_training_loop(env, num_episodes=500, train_frequency=5)
     log.info("Training completed!")
 
-    env.close()
+    env.close()  # type: ignore
     return trainer.checkpoint_dir
 
 
@@ -62,19 +62,19 @@ def inference(config: Config, checkpoint_file: str) -> None:
     inference_agent.load_state(state)
 
     # Run inference episodes
-    inference_env = gym.make("CartPole-v1", render_mode="human")
+    env = gym.make("CartPole-v1", render_mode="human")
     for episode in range(5):
-        obs, _ = inference_env.reset()
+        obs, _ = env.reset()
         done = False
         total_reward = 0.0
         while not done:
             action, _ = inference_agent.select_action(obs, training=False)
-            obs, reward, terminated, truncated, _ = inference_env.step(action)
+            obs, reward, terminated, truncated, _ = env.step(action)
             total_reward += float(reward)
             done = terminated or truncated
         log.info(f"Inference Episode {episode + 1}: Total Reward = {total_reward}")
 
-    inference_env.close()
+    env.close()  # type: ignore
 
 
 def main() -> None:
