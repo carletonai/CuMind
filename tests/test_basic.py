@@ -87,16 +87,17 @@ def test_agent_creation_and_action_selection():
 
 def test_memory_buffer_functionality():
     """Test memory buffer operations for all buffer types."""
+    config = Config()
     # Test MemoryBuffer
     memory_buffer = MemoryBuffer(capacity=100)
     _test_buffer_operations(memory_buffer, "MemoryBuffer")
 
     # Test PrioritizedMemoryBuffer
-    prioritized_buffer = PrioritizedMemoryBuffer(capacity=100)
+    prioritized_buffer = PrioritizedMemoryBuffer(capacity=100, alpha=config.per_alpha, epsilon=config.per_epsilon, beta=config.per_beta)
     _test_buffer_operations(prioritized_buffer, "PrioritizedMemoryBuffer")
 
     # Test TreeBuffer
-    tree_buffer = TreeBuffer(capacity=100)
+    tree_buffer = TreeBuffer(capacity=100, alpha=config.per_alpha, epsilon=config.per_epsilon)
     _test_buffer_operations(tree_buffer, "TreeBuffer")
 
 
@@ -114,7 +115,11 @@ def _test_buffer_operations(buffer: Memory, buffer_name: str):
     assert buffer.is_ready(1), f"{buffer_name}: Buffer should be ready after adding sample"
 
     # Sample from buffer
-    sampled = buffer.sample(1)
+    result = buffer.sample(1)
+    if isinstance(result, tuple):
+        sampled, _ = result
+    else:
+        sampled = result
     assert len(sampled) == 1, f"{buffer_name}: Should sample 1 item"
     assert len(sampled[0]) == 2, f"{buffer_name}: Sampled item should have 2 experiences"
 
@@ -125,8 +130,9 @@ def _test_buffer_operations(buffer: Memory, buffer_name: str):
 
 def test_prioritized_buffer_priority_update():
     """Test priority update functionality for prioritized buffers."""
+    config = Config()
     # Test PrioritizedMemoryBuffer priority update
-    prioritized_buffer = PrioritizedMemoryBuffer(capacity=10)
+    prioritized_buffer = PrioritizedMemoryBuffer(capacity=10, alpha=config.per_alpha, epsilon=config.per_epsilon, beta=config.per_beta)
     sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0}]
     prioritized_buffer.add(sample)
 
@@ -135,7 +141,7 @@ def test_prioritized_buffer_priority_update():
     assert prioritized_buffer.max_priority == 5.0
 
     # Test TreeBuffer priority update
-    tree_buffer = TreeBuffer(capacity=10)
+    tree_buffer = TreeBuffer(capacity=10, alpha=config.per_alpha, epsilon=config.per_epsilon)
     tree_buffer.add(sample)
 
     # Update priority - TreeBuffer applies alpha exponent, so we need to account for that
@@ -155,11 +161,15 @@ def test_basic_integration():
     agent = Agent(config)
 
     # Test with different buffer types
-    buffer_types = [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer]
+    buffer_types = [
+        (MemoryBuffer, {"capacity": 10}),
+        (PrioritizedMemoryBuffer, {"capacity": 10, "alpha": config.per_alpha, "epsilon": config.per_epsilon, "beta": config.per_beta}),
+        (TreeBuffer, {"capacity": 10, "alpha": config.per_alpha, "epsilon": config.per_epsilon}),
+    ]
 
-    for BufferClass in buffer_types:  # noqa: N806
+    for BufferClass, kwargs in buffer_types:  # noqa: N806
         # Create memory buffer
-        memory_buffer = BufferClass(capacity=10)
+        memory_buffer = BufferClass(**kwargs)
 
         # Generate some dummy experience
         observation = np.ones(4)

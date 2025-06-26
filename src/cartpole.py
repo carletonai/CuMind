@@ -63,25 +63,7 @@ def inference(config: Config, checkpoint_file: str) -> None:
 
 def main() -> None:
     """Main function orchestrating training and inference."""
-    config = Config(
-        hidden_dim=128,
-        num_blocks=2,
-        action_space_size=2,
-        observation_shape=(4,),
-        num_simulations=10,
-        batch_size=32,
-        learning_rate=1e-3,
-        memory_capacity=1000,
-        min_memory_size=3,
-        min_memory_pct=0.00,
-        td_steps=5,
-        num_unroll_steps=3,
-        target_update_frequency=15,
-        env_name="CartPole-v1",
-        num_episodes=500,
-        train_frequency=5,
-        checkpoint_interval=100,
-    )
+    config = Config.from_json("configuration.json")
     log.info(f"Using configuration: {config}")
     config.validate()
 

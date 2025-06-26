@@ -12,6 +12,15 @@ from cumind.data.memory import Memory, MemoryBuffer, PrioritizedMemoryBuffer, Tr
 from cumind.data.self_play import SelfPlay
 
 
+def _create_buffer(BufferClass, capacity, config):  # noqa: N803
+    """Helper function to create a buffer with the correct arguments."""
+    if BufferClass == PrioritizedMemoryBuffer:
+        return BufferClass(capacity=capacity, alpha=config.per_alpha, epsilon=config.per_epsilon, beta=config.per_beta)
+    if BufferClass == TreeBuffer:
+        return BufferClass(capacity=capacity, alpha=config.per_alpha, epsilon=config.per_epsilon)
+    return BufferClass(capacity=capacity)
+
+
 class TestMemoryBuffer:
     """Test suite for memory buffers."""
 
@@ -19,14 +28,16 @@ class TestMemoryBuffer:
     def test_buffer_initialization(self, BufferClass):  # noqa: N803
         """Test memory buffer initialization."""
         capacity = 100
-        buffer = BufferClass(capacity=capacity)
+        config = Config()
+        buffer = _create_buffer(BufferClass, capacity, config)
         assert buffer.capacity == capacity
         assert len(buffer) == 0
 
     @pytest.mark.parametrize("BufferClass", [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer])
     def test_add_and_len(self, BufferClass):  # noqa: N803
         """Test adding samples and checking buffer length."""
-        buffer = BufferClass(capacity=10)
+        config = Config()
+        buffer = _create_buffer(BufferClass, 10, config)
         buffer.add({"obs": 1, "action": 0})
         assert len(buffer) == 1
         buffer.add({"obs": 2, "action": 1})
@@ -36,7 +47,8 @@ class TestMemoryBuffer:
     def test_buffer_capacity(self, BufferClass):  # noqa: N803
         """Test that buffer does not exceed capacity."""
         capacity = 5
-        buffer = BufferClass(capacity=capacity)
+        config = Config()
+        buffer = _create_buffer(BufferClass, capacity, config)
         for i in range(10):
             buffer.add({"obs": i})
         assert len(buffer) == capacity
@@ -44,7 +56,8 @@ class TestMemoryBuffer:
     @pytest.mark.parametrize("BufferClass", [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer])
     def test_is_ready(self, BufferClass):  # noqa: N803
         """Test buffer readiness check."""
-        buffer = BufferClass(capacity=20)
+        config = Config()
+        buffer = _create_buffer(BufferClass, 20, config)
         assert not buffer.is_ready(min_size=10)
         for i in range(10):
             buffer.add({"obs": i})
@@ -54,7 +67,8 @@ class TestMemoryBuffer:
     @pytest.mark.parametrize("BufferClass", [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer])
     def test_clear_buffer(self, BufferClass):  # noqa: N803
         """Test clearing the buffer."""
-        buffer = BufferClass(capacity=10)
+        config = Config()
+        buffer = _create_buffer(BufferClass, 10, config)
         for i in range(5):
             buffer.add({"obs": i})
         buffer.clear()
@@ -63,11 +77,16 @@ class TestMemoryBuffer:
     @pytest.mark.parametrize("BufferClass", [MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer])
     def test_sample_from_buffer(self, BufferClass):  # noqa: N803
         """Test sampling from the buffer."""
-        buffer = BufferClass(capacity=20)
+        config = Config()
+        buffer = _create_buffer(BufferClass, 20, config)
         for i in range(15):
             buffer.add({"id": i})
 
-        sample = buffer.sample(batch_size=5)
+        result = buffer.sample(batch_size=5)
+        if isinstance(result, tuple):
+            sample, _ = result
+        else:
+            sample = result
         assert isinstance(sample, list)
         assert len(sample) == 5
 
@@ -103,12 +122,12 @@ class TestSelfPlay:
 
         episode_data = self_play.run_episode(env)
 
-        assert isinstance(episode_data, list)
-        assert len(episode_data) > 0
+        assert isinstance(episode_data, tuple)
+        assert len(episode_data[2]) > 0
         assert len(memory_buffer) == 1  # One episode was added
 
         # Check experience format
-        for step in episode_data:
+        for step in episode_data[2]:
             assert "observation" in step
             assert "action" in step
             assert "reward" in step

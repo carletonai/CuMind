@@ -19,39 +19,39 @@ class Config:
     """
 
     # Network architecture
-    hidden_dim: int = 64
-    num_blocks: int = 4
+    hidden_dim: int = 128
+    num_blocks: int = 2
 
     # Training
     batch_size: int = 32
     learning_rate: float = 1e-3
     weight_decay: float = 1e-4
-    target_update_frequency: int = 200
-    checkpoint_interval: int = 50
+    target_update_frequency: int = 10000000
+    checkpoint_interval: int = 100
     num_episodes: int = 500
     train_frequency: int = 5
     checkpoint_root_dir: str = "checkpoints"
 
     # MCTS
-    num_simulations: int = 50
+    num_simulations: int = 10
     c_puct: float = 1.0
     dirichlet_alpha: float = 0.3
     exploration_fraction: float = 0.25
 
     # Environment
     env_name: str = "CartPole-v1"
-    action_space_size: int = 4
-    observation_shape: Tuple[int, ...] = (84, 84, 3)
+    action_space_size: int = 2
+    observation_shape: Tuple[int, ...] = (4,)
 
     # Self-Play
-    num_unroll_steps: int = 5
-    td_steps: int = 10
+    num_unroll_steps: int = 3
+    td_steps: int = 5
     discount: float = 0.997
 
     # Memory
-    memory_capacity: int = 10000
-    min_memory_size: int = 1000
-    min_memory_pct: float = 0.1
+    memory_capacity: int = 1000
+    min_memory_size: int = 3
+    min_memory_pct: float = 0.00
     # Tree
     per_alpha: float = 0.6
     per_epsilon: float = 1e-6
@@ -81,8 +81,15 @@ class Config:
         with open(json_file, "r", encoding="utf-8") as f:
             config_dict = json.load(f)
 
+        flattened_dict = {}
+        for section, params in config_dict.items():
+            if isinstance(params, dict):
+                flattened_dict.update(params)
+            else:
+                flattened_dict[section] = params
+
         log.info("Configuration loaded successfully.")
-        return cls(**config_dict)
+        return cls(**flattened_dict)
 
     def to_json(self, json_path: str) -> None:
         """Saves the configuration to a JSON file.
@@ -94,8 +101,25 @@ class Config:
         json_file = Path(json_path)
         json_file.parent.mkdir(parents=True, exist_ok=True)
 
+        # Define the section mapping based on the comments in the dataclass
+        section_mapping = {
+            "Network architecture": ["hidden_dim", "num_blocks", "conv_channels"],
+            "Training": ["batch_size", "learning_rate", "weight_decay", "target_update_frequency", "checkpoint_interval", "num_episodes", "train_frequency", "checkpoint_root_dir"],
+            "MCTS": ["num_simulations", "c_puct", "dirichlet_alpha", "exploration_fraction"],
+            "Environment": ["env_name", "action_space_size", "observation_shape"],
+            "Self-Play": ["num_unroll_steps", "td_steps", "discount"],
+            "Memory": ["memory_capacity", "min_memory_size", "min_memory_pct", "per_alpha", "per_epsilon", "per_beta"],
+            "Other": ["random_seed"],
+        }
+
+        config_dict = dataclasses.asdict(self)
+        organized_config = {}
+
+        for section, fields in section_mapping.items():
+            organized_config[section] = {field: config_dict[field] for field in fields if field in config_dict}
+
         with open(json_file, "w", encoding="utf-8") as f:
-            json.dump(dataclasses.asdict(self), f, indent=2)
+            json.dump(organized_config, f, indent=2)
         log.info("Configuration saved successfully.")
 
     def validate(self) -> None:

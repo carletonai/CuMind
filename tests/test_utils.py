@@ -11,6 +11,16 @@ import pytest
 from cumind.utils.logger import Logger
 
 
+@pytest.fixture(autouse=True)
+def reset_logger_singleton():
+    """Reset the Logger singleton before and after each test."""
+    Logger._instance = None
+    Logger._initialized = False
+    yield
+    Logger._instance = None
+    Logger._initialized = False
+
+
 class TestLogger:
     """Test suite for Logger."""
 
@@ -18,19 +28,19 @@ class TestLogger:
         """Test Logger initialization."""
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = os.path.join(temp_dir, "test_logs")
-            logger = Logger(log_dir)
+            logger = Logger(log_dir=log_dir, use_timestamp=False)
 
             # The log_dir is a Path object, not string
             assert str(logger.log_dir) == log_dir
             assert logger.log_dir.exists()
-            assert hasattr(logger, "logger")
-            assert hasattr(logger, "tensorboard_writer")
+            assert hasattr(logger, "_logger")
+            assert hasattr(logger, "tb_writer")
 
     def test_log_scalar(self):
         """Test scalar logging functionality."""
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = os.path.join(temp_dir, "test_logs")
-            logger = Logger(log_dir)
+            logger = Logger(log_dir=log_dir, use_timestamp=False)
 
             # Log some scalar values
             logger.log_scalar("loss/total", 0.5, step=1)
@@ -39,13 +49,13 @@ class TestLogger:
 
             # Check that logger has the right methods
             assert hasattr(logger, "log_scalar")
-            assert hasattr(logger, "logger")
+            assert hasattr(logger, "_logger")
 
     def test_log_multiple_steps(self):
         """Test logging across multiple steps."""
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = os.path.join(temp_dir, "test_logs")
-            logger = Logger(log_dir)
+            logger = Logger(log_dir=log_dir, use_timestamp=False)
 
             # Log values across multiple steps
             for step in range(10):
@@ -59,7 +69,7 @@ class TestLogger:
         """Test text logging functionality."""
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = os.path.join(temp_dir, "test_logs")
-            logger = Logger(log_dir)
+            logger = Logger(log_dir=log_dir, use_timestamp=False)
 
             # Log text message
             logger.info("Training started")
@@ -72,7 +82,7 @@ class TestLogger:
         """Test logger cleanup."""
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = os.path.join(temp_dir, "test_logs")
-            logger = Logger(log_dir)
+            logger = Logger(log_dir=log_dir, use_timestamp=False)
 
             # Log some data
             logger.log_scalar("test/metric", 1.0, step=1)
@@ -87,7 +97,7 @@ class TestLogger:
         """Test logger cleanup and resource management."""
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = os.path.join(temp_dir, "test_logs")
-            logger = Logger(log_dir)
+            logger = Logger(log_dir=log_dir, use_timestamp=False)
 
             # Log some data
             logger.log_scalar("test/metric", 1.0, step=0)
@@ -102,7 +112,7 @@ class TestLogger:
         """Test metrics aggregation and averaging."""
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = os.path.join(temp_dir, "test_logs")
-            logger = Logger(log_dir)
+            logger = Logger(log_dir=log_dir, use_timestamp=False)
 
             # Log multiple values for averaging
             values = [0.1, 0.2, 0.3, 0.4, 0.5]
@@ -119,7 +129,7 @@ class TestLogger:
 
         # Should either handle gracefully or raise appropriate error
         try:
-            logger = Logger(invalid_path)
+            logger = Logger(log_dir=invalid_path, use_timestamp=False)
             # If no error, verify logger was created
             assert logger is not None
         except (OSError, PermissionError, FileNotFoundError):
@@ -130,7 +140,7 @@ class TestLogger:
         """Test logging from multiple sources."""
         with tempfile.TemporaryDirectory() as temp_dir:
             log_dir = os.path.join(temp_dir, "test_logs")
-            logger = Logger(log_dir)
+            logger = Logger(log_dir=log_dir, use_timestamp=False)
 
             # Simulate concurrent logging of different metrics
             metrics = ["loss", "reward", "value", "policy"]
