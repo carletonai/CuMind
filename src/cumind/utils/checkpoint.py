@@ -1,8 +1,9 @@
 """Checkpointing utilities for saving and loading model and training states."""
 
 import pickle
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from flax import nnx
 
@@ -46,28 +47,48 @@ def load_checkpoint(path: str) -> Dict[str, Any]:
         raise
 
 
-def find_latest_checkpoint_in_dir(directory: str) -> str | None:
-    """Find the latest checkpoint file in a specific directory.
+def get_checkpoint_files(checkpoint_dir: str) -> List[Path]:
+    """Returns a sorted list of checkpoint files in a directory."""
+    checkpoint_path = Path(checkpoint_dir)
+    return sorted(checkpoint_path.glob("*.pkl"))
 
-    Args:
-        directory: Path to the directory containing checkpoint files.
 
-    Returns:
-        Path to the latest checkpoint file, or None if not found.
-    """
-    checkpoint_dir = Path(directory)
-    if not checkpoint_dir.is_dir():
-        log.warning(f"Checkpoint directory not found: {directory}")
+def find_latest_checkpoint_in_dir(checkpoint_dir: str) -> Optional[str]:
+    """Finds the latest checkpoint file in a directory."""
+    files = get_checkpoint_files(checkpoint_dir)
+    if not files:
         return None
+    latest_file = max(files, key=lambda f: f.stat().st_mtime)
+    return str(latest_file)
 
-    checkpoint_files = sorted(checkpoint_dir.glob("*.pkl"))
-    if not checkpoint_files:
-        log.warning(f"No checkpoint files found in {directory}.")
-        return None
 
-    latest_checkpoint = str(checkpoint_files[-1])
-    log.info(f"Found latest checkpoint: {latest_checkpoint}")
-    return latest_checkpoint
+def get_available_checkpoints(root_dir: str) -> Dict[str, List[Tuple[str, datetime]]]:
+    """Scans for available checkpoints and returns a structured dictionary."""
+    root_path = Path(root_dir)
+    checkpoints: Dict[str, List[Tuple[str, datetime]]] = {}
+    if not root_path.is_dir():
+        return checkpoints
+
+    for env_dir in root_path.iterdir():
+        if env_dir.is_dir():
+            env_name = env_dir.name
+            runs = []
+            for run_dir in env_dir.iterdir():
+                if run_dir.is_dir():
+                    try:
+                        # Attempt to parse timestamp from directory name
+                        timestamp = datetime.strptime(run_dir.name, "%Y%m%d-%H%M%S")
+                        latest_checkpoint = find_latest_checkpoint_in_dir(str(run_dir))
+                        if latest_checkpoint:
+                            runs.append((latest_checkpoint, timestamp))
+                    except ValueError:
+                        # Ignore directories that don't match the timestamp format
+                        continue
+            if runs:
+                # Sort runs by timestamp, descending
+                runs.sort(key=lambda x: x[1], reverse=True)
+                checkpoints[env_name] = runs
+    return checkpoints
 
 
 def find_latest_checkpoint_for_env(env_name: str) -> str | None:
