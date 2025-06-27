@@ -73,7 +73,7 @@ class TestAgent:
         params1 = nnx.state(agent1.network, nnx.Param)
         params2 = nnx.state(agent2.network, nnx.Param)
 
-        jax.tree_util.tree_map(lambda p1, p2: np.testing.assert_allclose(p1, p2, rtol=1e-6), params1, params2)
+        chex.assert_trees_all_close(params1, params2, rtol=1e-6)
 
     def test_agent_with_vector_observations(self):
         """Test agent with 1D vector observations."""

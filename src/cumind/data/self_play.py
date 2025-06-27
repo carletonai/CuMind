@@ -2,8 +2,6 @@
 
 from typing import Any, Dict, List
 
-import numpy as np
-
 from ..agent.agent import Agent
 from ..config import Config
 from ..utils.logger import log

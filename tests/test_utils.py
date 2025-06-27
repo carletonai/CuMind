@@ -3,6 +3,7 @@
 import os
 import tempfile
 
+import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -159,15 +160,15 @@ class TestJAXUtils:
     def test_tree_operations(self):
         """Test JAX tree operations."""
         # Create test tree structure
-        tree = {"params": {"dense1": {"kernel": jnp.ones((4, 32)), "bias": jnp.zeros(32)}, "dense2": {"kernel": jnp.ones((32, 2)), "bias": jnp.zeros(2)}}, "stats": {"mean": jnp.array([1.0, 2.0]), "std": jnp.array([0.5, 1.5])}}
+        tree1 = {"params": {"dense1": {"kernel": jnp.ones((4, 32)), "bias": jnp.zeros(32)}, "dense2": {"kernel": jnp.ones((32, 2)), "bias": jnp.zeros(2)}}, "stats": {"mean": jnp.array([1.0, 2.0]), "std": jnp.array([0.5, 1.5])}}
+        tree2 = {"params": {"dense1": {"kernel": jnp.ones((4, 32)), "bias": jnp.zeros(32)}, "dense2": {"kernel": jnp.ones((32, 2)), "bias": jnp.zeros(2)}}, "stats": {"mean": jnp.array([1.0, 2.0]), "std": jnp.array([0.5, 1.5])}}
 
         # Test tree_flatten and tree_unflatten
-        flat, tree_def = jax.tree_util.tree_flatten(tree)
+        flat, tree_def = jax.tree_util.tree_flatten(tree1)
         reconstructed = jax.tree_util.tree_unflatten(tree_def, flat)
 
         # Verify reconstruction
-        assert jnp.allclose(reconstructed["params"]["dense1"]["kernel"], tree["params"]["dense1"]["kernel"])
-        assert jnp.allclose(reconstructed["stats"]["mean"], tree["stats"]["mean"])
+        chex.assert_trees_all_close(reconstructed, tree2)
 
     def test_tree_map_operations(self):
         """Test tree_map operations."""

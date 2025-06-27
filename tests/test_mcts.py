@@ -90,7 +90,7 @@ class TestNode:
         child.value_sum = 2.5
         ucb_score = child.ucb_score(parent.visit_count, c_puct)
         expected_value = child.value()
-        expected_exploration = c_puct * child.prior * np.sqrt(parent.visit_count) / (1 + child.visit_count)
+        expected_exploration = c_puct * child.prior * jnp.sqrt(parent.visit_count) / (1 + child.visit_count)
         expected_ucb = expected_value + expected_exploration
         assert abs(ucb_score - expected_ucb) < 1e-6
 

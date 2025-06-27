@@ -124,7 +124,7 @@ def _test_buffer_operations(buffer: Memory, buffer_name: str):
     assert len(sampled[0]) == 2, f"{buffer_name}: Sampled item should have 2 experiences"
 
     # Test priority update for prioritized buffers
-    if hasattr(buffer, "update_priorities"):
+    if isinstance(buffer, (PrioritizedMemoryBuffer, TreeBuffer)):
         buffer.update_priorities([0], [2.0])
 
 
