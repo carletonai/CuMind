@@ -2,7 +2,9 @@
 
 from .agent import Agent, Trainer
 from .config import Config
-from .utils import Logger
+from .runner import inference, train
+from .utils import log
+from .utils.prng import key
 
 __version__ = "0.1.5"
-__all__ = ["Agent", "Trainer", "Config", "Logger"]
+__all__ = ["Agent", "Trainer", "train", "inference", "Config", "log", "key"]
