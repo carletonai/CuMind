@@ -59,8 +59,10 @@ class Config:
     per_beta: float = 0.4
 
     # Network Architecture
-    random_seed: int = 0
     conv_channels: int = 32
+
+    # Other
+    seed: int = 42
 
     @classmethod
     def from_json(cls, json_path: str) -> "Config":
@@ -109,7 +111,7 @@ class Config:
             "Environment": ["env_name", "action_space_size", "observation_shape"],
             "Self-Play": ["num_unroll_steps", "td_steps", "discount"],
             "Memory": ["memory_capacity", "min_memory_size", "min_memory_pct", "per_alpha", "per_epsilon", "per_beta"],
-            "Other": ["random_seed"],
+            "Other": ["seed"],
         }
 
         config_dict = dataclasses.asdict(self)

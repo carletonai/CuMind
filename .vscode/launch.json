@@ -3,15 +3,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File",
-            "type": "python",
+            "name": "Curr File",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/cumind/__main__.py",
             "console": "integratedTerminal"
         },
         {
-            "name": "CuMind CLI",
-            "type": "python",
+            "name": "CuMind",
+            "type": "debugpy",
             "request": "launch",
             "module": "cumind",
             "args": [

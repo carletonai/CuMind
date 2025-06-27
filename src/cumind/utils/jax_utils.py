@@ -85,21 +85,3 @@ def safe_normalize(x: chex.Array, axis: int = -1, epsilon: float = 1e-8) -> chex
     """
     norm = jnp.linalg.norm(x, axis=axis, keepdims=True)
     return x / jnp.maximum(norm, epsilon)
-
-
-def create_rngs(key: chex.PRNGKey, *names: str) -> nnx.Rngs:
-    """Create Flax NNX random number generators.
-
-    Args:
-        key: Base random key
-        *names: Names of RNG streams to create
-
-    Returns:
-        NNX Rngs object with the specified streams
-    """
-    if not names:
-        names = ("params", "dropout")
-
-    log.debug(f"Creating RNGs for: {names}")
-    keys = jax.random.split(key, len(names))
-    return nnx.Rngs(**dict(zip(names, keys)))

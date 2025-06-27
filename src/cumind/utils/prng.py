@@ -1,69 +1,85 @@
+"""PRNG utilities for JAX key management."""
+
 import threading
 from typing import Optional, Tuple, Union
 
 import jax
+import jax.numpy as jnp
 
 from .logger import log
 
 
 class PRNGManager:
-    """
-    Singleton PRNG manager for JAX using new-style keys.
-    Tracks an internal key chain for reproducibility,
-    never exposing the current key directly to users.
+    """Singleton PRNG manager for JAX using new-style keys.
+
+    Usage:
+        from cumind.utils.prng import key
+        key.seed(config.seed)      # initialize with seed
+        subkey = key()             # returns 1 key
+        subkeys = key(5)           # returns 5 keys
+        kgrid = key((2, 3))        # returns (2, 3, 2) keys
     """
 
     _instance: Optional["PRNGManager"] = None
-    _lock: threading.RLock = threading.RLock()
+    _lock = threading.RLock()
+    _initialized: bool = False
 
-    def __new__(cls):
+    def __new__(cls) -> "PRNGManager":
         with cls._lock:
             if cls._instance is None:
-                obj = super().__new__(cls)
-                obj._key = None
-                obj._seed = None
-                obj._impl = None
-                cls._instance = obj
-                log.debug("PRNGManager singleton instance created")
+                cls._instance = super().__new__(cls)
+                cls._instance._initialized = False
         return cls._instance
 
+    def __init__(self) -> None:
+        """Initialize PRNGManager state."""
+        if self._initialized:
+            return
+
+        self._key: Optional[jax.Array] = None
+        self._seed: Optional[int] = None
+        self._impl: Optional[str] = None
+        self._initialized = True
+        log.debug("PRNGManager singleton instance created")
+
     @classmethod
-    def instance(cls):
-        """Get the singleton instance of PRNGManager."""
+    def instance(cls) -> "PRNGManager":
+        """Get singleton instance."""
         with cls._lock:
             if cls._instance is None:
                 cls._instance = cls()
             return cls._instance
 
-    def _init(self, seed: int, impl: Union[str, None] = None):
-        """
-        Initialize the PRNG key with a seed and (optionally) a PRNG implementation.
+    def seed(self, seed: int, impl: Union[str, None] = None) -> None:
+        """Initialize PRNG key with seed.
 
         Args:
-            seed: Integer seed for PRNG initialization
-            impl: Optional PRNG implementation string (e.g., 'threefry2x32')
+            seed: a 64- or 32-bit integer used as the value of the key
+            impl: optional string specifying the PRNG implementation (e.g. 'threefry2x32')
         """
         with type(self)._lock:
+            if self._key is not None or self._seed is not None:
+                log.warning("PRNG manager already seeded. Ignoring new seed.")
+                return
+
             if impl is not None:
                 self._key = jax.random.key(seed, impl=impl)
                 log.info(f"PRNG initialized with seed: {seed}, implementation: {impl}")
             else:
                 self._key = jax.random.key(seed)
-                log.info(f"PRNG initialized with seed: {seed} (default implementation)")
+                log.info(f"PRNG initialized with seed: {seed}")
             self._seed = seed
             self._impl = impl
 
-    def _split(self, num: Union[int, Tuple[int, ...]]):
+    def _split(self, num: Union[int, Tuple[int, ...]]) -> jax.Array:
         """
-        Split the internal key, update the chain, and return new subkey(s).
-        The internal key is updated, so every call advances the sequence.
+        Split internal key and return subkey(s).
 
         Args:
-            num: Number of keys to generate (int or tuple of ints).
+            num: Number of keys to generate (int or tuple of ints)
 
         Returns:
-            - If int: returns a JAX key array of shape (num, ...)
-            - If tuple: returns a JAX key array of shape (*num, ...)
+            JAX key array of requested shape
 
         Raises:
             RuntimeError: If PRNG is not initialized
@@ -72,59 +88,56 @@ class PRNGManager:
         with type(self)._lock:
             if self._key is None or self._seed is None:
                 log.error("Attempted to split PRNG key before initialization")
-                raise RuntimeError("PRNG not initialized. Call key(seed) first.")
+                raise RuntimeError("PRNG not initialized. Call key.seed(value) first.")
 
             if isinstance(num, int):
                 if num <= 0:
                     raise ValueError("num must be a positive integer")
-                split_shape = (num + 1,)
-                log.debug(f"Generating {num} PRNG subkey(s) (int split)")
+                shape: Tuple[int, ...] = (num,)
             elif isinstance(num, tuple):
-                if not num or not all(isinstance(x, int) and x > 0 for x in num):
+                if not all(isinstance(x, int) and x > 0 for x in num):
                     raise ValueError("tuple must be non-empty and all elements positive ints")
-                split_shape = (num[0] + 1,) + num[1:]
-                log.debug(f"Generating PRNG subkey(s) with shape {num} (tuple split)")
+                shape = num
             else:
                 raise ValueError("num must be int or tuple of ints")
 
-            keys = jax.random.split(self._key, split_shape)
-            self._key = keys[0]
-            return keys[1:]
+            prod = int(jnp.prod(jnp.array(shape)))
 
-    def __call__(self, x: Union[int, Tuple[int, ...]] = 1, impl: Union[str, None] = None) -> Optional[jax.Array]:
+            # Split key: one for updating self._key, rest for subkeys
+            keys = jax.random.split(self._key, prod + 1)
+            self._key = keys[0]
+            subkeys = keys[1:]
+
+            # Adjust shape for single key request
+            if prod == 1:
+                result = subkeys.reshape(self._key.shape)
+            else:
+                result = subkeys.reshape(shape + self._key.shape)
+
+            log.debug(f"Current key: {self._key}")
+            log.debug(f"Generated result shape: {result.shape}")
+            return result
+
+    def __call__(self, x: Union[int, Tuple[int, ...]] = 1) -> jax.Array:
         """
-        Main interface for PRNG operations.
+        Main interface for PRNG key generation.
 
         Args:
-            x: If int and PRNG not initialized, used as seed. Otherwise, number of keys to generate.
-            impl: Optional PRNG implementation (only used during initialization)
+            x: Number of keys to generate. If an int, returns `x` keys.
+               If a tuple, generates keys of that shape. Defaults to 1.
 
         Returns:
-            Generated PRNG subkey(s) or None if initializing
+            A generated PRNG subkey (or keys).
 
         Raises:
-            RuntimeError: If PRNG is not initialized and x is not a valid seed
+            RuntimeError: If trying to generate keys before initialization.
         """
         with self._lock:
-            # init case
-            if self._key is None and self._seed is None and isinstance(x, int):
-                log.info(f"Initializing PRNG with seed: {x}")
-                self._init(x, impl)
-                return None
-            # incorrect invariant case
             if self._key is None or self._seed is None:
                 log.error("Attempted to split PRNG key before initialization")
-                raise RuntimeError("PRNG not initialized. Call key(seed) first.")
-            # split case
+                raise RuntimeError("PRNG not initialized. Call key.seed(value) first.")
             return self._split(x)
 
 
-# User-facing singleton instance
+# Singleton instance
 key = PRNGManager.instance()
-
-# Example usage:
-# from cumind.utils.prng import key
-# key(config.seed)      # initialize with seed
-# subkey = key()        # returns 1 key
-# subkeys = key(5)      # returns 5 keys
-# kgrid = key((2, 3))   # returns (2, 3, 2) keys

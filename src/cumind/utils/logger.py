@@ -71,7 +71,7 @@ class Logger:
 
         self._logger = logging.getLogger("CuMindLogger")
         self.tb_writer: Optional[Any] = None
-        self._console_handler: Optional[logging.StreamHandler] = None
+        self._console_handler: Optional[logging.StreamHandler[Any]] = None
 
         # Single formatter for all handlers
         self._formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p")  # %(name)s sub logger
@@ -179,5 +179,5 @@ class Logger:
         logging.shutdown()
 
 
-# User-facing singleton instance
+# Singleton instance
 log = Logger.instance()

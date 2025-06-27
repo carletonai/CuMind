@@ -18,6 +18,8 @@ dependencies = [
     "chex>=0.1.89",
     "wandb>=0.20.1",
     "tensorboard>=2.19.0",
+    "ipython>=9.3.0",
+    "ipykernel>=6.29.5",
 ]
 
 # JAX Dependencies:

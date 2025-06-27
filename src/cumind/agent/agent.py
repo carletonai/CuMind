@@ -14,6 +14,7 @@ from ..core.mcts import MCTS
 from ..core.network import CuMindNetwork
 from ..utils.checkpoint import load_checkpoint, save_checkpoint
 from ..utils.logger import log
+from ..utils.prng import key
 
 
 class Agent:
@@ -30,8 +31,8 @@ class Agent:
         self.config = config
 
         log.info(f"Creating CuMindNetwork with observation shape {config.observation_shape} and action space size {config.action_space_size}")
-        key = jax.random.PRNGKey(config.random_seed)
-        rngs = nnx.Rngs(params=key)
+        key.seed(config.seed)
+        rngs = nnx.Rngs(params=key())
 
         self.network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
 
@@ -72,7 +73,7 @@ class Agent:
 
         if training:
             # Sample action from probabilities
-            action_idx = np.random.choice(len(action_probs), p=action_probs)
+            action_idx = int(jax.random.choice(key(), len(action_probs), p=action_probs))
         else:
             # Take best action
             action_idx = int(np.argmax(action_probs))
