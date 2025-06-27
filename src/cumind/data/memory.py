@@ -201,7 +201,6 @@ class TreeBuffer(Memory):
         self.epsilon = epsilon
         self.max_priority = 1.0
 
-        # Initialize sum tree
         self.tree_size = 1
         while self.tree_size < capacity:
             self.tree_size *= 2

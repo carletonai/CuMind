@@ -92,7 +92,7 @@ class Logger:
         self._logger = logging.getLogger("CuMindLogger")
         self.tb_writer: Optional[Any] = None
 
-        # Create a single formatter for all handlers
+        # Single formatter for all handlers
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p")  # %(name)s sub logger
 
         # Setup file handler

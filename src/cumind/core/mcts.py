@@ -123,7 +123,6 @@ class MCTS:
             Action probability distribution.
         """
         log.debug(f"Starting MCTS search with {self.config.num_simulations} simulations. Noise: {add_noise}")
-        # Get initial prediction for root
         root_hidden_state_batched = jnp.expand_dims(root_hidden_state, 0)
         policy_logits, _ = self.network.prediction_network(root_hidden_state_batched)
         priors = jax.nn.softmax(policy_logits, axis=-1)[0]
@@ -133,21 +132,19 @@ class MCTS:
         actions = list(range(self.config.action_space_size))
         root.expand(actions, priors, root_hidden_state)
 
-        # Add exploration noise to root if training
         if add_noise:
             self._add_exploration_noise(root)
 
-        # Run simulations
         log.debug(f"Running {self.config.num_simulations} simulations...")
         for _ in range(self.config.num_simulations):
             self._simulate(root)
 
-        # Extract visit counts and normalize to probabilities
+        # Extract visit counts and normalize
         visit_counts = np.zeros(self.config.action_space_size)
         for action, child in root.children.items():
             visit_counts[action] = child.visit_count
 
-        # Normalize to probabilities
+        # Normalize
         total_visits = np.sum(visit_counts)
         if total_visits == 0:
             log.warning("MCTS search resulted in zero visits. Returning uniform probabilities.")
@@ -174,10 +171,8 @@ class MCTS:
             node = node.children[action]
 
         leaf_value = 0.0
-        # Expansion and evaluation at the leaf
         log.debug("MCTS simulation: Expansion and evaluation phase.")
         if node.hidden_state is None:
-            # This can happen if the leaf was just created. Its state needs to be computed.
             log.debug("MCTS simulation: Leaf node has no hidden state, computing it.")
             if len(path) > 0:
                 parent_node, action = path[-1]
@@ -186,11 +181,10 @@ class MCTS:
                     next_state, _ = self.network.dynamics_network(jnp.expand_dims(parent_node.hidden_state, 0), jnp.array([action]))
                     node.hidden_state = jnp.asarray(next_state)[0]
             else:
-                # This case is for the root, which should always have a state.
                 log.debug("MCTS simulation: Node is root, using its hidden state.")
                 node.hidden_state = root.hidden_state
 
-        # Evaluate the leaf and expand it
+        # Evaluate leaf and expand it
         if node.hidden_state is not None:
             hidden_state_expanded = jnp.expand_dims(node.hidden_state, 0)
             policy_logits, value = self.network.prediction_network(hidden_state_expanded)

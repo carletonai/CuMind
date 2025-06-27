@@ -51,7 +51,7 @@ class SelfPlay:
             next_observation, reward, terminated, truncated, _ = environment.step(action)
             done = terminated or truncated
 
-            # Store step data
+            # Store data
             episode_data.append({"observation": observation, "action": action, "reward": reward, "policy": policy, "done": done})
 
             observation = next_observation

@@ -51,7 +51,7 @@ class Trainer:
 
         log.info(f"Starting training loop for {num_episodes} episodes with train frequency {train_frequency}.")
         loss_info = {}
-        pbar = tqdm(range(num_episodes), desc="Training Progress")
+        pbar = tqdm(range(1, num_episodes + 1), desc="Training Progress")
         for episode in pbar:
             self_play = SelfPlay(self.config, self.agent, self.memory)
             episode_reward, episode_steps, _ = self_play.run_episode(env)
@@ -75,7 +75,6 @@ class Trainer:
                 }
             )
 
-            # if epi are upto 500 it only saves upto 450..
             if episode > 0 and episode % self.config.checkpoint_interval == 0:
                 self.save_checkpoint(episode)
 
@@ -163,7 +162,6 @@ class Trainer:
 
         if len(item) > n_steps:
             last_obs = jnp.array(item[n_steps]["observation"])[None, :]
-            # Use the stable target network for bootstrapping
             _, _, value = self.agent.target_network.initial_inference(last_obs)
             n_step_return += (discount**n_steps) * float(jnp.asarray(value)[0, 0])
 
@@ -173,34 +171,30 @@ class Trainer:
         """Computes the value, policy, and reward losses."""
         hidden_states, initial_policy_logits, initial_values = network.initial_inference(observations)
 
-        # Initial losses
         value_loss = jnp.mean((jnp.asarray(initial_values).squeeze() - jnp.asarray(targets["values"])) ** 2)
         policy_loss = -jnp.mean(jnp.sum(jnp.asarray(targets["policies"]) * jax.nn.log_softmax(initial_policy_logits, axis=-1), axis=-1))
 
         reward_loss = jnp.array(0.0)
         current_states = hidden_states
 
+        # Accumulate value loss, policy loss, and reward loss for each unroll step
         for step in range(self.config.num_unroll_steps):
             step_actions = jnp.asarray(actions)[:, step]
             next_states, pred_rewards, pred_policy_logits, pred_values = network.recurrent_inference(current_states, step_actions)
 
-            # Accumulate reward loss
             pred_rewards_squeezed = jnp.asarray(pred_rewards).squeeze()
             target_rewards = jnp.asarray(targets["rewards"])[:, step]
             reward_loss += jnp.mean((pred_rewards_squeezed - target_rewards) ** 2)
 
-            # Accumulate value loss for next state
             pred_values_squeezed = jnp.asarray(pred_values).squeeze()
             # Note: A more advanced implementation might use a different target for unrolled steps
             value_loss += jnp.mean((pred_values_squeezed - jnp.asarray(targets["values"])) ** 2)
 
-            # Accumulate policy loss for next state
             policy_log_probs = jax.nn.log_softmax(pred_policy_logits, axis=-1)
             policy_loss += -jnp.mean(jnp.sum(jnp.asarray(targets["policies"]) * policy_log_probs, axis=-1))
 
             current_states = next_states
 
-        # Losses
         if self.config.num_unroll_steps > 0:
             reward_loss /= self.config.num_unroll_steps
             value_loss /= self.config.num_unroll_steps + 1

@@ -54,7 +54,6 @@ def batched_apply[T](fn: Callable[[Any], T], *args: Any, batch_size: int) -> T:
     Returns:
         Concatenated results from all batches
     """
-    # Get the batch dimension
     total_size = jax.tree_util.tree_leaves(args[0])[0].shape[0]
 
     if total_size <= batch_size:

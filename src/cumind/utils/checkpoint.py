@@ -76,7 +76,6 @@ def get_available_checkpoints(root_dir: str) -> Dict[str, List[Tuple[str, dateti
             for run_dir in env_dir.iterdir():
                 if run_dir.is_dir():
                     try:
-                        # Attempt to parse timestamp from directory name
                         timestamp = datetime.strptime(run_dir.name, "%Y%m%d-%H%M%S")
                         latest_checkpoint = find_latest_checkpoint_in_dir(str(run_dir))
                         if latest_checkpoint:
@@ -85,7 +84,7 @@ def get_available_checkpoints(root_dir: str) -> Dict[str, List[Tuple[str, dateti
                         # Ignore directories that don't match the timestamp format
                         continue
             if runs:
-                # Sort runs by timestamp, descending
+                # Sort by timestamp, descending
                 runs.sort(key=lambda x: x[1], reverse=True)
                 checkpoints[env_name] = runs
     return checkpoints
@@ -106,16 +105,16 @@ def find_latest_checkpoint_for_env(env_name: str) -> str | None:
         log.warning(f"Checkpoint directory not found: {checkpoint_dir}")
         return None
 
-    # Find all timestamp subdirectories
+    # Find all subdirectories
     timestamp_dirs = [d for d in checkpoint_dir.iterdir() if d.is_dir()]
     if not timestamp_dirs:
         log.warning(f"No checkpoint directories found in {checkpoint_dir}.")
         return None
 
-    # Get the latest timestamp directory
+    # Get the latest directory
     latest_timestamp_dir = sorted(timestamp_dirs)[-1]
 
-    # Find checkpoint files in the latest timestamp directory
+    # Find checkpoint files in the latest directory
     checkpoint_files = sorted(latest_timestamp_dir.glob("*.pkl"))
     if not checkpoint_files:
         log.warning(f"No checkpoint files found in {latest_timestamp_dir}.")

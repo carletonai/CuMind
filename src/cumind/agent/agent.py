@@ -29,18 +29,15 @@ class Agent:
         log.info("Initializing CuMind agent...")
         self.config = config
 
-        # Create network with random initialization
         log.info(f"Creating CuMindNetwork with observation shape {config.observation_shape} and action space size {config.action_space_size}")
         key = jax.random.PRNGKey(config.random_seed)
         rngs = nnx.Rngs(params=key)
 
         self.network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
 
-        # Create a target network for stable value bootstrapping
         log.info("Creating target network.")
         self.target_network = nnx.clone(self.network)
 
-        # Setup optimizer
         log.info(f"Setting up AdamW optimizer with learning rate {config.learning_rate} and weight decay {config.weight_decay}")
         self.optimizer = optax.adamw(learning_rate=config.learning_rate, weight_decay=config.weight_decay)
 
@@ -51,7 +48,6 @@ class Agent:
             log.info("Initializing new optimizer state.")
             self.optimizer_state = self.optimizer.init(nnx.state(self.network, nnx.Param))
 
-        # Initialize MCTS
         log.info("Initializing MCTS.")
         self.mcts = MCTS(self.network, config)
         log.info("Agent initialization complete.")
@@ -67,8 +63,7 @@ class Agent:
             A tuple containing the selected action index and the MCTS policy probabilities.
         """
         log.debug(f"Selecting action. Training mode: {training}")
-        # Convert observation to tensor and get initial hidden state
-        obs_tensor = jnp.array(observation)[None]  # Add batch dimension
+        obs_tensor = jnp.array(observation)[None]  # [None] adds batch dimension
         hidden_state, _, _ = self.network.initial_inference(obs_tensor)
         hidden_state_array = jnp.asarray(hidden_state, dtype=jnp.float32)[0]  # Remove batch dimension
 
@@ -112,7 +107,7 @@ class Agent:
         log.info("Loading agent state from dictionary.")
         nnx.update(self.network, state["network_state"])
         self.optimizer_state = state["optimizer_state"]
-        # Also update the target network to match the loaded state
+
         log.info("Updating target network after loading state.")
         self.update_target_network()
         log.info("Agent state loaded successfully.")

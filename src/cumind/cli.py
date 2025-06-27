@@ -62,7 +62,6 @@ def main() -> None:
     if not os.path.exists(config_path):
         log.info(f"Default config not found at {config_path}. Using default parameters.")
         config = Config()
-        # save the default config
         config.to_json(config_path)
     else:
         config = Config.from_json(config_path)

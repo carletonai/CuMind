@@ -39,12 +39,10 @@ def inference(config: Config, checkpoint_file: str) -> None:
 
     log.info(f"Loading agent from: {checkpoint_file}")
 
-    # Load agent from checkpoint
     inference_agent = Agent(config)
     state = load_checkpoint(checkpoint_file)
     inference_agent.load_state(state)
 
-    # Run inference episodes
     env = gym.make(config.env_name, render_mode="human")
     for episode in range(5):
         obs, _ = env.reset()
