@@ -41,6 +41,6 @@
     "per_beta": 0.4
   },
   "Other": {
-    "random_seed": 0
+    "seed": 42
   }
 }
