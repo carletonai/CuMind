@@ -10,15 +10,15 @@ from cumind.agent.agent import Agent
 from cumind.config import Config
 from cumind.core.network import CuMindNetwork
 from cumind.data.memory import Memory, MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer
-from cumind.utils.prng import PRNGManager, key
+from cumind.utils.prng import key
 
 
 @pytest.fixture(autouse=True)
 def reset_prng_manager_singleton():
     """Reset the PRNGManager singleton before and after each test."""
-    PRNGManager._instance = None
+    key.reset()
     yield
-    PRNGManager._instance = None
+    key.reset()
 
 
 def test_network_creation():

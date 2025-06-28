@@ -36,11 +36,22 @@ class PRNGManager:
         if self._initialized:
             return
 
+        self._reset()
+        self._initialized = True
+        log.debug("PRNGManager singleton instance created")
+
+    def _reset(self) -> None:
+        """Reset the internal state of the PRNG manager."""
         self._key: Optional[jax.Array] = None
         self._seed: Optional[int] = None
         self._impl: Optional[str] = None
-        self._initialized = True
-        log.debug("PRNGManager singleton instance created")
+
+    @classmethod
+    def reset(cls) -> None:
+        """Reset the singleton instance."""
+        with cls._lock:
+            if cls._instance is not None:
+                cls._instance._reset()
 
     @classmethod
     def instance(cls) -> "PRNGManager":
@@ -90,33 +101,39 @@ class PRNGManager:
                 log.error("Attempted to split PRNG key before initialization")
                 raise RuntimeError("PRNG not initialized. Call key.seed(value) first.")
 
+            log.debug(f"Starting PRNG key split operation. Input num: {num}, Current key shape: {self._key.shape}")
+
             if isinstance(num, int):
                 if num <= 0:
                     raise ValueError("num must be a positive integer")
                 shape: Tuple[int, ...] = (num,)
+                log.debug(f"Processing int input. Generated shape: {shape}")
             elif isinstance(num, tuple):
                 if not all(isinstance(x, int) and x > 0 for x in num):
                     raise ValueError("tuple must be non-empty and all elements positive ints")
                 shape = num
+                log.debug(f"Processing tuple input. Generated shape: {shape}")
             else:
                 raise ValueError("num must be int or tuple of ints")
 
             prod = int(jnp.prod(jnp.array(shape)))
+            log.debug(f"Calculated total number of keys needed: {prod}")
 
-            # Split key: one for updating self._key, rest for subkeys
-            keys = jax.random.split(self._key, prod + 1)
-            self._key = keys[0]
-            subkeys = keys[1:]
+            log.debug(f"Before split - Key shape: {self._key.shape}")
+            self._key, *subkeys = jax.random.split(self._key, prod + 1)
+            log.debug(f"After split - Main key shape: {self._key.shape}, Number of subkeys: {len(subkeys)}")
 
-            # Adjust shape for single key request
             if prod == 1:
-                result = subkeys.reshape(self._key.shape)
+                result = subkeys[0]
+                log.debug(f"Single key case - Result shape: {result.shape}")
             else:
-                result = subkeys.reshape(shape + self._key.shape)
+                if self._key is None:
+                    raise RuntimeError("PRNG key should be initialized before splitting")
+                result = jnp.array(subkeys).reshape(shape + self._key.shape)
+                log.debug(f"Multiple keys case - Reshaped result shape: {result.shape}")
 
-            log.debug(f"Current key: {self._key}")
-            log.debug(f"Generated result shape: {result.shape}")
-            return result
+            log.debug(f"Final result shape: {result.shape}, Returning as JAX array")
+            return jnp.asarray(result)
 
     def __call__(self, x: Union[int, Tuple[int, ...]] = 1) -> jax.Array:
         """

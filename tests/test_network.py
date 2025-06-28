@@ -14,15 +14,15 @@ from cumind.core.network import (
     ResidualBlock,
     VectorEncoder,
 )
-from cumind.utils.prng import PRNGManager, key
+from cumind.utils.prng import key
 
 
 @pytest.fixture(autouse=True)
 def reset_prng_manager_singleton():
-    """Reset the PRNGManager singleton before and after each test."""
-    PRNGManager._instance = None
+    """Reset the key singleton before and after each test."""
+    key.reset()
     yield
-    PRNGManager._instance = None
+    key.reset()
 
 
 class TestResidualBlock:

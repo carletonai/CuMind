@@ -10,26 +10,19 @@ import numpy as np
 import pytest
 
 from cumind.utils.logger import Logger
-from cumind.utils.prng import PRNGManager
-from cumind.utils.prng import key as prng_key
+from cumind.utils.prng import key
 
 
 @pytest.fixture(autouse=True)
-def reset_logger_singleton():
-    """Reset the Logger singleton before and after each test."""
+def reset_singletons():
+    """Reset the singletons before and after each test."""
     Logger._instance = None
     Logger._initialized = False
+    key.reset()
     yield
     Logger._instance = None
     Logger._initialized = False
-
-
-@pytest.fixture(autouse=True)
-def reset_prng_manager_singleton():
-    """Reset the PRNGManager singleton before and after each test."""
-    PRNGManager._instance = None
-    yield
-    PRNGManager._instance = None
+    key.reset()
 
 
 class TestLogger:
@@ -170,8 +163,20 @@ class TestJAXUtils:
     def test_tree_operations(self):
         """Test JAX tree operations."""
         # Create test tree structure
-        tree1 = {"params": {"dense1": {"kernel": jnp.ones((4, 32)), "bias": jnp.zeros(32)}, "dense2": {"kernel": jnp.ones((32, 2)), "bias": jnp.zeros(2)}}, "stats": {"mean": jnp.array([1.0, 2.0]), "std": jnp.array([0.5, 1.5])}}
-        tree2 = {"params": {"dense1": {"kernel": jnp.ones((4, 32)), "bias": jnp.zeros(32)}, "dense2": {"kernel": jnp.ones((32, 2)), "bias": jnp.zeros(2)}}, "stats": {"mean": jnp.array([1.0, 2.0]), "std": jnp.array([0.5, 1.5])}}
+        tree1 = {
+            "params": {
+                "dense1": {"kernel": jnp.ones((4, 32)), "bias": jnp.zeros(32)},
+                "dense2": {"kernel": jnp.ones((32, 2)), "bias": jnp.zeros(2)},
+            },
+            "stats": {"mean": jnp.array([1.0, 2.0]), "std": jnp.array([0.5, 1.5])},
+        }
+        tree2 = {
+            "params": {
+                "dense1": {"kernel": jnp.ones((4, 32)), "bias": jnp.zeros(32)},
+                "dense2": {"kernel": jnp.ones((32, 2)), "bias": jnp.zeros(2)},
+            },
+            "stats": {"mean": jnp.array([1.0, 2.0]), "std": jnp.array([0.5, 1.5])},
+        }
 
         # Test tree_flatten and tree_unflatten
         flat, tree_def = jax.tree_util.tree_flatten(tree1)
@@ -190,28 +195,6 @@ class TestJAXUtils:
         assert jnp.allclose(scaled_tree["a"], jnp.array([2.0, 4.0]))
         assert jnp.allclose(scaled_tree["b"]["c"], jnp.array([6.0, 8.0]))
         assert jnp.allclose(scaled_tree["b"]["d"], jnp.array([10.0, 12.0]))
-
-    def test_random_key_operations(self):
-        """Test CuMind PRNG key operations."""
-        # Test key splitting and initialization
-        prng_key.seed(42)
-        key1 = prng_key()
-        key2 = prng_key()
-
-        # Keys should be different
-        assert not jnp.array_equal(key1, key2)
-
-        # Test multiple splits
-        keys = prng_key(5)
-        assert keys.shape == (5, )  # JAX PRNG keys are 2-element arrays
-
-        # All keys should be different
-        # unstack keys for comparison
-        unstacked_keys = [keys[i] for i in range(keys.shape[0])]
-        all_keys = [key1, key2] + unstacked_keys
-        for i in range(len(all_keys)):
-            for j in range(i + 1, len(all_keys)):
-                assert not jnp.array_equal(all_keys[i], all_keys[j])
 
     def test_array_operations(self):
         """Test JAX array operations."""
@@ -263,40 +246,96 @@ class TestJAXUtils:
         x2 = jnp.ones((2, 3)) * 2
         y2 = jnp.ones((3, 4)) * 2
         result2 = jitted_function(x2, y2)
-
         assert result2.shape == (2, 4)
+        assert not jnp.allclose(result1, result2)
 
     def test_vectorization(self):
-        """Test JAX vectorization with vmap."""
+        """Test JAX vectorization."""
 
         def single_input_function(x):
-            return jnp.sum(x**2)
+            return x * 2
 
-        # Vectorize to handle batch of inputs
-        batch_function = jax.vmap(single_input_function)
+        # Test vmap
+        vmap_fn = jax.vmap(single_input_function)
+        x_batch = jnp.arange(5)
+        result_batch = vmap_fn(x_batch)
 
-        # Test with batch input
-        batch_x = jnp.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
-        batch_result = batch_function(batch_x)
-
-        assert batch_result.shape == (3,)
-
-        # Verify results
-        expected = jnp.array([5.0, 25.0, 61.0])  # 1^2+2^2, 3^2+4^2, 5^2+6^2
-        assert jnp.allclose(batch_result, expected)
+        expected_batch = x_batch * 2
+        assert jnp.allclose(result_batch, expected_batch)
 
     def test_device_operations(self):
         """Test JAX device operations."""
-        # Test array creation on default device
-        x = jnp.array([1.0, 2.0, 3.0])
+        # Test that JAX is using the default device
+        assert "cpu" in jax.default_backend().lower() or "gpu" in jax.default_backend().lower()
 
-        # Verify array has device attribute
-        assert hasattr(x, "device") or hasattr(x, "devices")
 
-        # Test basic operations work regardless of device
-        y = x * 2
-        expected = jnp.array([2.0, 4.0, 6.0])
-        assert jnp.allclose(y, expected)
+class Testkey:
+    """Test suite for the key."""
+
+    def test_deterministic_key_generation(self):
+        """Test that seeding produces a deterministic sequence of keys."""
+        key.seed(42)
+        keys1 = [key() for _ in range(5)]
+
+        key.reset()
+
+        key.seed(42)
+        keys2 = [key() for _ in range(5)]
+
+        for k1, k2 in zip(keys1, keys2):
+            assert jnp.array_equal(k1, k2)
+
+    def test_key_uniqueness(self):
+        """Test that generated keys are unique."""
+        key.seed(101)
+        keys = [key() for _ in range(100)]
+        unique_keys = {tuple(np.asarray(jax.random.key_data(k)).tolist()) for k in keys}
+        assert len(keys) == len(unique_keys)
+
+    def test_key_generation_shapes(self):
+        """Test key generation for different shapes."""
+        key.seed(0)
+        # Get the shape of a single key to make the test robust to PRNG implementation
+        key_shape = key().shape
+
+        # Reset for the actual tests
+        key.reset()
+        key.seed(0)
+
+        assert key().shape == key_shape
+        assert key(1).shape == key_shape
+        assert key(5).shape == (5,) + key_shape
+        assert key((2, 3)).shape == (2, 3) + key_shape
+
+    def test_uninitialized_error(self):
+        """Test that using the PRNG before seeding raises an error."""
+        with pytest.raises(RuntimeError, match="PRNG not initialized"):
+            key()
+
+    def test_invalid_split_number(self):
+        """Test that requesting zero or a negative number of keys raises an error."""
+        key.seed(0)
+        with pytest.raises(ValueError, match="num must be a positive integer"):
+            key(0)
+        with pytest.raises(ValueError, match="num must be a positive integer"):
+            key(-1)
+
+    def test_seeding_twice_ignored(self):
+        """Test that seeding a second time is ignored."""
+        key.seed(42)
+        key1 = key()
+
+        # This second seed should be ignored
+        key.seed(99)
+        key2 = key()
+
+        # To verify, we reset and re-seed with 42
+        key.reset()
+        key.seed(42)
+        key_control = key()  # This is the first key after seeding
+
+        assert not jnp.array_equal(key1, key2)
+        assert jnp.array_equal(key_control, key1)
 
 
 if __name__ == "__main__":
