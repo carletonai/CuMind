@@ -1,3 +1,5 @@
+"""Tests for the Node and MCTS classes, covering initialization, value computation, selection logic, and search behavior."""
+
 import chex
 import jax
 import jax.numpy as jnp

@@ -1,3 +1,5 @@
+"""Tests for CuMindNetwork components and related neural network modules."""
+
 import chex
 import jax
 import jax.numpy as jnp

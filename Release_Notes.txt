@@ -1,0 +1,29 @@
+CuMind Release Notes
+-------------------------------------------------------------------
+Document all technical changes introduced in this release as concise bullet points below.
+
+
+v0.1.7 (2025-07-15)
+----------------------
+Tarek Ibrahim (42)
+- Removed __version__ from modules
+- Squashed garbage
+
+v0.1.6 (2025-06-27)
+----------------------
+Tarek Ibrahim (0)
+- Initial public release
+- Core MuZero-inspired agent with MCTS integration
+- Neural network modules for representation, dynamics, and prediction
+- Configurable via a single config class
+- Full test suite and code quality checks
+- Fast setup using uv for dependency management
+
+
+vX.Y.Z (YYYY-MM-DD)
+----------------------
+Author Full Name (PR#)
+- Short bullet describing the change
+- Another bullet if needed
+>Update src/cumind/__init__.py __version__ field
+>Update pyproject.toml [project] version field
