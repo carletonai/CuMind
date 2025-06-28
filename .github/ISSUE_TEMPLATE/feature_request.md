@@ -33,9 +33,3 @@ Add links, screenshots, or other relevant info.
 
 ## Acceptance Criteria
 - [ ] Clear, testable criteria for completion
-
-## Priority
-- [ ] Low
-- [ ] Medium
-- [ ] High
-- [ ] Critical
