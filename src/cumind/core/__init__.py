@@ -12,5 +12,5 @@ from .network import (
     VectorEncoder,
 )
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 __all__ = ["MCTS", "Node", "ResidualBlock", "BaseEncoder", "VectorEncoder", "ConvEncoder", "RepresentationNetwork", "DynamicsNetwork", "PredictionNetwork", "CuMindNetwork"]
