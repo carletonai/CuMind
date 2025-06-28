@@ -160,284 +160,371 @@ class TestConvEncoder:
     """Test suite for ConvEncoder."""
 
     def test_conv_encoder_initialization(self):
-        """Test ConvEncoder initialization.
+        """Test ConvEncoder initialization."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        observation_shape = (84, 84, 3)
+        hidden_dim = 256
+        num_blocks = 2
+        conv_channels = 32
 
-        Implementation:
-            - Test encoder creation with 3D observation shape
-            - Verify convolutional layer creation
-            - Test residual block integration
-            - Test with different image sizes
-        """
-        # Branch: feature/conv-encoder-init-test
-        pass
+        encoder = ConvEncoder(observation_shape, hidden_dim, num_blocks, conv_channels, rngs)
+
+        assert hasattr(encoder, "initial_conv")
+        assert isinstance(encoder.initial_conv, nnx.Conv)
+        assert hasattr(encoder, "residual_blocks")
+        assert len(encoder.residual_blocks) == num_blocks
+        assert isinstance(encoder.residual_blocks[0], ResidualBlock)
+        assert hasattr(encoder, "final_dense")
+        assert isinstance(encoder.final_dense, nnx.Linear)
 
     def test_conv_encoder_forward(self):
-        """Test ConvEncoder forward pass.
+        """Test ConvEncoder forward pass."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        observation_shape = (84, 84, 3)
+        hidden_dim = 256
+        num_blocks = 2
+        conv_channels = 32
+        batch_size = 4
 
-        Implementation:
-            - Test encoding of 3D observations
-            - Verify output shape (batch_size, hidden_dim)
-            - Test with different image sizes
-            - Test spatial dimension reduction
-        """
-        # Branch: feature/conv-encoder-forward-test
-        pass
+        encoder = ConvEncoder(observation_shape, hidden_dim, num_blocks, conv_channels, rngs)
+        obs = jnp.ones((batch_size, *observation_shape))
+        output = encoder(obs)
+
+        assert output.shape == (batch_size, hidden_dim)
 
     def test_conv_encoder_with_residual_blocks(self):
-        """Test ConvEncoder with residual blocks.
+        """Test ConvEncoder with residual blocks."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        observation_shape = (10, 10, 4)
+        hidden_dim = 128
+        num_blocks = 4
+        conv_channels = 16
+        batch_size = 2
 
-        Implementation:
-            - Test feature processing through residual blocks
-            - Verify gradient flow through blocks
-            - Test with different numbers of blocks
-            - Test feature map evolution
-        """
-        # Branch: feature/conv-encoder-residual-test
-        pass
+        encoder = ConvEncoder(observation_shape, hidden_dim, num_blocks, conv_channels, rngs)
+        obs = jnp.ones((batch_size, *observation_shape))
+        output = encoder(obs)
+        assert output.shape == (batch_size, hidden_dim)
+
+        # Test gradient flow
+        grad_fn = nnx.grad(lambda m, x: m(x).sum())
+        grads = grad_fn(encoder, obs)
+        assert grads is not None
+        chex.assert_tree_all_finite(grads)
 
 
 class TestRepresentationNetwork:
     """Test suite for RepresentationNetwork."""
 
     def test_representation_network_initialization(self):
-        """Test RepresentationNetwork initialization.
+        """Test RepresentationNetwork initialization."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        hidden_dim = 64
+        num_blocks = 2
+        conv_channels = 16
 
-        Implementation:
-            - Test network creation with different observation shapes
-            - Verify encoder selection (vector vs conv)
-            - Test with different hidden dimensions
-            - Test encoder factory method
-        """
-        # Branch: feature/representation-init-test
-        pass
+        # Test with 1D observation shape
+        net_1d = RepresentationNetwork((4,), hidden_dim, num_blocks, conv_channels, rngs)
+        assert isinstance(net_1d.encoder, VectorEncoder)
+
+        # Test with 3D observation shape
+        net_3d = RepresentationNetwork((84, 84, 3), hidden_dim, num_blocks, conv_channels, rngs)
+        assert isinstance(net_3d.encoder, ConvEncoder)
 
     def test_encoder_factory_method(self):
-        """Test encoder factory method selection.
+        """Test encoder factory method selection."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        hidden_dim = 64
+        num_blocks = 2
+        conv_channels = 16
 
-        Implementation:
-            - Test VectorEncoder selection for 1D observations
-            - Test ConvEncoder selection for 3D observations
-            - Test error handling for unsupported shapes
-            - Test parameter passing to encoders
-        """
-        # Branch: feature/encoder-factory-test
-        pass
+        # Create a dummy network to get access to the factory method
+        net = RepresentationNetwork((1,), hidden_dim, num_blocks, conv_channels, rngs)
+
+        # Test VectorEncoder selection for 1D observations
+        net.observation_shape = (10,)
+        encoder_1d = net._create_encoder(rngs)
+        assert isinstance(encoder_1d, VectorEncoder)
+
+        # Test ConvEncoder selection for 3D observations
+        net.observation_shape = (10, 10, 1)
+        encoder_3d = net._create_encoder(rngs)
+        assert isinstance(encoder_3d, ConvEncoder)
+
+        # Test error handling for unsupported shapes
+        net.observation_shape = (10, 10)
+        with pytest.raises(ValueError, match="Unsupported observation shape"):
+            net._create_encoder(rngs)
 
     def test_representation_forward_1d(self):
-        """Test RepresentationNetwork with 1D observations.
-
-        Implementation:
-            - Test encoding of vector observations
-            - Verify hidden state shape and properties
-            - Test with different vector sizes
-            - Test batch processing
-        """
-        # Branch: feature/representation-1d-test
-        pass
+        """Test RepresentationNetwork with 1D observations."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        observation_shape = (8,)
+        hidden_dim = 32
+        net = RepresentationNetwork(observation_shape, hidden_dim, 2, 0, rngs)
+        obs = jnp.ones((4, *observation_shape))
+        hidden_state = net(obs)
+        assert hidden_state.shape == (4, hidden_dim)
 
     def test_representation_forward_3d(self):
-        """Test RepresentationNetwork with 3D observations.
-
-        Implementation:
-            - Test encoding of image observations
-            - Verify hidden state shape and properties
-            - Test with different image sizes
-            - Test batch processing
-        """
-        # Branch: feature/representation-3d-test
-        pass
+        """Test RepresentationNetwork with 3D observations."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        observation_shape = (16, 16, 3)
+        hidden_dim = 64
+        net = RepresentationNetwork(observation_shape, hidden_dim, 2, 8, rngs)
+        obs = jnp.ones((2, *observation_shape))
+        hidden_state = net(obs)
+        assert hidden_state.shape == (2, hidden_dim)
 
 
 class TestDynamicsNetwork:
     """Test suite for DynamicsNetwork."""
 
     def test_dynamics_network_initialization(self):
-        """Test DynamicsNetwork initialization.
+        """Test DynamicsNetwork initialization."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        hidden_dim = 64
+        action_space_size = 5
+        num_blocks = 3
+        net = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
 
-        Implementation:
-            - Test network creation with hidden and action dimensions
-            - Verify action embedding layer creation
-            - Test processing block creation
-            - Test output head creation
-        """
-        # Branch: feature/dynamics-init-test
-        pass
+        assert isinstance(net.action_embedding, nnx.Embed)
+        assert net.action_embedding.num_embeddings == action_space_size
+        assert len(net.layers) == num_blocks
+        assert isinstance(net.reward_head, nnx.Linear)
 
     def test_dynamics_forward(self):
-        """Test DynamicsNetwork forward pass.
+        """Test DynamicsNetwork forward pass."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        hidden_dim = 32
+        action_space_size = 4
+        num_blocks = 2
+        batch_size = 8
+        net = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
+        state = jnp.ones((batch_size, hidden_dim))
+        action = jnp.zeros(batch_size, dtype=jnp.int32)
+        next_state, reward = net(state, action)
 
-        Implementation:
-            - Test state transition prediction
-            - Test reward prediction
-            - Verify output shapes
-            - Test with different batch sizes
-        """
-        # Branch: feature/dynamics-forward-test
-        pass
+        assert next_state.shape == (batch_size, hidden_dim)
+        assert reward.shape == (batch_size, 1)
 
     def test_action_embedding(self):
-        """Test action embedding in dynamics network.
+        """Test action embedding in dynamics network."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        hidden_dim = 16
+        action_space_size = 7
+        batch_size = 3
+        net = DynamicsNetwork(hidden_dim, action_space_size, 1, rngs)
+        action = jnp.array([0, 2, 6])
+        action_embedded = net.action_embedding(action)
 
-        Implementation:
-            - Test discrete action embedding
-            - Test action-state concatenation
-            - Test with different action space sizes
-            - Test embedding learning
-        """
-        # Branch: feature/action-embedding-test
-        pass
+        assert action_embedded.shape == (batch_size, hidden_dim)
 
     def test_reward_prediction(self):
-        """Test reward prediction accuracy.
+        """Test reward prediction accuracy."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        hidden_dim = 32
+        action_space_size = 4
+        num_blocks = 2
+        batch_size = 8
+        net = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
+        state = jnp.ones((batch_size, hidden_dim))
+        action = jnp.zeros(batch_size, dtype=jnp.int32)
+        _, reward = net(state, action)
 
-        Implementation:
-            - Test reward head output shape
-            - Test reward prediction range
-            - Test with different reward scales
-            - Test gradient flow to reward head
-        """
-        # Branch: feature/reward-prediction-test
-        pass
+        assert reward.shape == (batch_size, 1)
+
+        grad_fn = nnx.grad(lambda m, s, a: m(s, a)[1].sum())
+        grads = grad_fn(net, state, action)
+        assert grads is not None
+        chex.assert_tree_all_finite(grads)
 
 
 class TestPredictionNetwork:
     """Test suite for PredictionNetwork."""
 
     def test_prediction_network_initialization(self):
-        """Test PredictionNetwork initialization.
+        """Test PredictionNetwork initialization."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        hidden_dim = 128
+        action_space_size = 10
+        net = PredictionNetwork(hidden_dim, action_space_size, rngs)
 
-        Implementation:
-            - Test network creation with hidden and action dimensions
-            - Verify policy and value head creation
-            - Test with different action space sizes
-            - Test parameter initialization
-        """
-        # Branch: feature/prediction-init-test
-        pass
+        assert isinstance(net.policy_head, nnx.Linear)
+        assert isinstance(net.value_head, nnx.Linear)
+        assert net.policy_head.out_features == action_space_size
+        assert net.value_head.out_features == 1
 
     def test_prediction_forward(self):
-        """Test PredictionNetwork forward pass.
+        """Test PredictionNetwork forward pass."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        hidden_dim = 64
+        action_space_size = 5
+        batch_size = 4
+        net = PredictionNetwork(hidden_dim, action_space_size, rngs)
+        hidden_state = jnp.ones((batch_size, hidden_dim))
+        policy_logits, value = net(hidden_state)
 
-        Implementation:
-            - Test policy logit prediction
-            - Test value prediction
-            - Verify output shapes
-            - Test with different batch sizes
-        """
-        # Branch: feature/prediction-forward-test
-        pass
+        assert policy_logits.shape == (batch_size, action_space_size)
+        assert value.shape == (batch_size, 1)
 
     def test_policy_head(self):
-        """Test policy head functionality.
+        """Test policy head functionality."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        hidden_dim = 64
+        action_space_size = 5
+        batch_size = 4
+        net = PredictionNetwork(hidden_dim, action_space_size, rngs)
+        hidden_state = jnp.ones((batch_size, hidden_dim))
+        policy_logits, _ = net(hidden_state)
 
-        Implementation:
-            - Test policy logit output shape
-            - Test logit range and distribution
-            - Test with different action space sizes
-            - Test softmax compatibility
-        """
-        # Branch: feature/policy-head-test
-        pass
+        assert policy_logits.shape == (batch_size, action_space_size)
 
     def test_value_head(self):
-        """Test value head functionality.
+        """Test value head functionality."""
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
+        hidden_dim = 64
+        action_space_size = 5
+        batch_size = 4
+        net = PredictionNetwork(hidden_dim, action_space_size, rngs)
+        hidden_state = jnp.ones((batch_size, hidden_dim))
+        _, value = net(hidden_state)
 
-        Implementation:
-            - Test value output shape (single scalar)
-            - Test value prediction range
-            - Test with different state inputs
-            - Test gradient flow to value head
-        """
-        # Branch: feature/value-head-test
-        pass
+        assert value.shape == (batch_size, 1)
 
 
 class TestCuMindNetwork:
     """Test suite for complete CuMindNetwork."""
 
-    def test_cumind_network_initialization(self):
-        """Test CuMindNetwork initialization.
+    @pytest.fixture
+    def setup_1d(self):
+        key.seed(0)
+        return {
+            "observation_shape": (4,),
+            "action_space_size": 2,
+            "hidden_dim": 32,
+            "num_blocks": 1,
+            "conv_channels": 0,  # Not used
+            "rngs": nnx.Rngs(params=key()),
+        }
 
-        Implementation:
-            - Test network creation with different configurations
-            - Verify all sub-networks are created
-            - Test with different observation shapes
-            - Test parameter counting
-        """
-        # Branch: feature/cumind-network-init-test
-        pass
+    @pytest.fixture
+    def setup_3d(self):
+        key.seed(1)
+        return {
+            "observation_shape": (16, 16, 3),
+            "action_space_size": 5,
+            "hidden_dim": 64,
+            "num_blocks": 2,
+            "conv_channels": 8,
+            "rngs": nnx.Rngs(params=key()),
+        }
 
-    def test_initial_inference(self):
-        """Test initial inference step.
+    def test_cumind_network_initialization(self, setup_1d):
+        """Test CuMindNetwork initialization."""
+        net = CuMindNetwork(**setup_1d)
+        assert isinstance(net.representation_network, RepresentationNetwork)
+        assert isinstance(net.dynamics_network, DynamicsNetwork)
+        assert isinstance(net.prediction_network, PredictionNetwork)
+        assert isinstance(net.representation_network.encoder, VectorEncoder)
 
-        Implementation:
-            - Test observation encoding and prediction
-            - Verify output shapes (hidden_state, policy, value)
-            - Test with different observation types
-            - Test batch processing
-        """
-        # Branch: feature/initial-inference-test
-        pass
+    def test_initial_inference(self, setup_1d):
+        """Test initial inference step."""
+        net = CuMindNetwork(**setup_1d)
+        batch_size = 4
+        obs = jnp.ones((batch_size, *setup_1d["observation_shape"]))
+        hidden_state, policy_logits, value = net.initial_inference(obs)
 
-    def test_recurrent_inference(self):
-        """Test recurrent inference step.
+        assert hidden_state.shape == (batch_size, setup_1d["hidden_dim"])
+        assert policy_logits.shape == (batch_size, setup_1d["action_space_size"])
+        assert value.shape == (batch_size, 1)
 
-        Implementation:
-            - Test state transition and prediction
-            - Verify output shapes (next_state, reward, policy, value)
-            - Test with different actions
-            - Test consistency with dynamics network
-        """
-        # Branch: feature/recurrent-inference-test
-        pass
+    def test_recurrent_inference(self, setup_1d):
+        """Test recurrent inference step."""
+        net = CuMindNetwork(**setup_1d)
+        batch_size = 4
+        hidden_state = jnp.ones((batch_size, setup_1d["hidden_dim"]))
+        action = jnp.zeros(batch_size, dtype=jnp.int32)
+        next_state, reward, policy_logits, value = net.recurrent_inference(hidden_state, action)
 
-    def test_network_integration(self):
-        """Test integration between network components.
+        assert next_state.shape == (batch_size, setup_1d["hidden_dim"])
+        assert reward.shape == (batch_size, 1)
+        assert policy_logits.shape == (batch_size, setup_1d["action_space_size"])
+        assert value.shape == (batch_size, 1)
 
-        Implementation:
-            - Test data flow between networks
-            - Test hidden state consistency
-            - Test gradient flow through all components
-            - Test with different network configurations
-        """
-        # Branch: feature/network-integration-test
-        pass
+    def test_network_integration(self, setup_1d):
+        """Test integration between network components."""
+        net = CuMindNetwork(**setup_1d)
+        batch_size = 2
+        hidden_state = jnp.ones((batch_size, setup_1d["hidden_dim"]))
+        action = jnp.ones(batch_size, dtype=jnp.int32)
 
-    def test_cumind_network_with_1d_observations(self):
-        """Test CuMindNetwork with vector observations.
+        def loss_fn(model, state, act):
+            next_hs, reward, pl, val = model.recurrent_inference(state, act)
+            return (next_hs.sum() + reward.sum() + pl.sum() + val.sum()), reward
 
-        Implementation:
-            - Test network with 1d observations
-            - Verify VectorEncoder usage
-            - Test full inference pipeline
-            - Test training compatibility
-        """
-        # Branch: feature/cumind-1d-observations-test
-        pass
+        grad_fn = nnx.grad(loss_fn, has_aux=True)
+        grads, reward = grad_fn(net, hidden_state, action)
 
-    def test_cumind_network_with_3d_observations(self):
-        """Test CuMindNetwork with image observations.
+        assert reward.shape == (batch_size, 1)
+        assert grads is not None
+        chex.assert_tree_all_finite(grads)
 
-        Implementation:
-            - Test network with Atari-like observations
-            - Verify ConvEncoder usage
-            - Test full inference pipeline
-            - Test training compatibility
-        """
-        # Branch: feature/cumind-3d-observations-test
-        pass
+    def test_cumind_network_with_1d_observations(self, setup_1d):
+        """Test CuMindNetwork with vector observations."""
+        net = CuMindNetwork(**setup_1d)
+        batch_size = 2
+        obs = jnp.ones((batch_size, *setup_1d["observation_shape"]))
 
-    def test_unsupported_observation_shapes(self):
-        """Test error handling for unsupported observation shapes.
+        hidden_state, policy_logits, value = net.initial_inference(obs)
+        assert isinstance(net.representation_network.encoder, VectorEncoder)
+        assert hidden_state.shape == (batch_size, setup_1d["hidden_dim"])
 
-        Implementation:
-            - Test 2D observations (should raise error)
-            - Test 4D+ observations (should raise error)
-            - Test empty observation shapes
-            - Test error message clarity
-        """
-        # Branch: feature/unsupported-shapes-test
-        pass
+        action = jnp.argmax(policy_logits, axis=-1)
+        next_state, reward, _, _ = net.recurrent_inference(hidden_state, action)
+        assert next_state.shape == (batch_size, setup_1d["hidden_dim"])
+        assert reward.shape == (batch_size, 1)
+
+    def test_cumind_network_with_3d_observations(self, setup_3d):
+        """Test CuMindNetwork with image observations."""
+        net = CuMindNetwork(**setup_3d)
+        batch_size = 2
+        obs = jnp.ones((batch_size, *setup_3d["observation_shape"]))
+
+        hidden_state, policy_logits, value = net.initial_inference(obs)
+        assert isinstance(net.representation_network.encoder, ConvEncoder)
+        assert hidden_state.shape == (batch_size, setup_3d["hidden_dim"])
+
+        action = jnp.argmax(policy_logits, axis=-1)
+        next_state, reward, _, _ = net.recurrent_inference(hidden_state, action)
+        assert next_state.shape == (batch_size, setup_3d["hidden_dim"])
+        assert reward.shape == (batch_size, 1)
+
+    def test_unsupported_observation_shapes(self, setup_1d):
+        """Test error handling for unsupported observation shapes."""
+        params = setup_1d.copy()
+        with pytest.raises(ValueError, match="Unsupported observation shape"):
+            params["observation_shape"] = (10, 10)
+            CuMindNetwork(**params)
+
+        with pytest.raises(ValueError, match="Unsupported observation shape"):
+            params["observation_shape"] = (1, 2, 3, 4)
+            CuMindNetwork(**params)
 
 
 if __name__ == "__main__":
