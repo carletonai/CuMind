@@ -10,6 +10,8 @@ import numpy as np
 import pytest
 
 from cumind.utils.logger import Logger
+from cumind.utils.prng import PRNGManager
+from cumind.utils.prng import key as prng_key
 
 
 @pytest.fixture(autouse=True)
@@ -20,6 +22,14 @@ def reset_logger_singleton():
     yield
     Logger._instance = None
     Logger._initialized = False
+
+
+@pytest.fixture(autouse=True)
+def reset_prng_manager_singleton():
+    """Reset the PRNGManager singleton before and after each test."""
+    PRNGManager._instance = None
+    yield
+    PRNGManager._instance = None
 
 
 class TestLogger:
@@ -182,22 +192,26 @@ class TestJAXUtils:
         assert jnp.allclose(scaled_tree["b"]["d"], jnp.array([10.0, 12.0]))
 
     def test_random_key_operations(self):
-        """Test JAX random key operations."""
-        # Test key splitting
-        key = jax.random.PRNGKey(42)
-        key1, key2 = jax.random.split(key)
+        """Test CuMind PRNG key operations."""
+        # Test key splitting and initialization
+        prng_key.seed(42)
+        key1 = prng_key()
+        key2 = prng_key()
 
         # Keys should be different
         assert not jnp.array_equal(key1, key2)
 
         # Test multiple splits
-        keys = jax.random.split(key, 5)
-        assert keys.shape == (5, 2)  # JAX PRNG keys are 2-element arrays
+        keys = prng_key(5)
+        assert keys.shape == (5, )  # JAX PRNG keys are 2-element arrays
 
         # All keys should be different
-        for i in range(len(keys)):
-            for j in range(i + 1, len(keys)):
-                assert not jnp.array_equal(keys[i], keys[j])
+        # unstack keys for comparison
+        unstacked_keys = [keys[i] for i in range(keys.shape[0])]
+        all_keys = [key1, key2] + unstacked_keys
+        for i in range(len(all_keys)):
+            for j in range(i + 1, len(all_keys)):
+                assert not jnp.array_equal(all_keys[i], all_keys[j])
 
     def test_array_operations(self):
         """Test JAX array operations."""

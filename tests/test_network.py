@@ -14,6 +14,15 @@ from cumind.core.network import (
     ResidualBlock,
     VectorEncoder,
 )
+from cumind.utils.prng import PRNGManager, key
+
+
+@pytest.fixture(autouse=True)
+def reset_prng_manager_singleton():
+    """Reset the PRNGManager singleton before and after each test."""
+    PRNGManager._instance = None
+    yield
+    PRNGManager._instance = None
 
 
 class TestResidualBlock:
@@ -21,8 +30,8 @@ class TestResidualBlock:
 
     def test_residual_block_initialization(self):
         """Test ResidualBlock initialization."""
-        key = jax.random.PRNGKey(0)
-        rngs = nnx.Rngs(params=key)
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
 
         channels = 32
         block = ResidualBlock(channels, rngs)
@@ -35,13 +44,15 @@ class TestResidualBlock:
 
         # Test with different channel counts
         for ch in [16, 64, 128]:
+            key.seed(ch)
+            rngs = nnx.Rngs(params=key())
             block = ResidualBlock(ch, rngs)
             assert hasattr(block, "conv1")
 
     def test_residual_block_forward(self):
         """Test ResidualBlock forward pass."""
-        key = jax.random.PRNGKey(0)
-        rngs = nnx.Rngs(params=key)
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
 
         channels = 32
         block = ResidualBlock(channels, rngs)
@@ -59,14 +70,14 @@ class TestResidualBlock:
 
     def test_residual_connection(self):
         """Test residual connection functionality."""
-        key = jax.random.PRNGKey(0)
-        rngs = nnx.Rngs(params=key)
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
 
         channels = 16
         block = ResidualBlock(channels, rngs)
 
         batch_size, height, width = 1, 4, 4
-        x = jax.random.normal(jax.random.PRNGKey(1), (batch_size, height, width, channels))
+        x = jax.random.normal(key(), (batch_size, height, width, channels))
 
         # Test forward pass
         output = block(x)
@@ -83,8 +94,8 @@ class TestVectorEncoder:
 
     def test_vector_encoder_initialization(self):
         """Test VectorEncoder initialization."""
-        key = jax.random.PRNGKey(0)
-        rngs = nnx.Rngs(params=key)
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
 
         observation_shape = (4,)
         hidden_dim = 64
@@ -100,8 +111,8 @@ class TestVectorEncoder:
 
     def test_vector_encoder_forward(self):
         """Test VectorEncoder forward pass."""
-        key = jax.random.PRNGKey(0)
-        rngs = nnx.Rngs(params=key)
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
 
         observation_shape = (4,)
         hidden_dim = 32
@@ -124,8 +135,8 @@ class TestVectorEncoder:
 
     def test_vector_encoder_gradients(self):
         """Test VectorEncoder gradient flow."""
-        key = jax.random.PRNGKey(0)
-        rngs = nnx.Rngs(params=key)
+        key.seed(0)
+        rngs = nnx.Rngs(params=key())
 
         observation_shape = (8,)
         hidden_dim = 16
@@ -134,7 +145,7 @@ class TestVectorEncoder:
         encoder = VectorEncoder(observation_shape, hidden_dim, num_blocks, rngs)
 
         # Test forward pass
-        obs = jax.random.normal(jax.random.PRNGKey(1), (2, observation_shape[0]))
+        obs = jax.random.normal(key(), (2, observation_shape[0]))
         output = encoder(obs)
 
         # Verify output shape

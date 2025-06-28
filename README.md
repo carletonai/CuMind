@@ -50,7 +50,7 @@ config = Config(
 )
 
 # Initialize JAX random key
-key = jax.random.PRNGKey(42)
+subkey = key(config.seed)
 
 # Create agent
 agent = Agent(config)

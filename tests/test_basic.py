@@ -10,6 +10,15 @@ from cumind.agent.agent import Agent
 from cumind.config import Config
 from cumind.core.network import CuMindNetwork
 from cumind.data.memory import Memory, MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer
+from cumind.utils.prng import PRNGManager, key
+
+
+@pytest.fixture(autouse=True)
+def reset_prng_manager_singleton():
+    """Reset the PRNGManager singleton before and after each test."""
+    PRNGManager._instance = None
+    yield
+    PRNGManager._instance = None
 
 
 def test_network_creation():
@@ -20,8 +29,8 @@ def test_network_creation():
     config.action_space_size = 2
     config.observation_shape = (4,)
 
-    key = jax.random.PRNGKey(42)
-    rngs = nnx.Rngs(params=key)
+    key.seed(42)
+    rngs = nnx.Rngs(params=key())
 
     network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
 
@@ -38,8 +47,8 @@ def test_network_inference():
     config.action_space_size = 2
     config.observation_shape = (4,)
 
-    key = jax.random.PRNGKey(42)
-    rngs = nnx.Rngs(params=key)
+    key.seed(42)
+    rngs = nnx.Rngs(params=key())
 
     network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
 

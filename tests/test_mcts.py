@@ -8,6 +8,15 @@ from flax import nnx
 from cumind.config import Config
 from cumind.core import MCTS, Node
 from cumind.core.network import CuMindNetwork
+from cumind.utils.prng import PRNGManager, key
+
+
+@pytest.fixture(autouse=True)
+def reset_prng_manager_singleton():
+    """Reset the PRNGManager singleton before and after each test."""
+    PRNGManager._instance = None
+    yield
+    PRNGManager._instance = None
 
 
 class TestNode:
@@ -167,10 +176,6 @@ class TestNode:
         assert child.value() == 0.8
         assert root.value() == 0.8
 
-
-class TestMCTS:
-    """Test suite for MCTS algorithm."""
-
     @pytest.fixture
     def setup(self):
         """Setup for MCTS tests."""
@@ -179,8 +184,8 @@ class TestMCTS:
         config.action_space_size = 2
         config.observation_shape = (4,)
         config.hidden_dim = 16
-        key = jax.random.PRNGKey(config.random_seed)
-        rngs = nnx.Rngs(params=key)
+        key.seed(config.seed)
+        rngs = nnx.Rngs(params=key())
         network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
         mcts = MCTS(network, config)
         return mcts, network, config
@@ -253,8 +258,8 @@ class TestMCTS:
         mcts, network, config = setup
         config.observation_shape = (8,)
         config.action_space_size = 3
-        key = jax.random.PRNGKey(config.random_seed)
-        rngs = nnx.Rngs(params=key)
+        key.seed(config.seed)
+        rngs = nnx.Rngs(params=key())
         network2 = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
         mcts2 = MCTS(network2, config)
         root_hidden_state = jnp.ones(config.hidden_dim)
