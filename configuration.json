@@ -40,6 +40,11 @@
     "per_epsilon": 1e-06,
     "per_beta": 0.4
   },
+  "Data Types": {
+    "model_dtype": "float32",
+    "action_dtype": "int32",
+    "target_dtype": "float32"
+  },
   "Other": {
     "seed": 42
   }

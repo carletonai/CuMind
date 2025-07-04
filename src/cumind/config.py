@@ -61,6 +61,11 @@ class Config:
     # Network Architecture
     conv_channels: int = 32
 
+    # Data Types
+    model_dtype: str = "float32"
+    action_dtype: str = "int32"
+    target_dtype: str = "float32"
+
     # Other
     seed: int = 42
 
@@ -111,6 +116,7 @@ class Config:
             "Environment": ["env_name", "action_space_size", "observation_shape"],
             "Self-Play": ["num_unroll_steps", "td_steps", "discount"],
             "Memory": ["memory_capacity", "min_memory_size", "min_memory_pct", "per_alpha", "per_epsilon", "per_beta"],
+            "Data Types": ["model_dtype", "action_dtype", "target_dtype"],
             "Other": ["seed"],
         }
 
@@ -152,4 +158,20 @@ class Config:
         if self.num_simulations <= 0:
             log.critical(f"Invalid num_simulations: {self.num_simulations}. Must be positive.")
             raise ValueError(f"num_simulations must be positive, got {self.num_simulations}")
+        
+        valid_model_dtypes = ["float32", "float16", "bfloat16"]
+        if self.model_dtype not in valid_model_dtypes:
+            log.critical(f"Invalid model_dtype: {self.model_dtype}. Must be one of {valid_model_dtypes}.")
+            raise ValueError(f"model_dtype must be one of {valid_model_dtypes}, got {self.model_dtype}")
+        
+        valid_action_dtypes = ["int32", "int64"]
+        if self.action_dtype not in valid_action_dtypes:
+            log.critical(f"Invalid action_dtype: {self.action_dtype}. Must be one of {valid_action_dtypes}.")
+            raise ValueError(f"action_dtype must be one of {valid_action_dtypes}, got {self.action_dtype}")
+        
+        valid_target_dtypes = ["float32", "float16", "bfloat16"]
+        if self.target_dtype not in valid_target_dtypes:
+            log.critical(f"Invalid target_dtype: {self.target_dtype}. Must be one of {valid_target_dtypes}.")
+            raise ValueError(f"target_dtype must be one of {valid_target_dtypes}, got {self.target_dtype}")
+        
         log.info("Configuration validation successful.")
