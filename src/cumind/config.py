@@ -66,6 +66,10 @@ class Config:
     action_dtype: str = "int32"
     target_dtype: str = "float32"
 
+    # Devices
+    device_type: str = "cpu"
+    device_id: int = 0
+
     # Other
     seed: int = 42
 
@@ -117,6 +121,7 @@ class Config:
             "Self-Play": ["num_unroll_steps", "td_steps", "discount"],
             "Memory": ["memory_capacity", "min_memory_size", "min_memory_pct", "per_alpha", "per_epsilon", "per_beta"],
             "Data Types": ["model_dtype", "action_dtype", "target_dtype"],
+            "Device": ["device_type", "device_id"],
             "Other": ["seed"],
         }
 
@@ -173,5 +178,14 @@ class Config:
         if self.target_dtype not in valid_target_dtypes:
             log.critical(f"Invalid target_dtype: {self.target_dtype}. Must be one of {valid_target_dtypes}.")
             raise ValueError(f"target_dtype must be one of {valid_target_dtypes}, got {self.target_dtype}")
+        
+        valid_device_types = ["cpu", "cuda"]
+        if self.device_type not in valid_device_types:
+            log.critical(f"Invalid device_type: {self.device_type}. Must be one of {valid_device_types}.")
+            raise ValueError(f"device_type must be one of {valid_device_types}, got {self.device_type}")
+        
+        if self.device_id < 0:
+            log.critical(f"Invalid device_id: {self.device_id}. Must be non-negative.")
+            raise ValueError(f"device_id must be non-negative, got {self.device_id}")
         
         log.info("Configuration validation successful.")

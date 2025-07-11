@@ -1,7 +1,6 @@
 """High-level training and inference runners."""
 
 import os
-
 import gymnasium as gym
 
 from .agent.agent import Agent
