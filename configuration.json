@@ -46,7 +46,7 @@
     "target_dtype": "float32"
   },
   "Device": {
-    "device_type": "cuda"
+    "device_type": "cpu"
   },
   "Other": {
     "seed": 42
