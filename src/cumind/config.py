@@ -178,7 +178,7 @@ class Config:
             log.critical(f"Invalid target_dtype: {self.target_dtype}. Must be one of {valid_target_dtypes}.")
             raise ValueError(f"target_dtype must be one of {valid_target_dtypes}, got {self.target_dtype}")
 
-        valid_device_types = ["cpu", "gpu"]
+        valid_device_types = ["cpu", "gpu", "tpu"]
         if self.device_type not in valid_device_types:
             log.critical(f"Invalid device_type: {self.device_type}. Must be one of {valid_device_types}.")
             raise ValueError(f"device_type must be one of {valid_device_types}, got {self.device_type}")
