@@ -45,6 +45,9 @@
     "action_dtype": "int32",
     "target_dtype": "float32"
   },
+  "Device": {
+    "device_type": "cpu"
+  },
   "Other": {
     "seed": 42
   }
