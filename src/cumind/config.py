@@ -19,21 +19,21 @@ class Config:
     """
 
     # Network architecture
-    hidden_dim: int = 128
-    num_blocks: int = 2
+    hidden_dim: int = 256
+    num_blocks: int = 4
 
     # Training
-    batch_size: int = 32
+    batch_size: int = 4096
     learning_rate: float = 1e-3
     weight_decay: float = 1e-4
-    target_update_frequency: int = 10000000
+    target_update_frequency: int = 10
     checkpoint_interval: int = 100
-    num_episodes: int = 500
+    num_episodes: int = 10000
     train_frequency: int = 5
     checkpoint_root_dir: str = "checkpoints"
 
     # MCTS
-    num_simulations: int = 10
+    num_simulations: int = 20
     c_puct: float = 1.0
     dirichlet_alpha: float = 0.3
     exploration_fraction: float = 0.25
@@ -50,7 +50,7 @@ class Config:
 
     # Memory
     memory_capacity: int = 1000
-    min_memory_size: int = 3
+    min_memory_size: int = 5
     min_memory_pct: float = 0.00
     # Tree
     per_alpha: float = 0.6
@@ -67,7 +67,7 @@ class Config:
     target_dtype: str = "float32"
 
     # Devices
-    device_type: str = "cpu"
+    device_type: str = "cuda"
 
     # Other
     seed: int = 42
