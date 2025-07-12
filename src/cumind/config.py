@@ -162,25 +162,25 @@ class Config:
         if self.num_simulations <= 0:
             log.critical(f"Invalid num_simulations: {self.num_simulations}. Must be positive.")
             raise ValueError(f"num_simulations must be positive, got {self.num_simulations}")
-        
+
         valid_model_dtypes = ["float32", "float16", "bfloat16"]
         if self.model_dtype not in valid_model_dtypes:
             log.critical(f"Invalid model_dtype: {self.model_dtype}. Must be one of {valid_model_dtypes}.")
             raise ValueError(f"model_dtype must be one of {valid_model_dtypes}, got {self.model_dtype}")
-        
+
         valid_action_dtypes = ["int32", "int64"]
         if self.action_dtype not in valid_action_dtypes:
             log.critical(f"Invalid action_dtype: {self.action_dtype}. Must be one of {valid_action_dtypes}.")
             raise ValueError(f"action_dtype must be one of {valid_action_dtypes}, got {self.action_dtype}")
-        
+
         valid_target_dtypes = ["float32", "float16", "bfloat16"]
         if self.target_dtype not in valid_target_dtypes:
             log.critical(f"Invalid target_dtype: {self.target_dtype}. Must be one of {valid_target_dtypes}.")
             raise ValueError(f"target_dtype must be one of {valid_target_dtypes}, got {self.target_dtype}")
-        
+
         valid_device_types = ["cpu", "gpu"]
         if self.device_type not in valid_device_types:
             log.critical(f"Invalid device_type: {self.device_type}. Must be one of {valid_device_types}.")
             raise ValueError(f"device_type must be one of {valid_device_types}, got {self.device_type}")
-        
+
         log.info("Configuration validation successful.")

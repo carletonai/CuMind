@@ -29,9 +29,9 @@ class Agent:
         """
         log.info("Initializing CuMind agent...")
         self.config = config
-        
+
         self.device = jax.devices(config.device_type)[0]
-            
+
         log.info(f"Using device: {self.device}")
 
         log.info(f"Creating CuMindNetwork with observation shape {config.observation_shape} and action space size {config.action_space_size}")
@@ -39,14 +39,7 @@ class Agent:
         rngs = nnx.Rngs(params=key())
 
         with jax.default_device(self.device):
-            self.network = CuMindNetwork(
-                observation_shape=config.observation_shape, 
-                action_space_size=config.action_space_size, 
-                hidden_dim=config.hidden_dim, 
-                num_blocks=config.num_blocks, 
-                conv_channels=config.conv_channels, 
-                rngs=rngs
-            )
+            self.network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
 
             log.info("Creating target network.")
             self.target_network = nnx.clone(self.network)
@@ -76,9 +69,9 @@ class Agent:
             A tuple containing the selected action index and the MCTS policy probabilities.
         """
         log.debug(f"Selecting action. Training mode: {training}")
-        
-        obs_tensor = jax.device_put(jnp.array(observation)[None], self.device) # [None] adds batch dimension
-        
+
+        obs_tensor = jax.device_put(jnp.array(observation)[None], self.device)  # [None] adds batch dimension
+
         hidden_state, _, _ = self.network.initial_inference(obs_tensor)
         hidden_state_array = jnp.asarray(hidden_state, dtype=jnp.float32)[0]  # Remove batch dimension
 
