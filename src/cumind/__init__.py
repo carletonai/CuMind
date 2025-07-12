@@ -6,5 +6,5 @@ from .runner import inference, train
 from .utils import log
 from .utils.prng import key
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 __all__ = ["Agent", "Trainer", "train", "inference", "Config", "log", "key"]
