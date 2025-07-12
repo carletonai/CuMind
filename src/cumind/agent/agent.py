@@ -30,10 +30,7 @@ class Agent:
         log.info("Initializing CuMind agent...")
         self.config = config
         
-        if config.device_type == "gpu":
-            self.device = jax.devices("gpu")[0]
-        else:
-            self.device = jax.devices("cpu")[0]
+        self.device = jax.devices(config.device_type)[0]
             
         log.info(f"Using device: {self.device}")
 
