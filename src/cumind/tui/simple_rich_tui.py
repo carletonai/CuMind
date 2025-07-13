@@ -27,7 +27,6 @@ class SimpleRichTUI:
         self.jobs: Dict[str, Job] = {}
         self.running = True
         
-        # Create demo jobs
         self._create_demo_jobs()
         
     def _create_demo_jobs(self):
@@ -58,7 +57,7 @@ class SimpleRichTUI:
         """Create header panel."""
         header = Table(show_header=False, box=None)
         header.add_column(justify="center")
-        header.add_row("[bold cyan]🧠 CuMind - Training Monitor[/bold cyan]")
+        header.add_row("[bold cyan]CuMind - Training Monitor[/bold cyan]")
         header.add_row("[dim]Real-time training job monitoring dashboard[/dim]")
         
         return Panel(header, style="bold white on blue", box=box.DOUBLE_EDGE)
@@ -78,7 +77,6 @@ class SimpleRichTUI:
         table.add_column("Progress", justify="center", width=25)
         
         for job in self.jobs.values():
-            # Status
             status_colors = {
                 JobStatus.PENDING: "yellow",
                 JobStatus.RUNNING: "green",
@@ -88,7 +86,6 @@ class SimpleRichTUI:
             }
             status = f"[{status_colors[job.status]}]{job.status.value.upper()}[/{status_colors[job.status]}]"
             
-            # Progress bar
             progress_text = f"{job.progress:.1f}%"
             if job.status == JobStatus.RUNNING:
                 filled = int(job.progress / 5)
@@ -99,18 +96,17 @@ class SimpleRichTUI:
             
             table.add_row(job.id, job.name, status, progress_bar)
             
-        return Panel(table, title="📋 Job Queue", box=box.ROUNDED)
+        return Panel(table, title="Job Queue", box=box.ROUNDED)
         
     def create_metrics_display(self, job: Optional[Job]) -> Panel:
         """Create metrics display for selected job."""
         if not job or job.status != JobStatus.RUNNING:
             return Panel(
                 "[dim italic]No active job selected[/dim italic]",
-                title="📊 Metrics",
+                title="Metrics",
                 box=box.ROUNDED
             )
             
-        # Create progress indicators
         progress = Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -131,7 +127,6 @@ class SimpleRichTUI:
             completed=job.metrics.memory_size
         )
         
-        # Metrics table
         metrics_table = Table(show_header=False, box=None, padding=(0, 2))
         metrics_table.add_column("Metric", style="cyan")
         metrics_table.add_column("Value", style="white", justify="right")
@@ -143,12 +138,11 @@ class SimpleRichTUI:
         metrics_table.add_row("Learning Rate", f"{job.metrics.learning_rate:.4f}")
         metrics_table.add_row("Steps/sec", f"{job.metrics.steps_per_sec:.1f}")
         
-        # Combine progress and metrics
         content = Columns([progress, metrics_table], padding=1)
         
         return Panel(
             content,
-            title=f"📊 Training Metrics - {job.name}",
+            title=f"Training Metrics - {job.name}",
             box=box.ROUNDED
         )
         
@@ -157,36 +151,29 @@ class SimpleRichTUI:
         if not job or job.status == JobStatus.PENDING:
             return Panel(
                 "[dim italic]No data available[/dim italic]",
-                title="📈 Reward History",
+                title="Reward History",
                 box=box.ROUNDED
             )
             
-        # Simple sparkline-style chart
         if job.metrics.episode > 0:
-            # Generate fake historical data for demo
             history_length = min(50, job.metrics.episode)
             max_height = 8
             
-            # Create chart
             chart_lines = []
             
-            # Y-axis labels
             max_reward = 300
             for i in range(max_height, -1, -1):
                 value = int(max_reward * (i / max_height))
                 chart_lines.append(f"{value:>4} │")
                 
-            # X-axis
             chart_lines.append("     └" + "─" * (history_length + 2))
             chart_lines.append(f"      0{' ' * (history_length - 5)}{job.metrics.episode}")
             
-            # Add data points (simplified)
             for i in range(max_height + 1):
                 line_idx = max_height - i
                 progress_ratio = job.metrics.episode / job.metrics.total_episodes
                 threshold = i / max_height
                 
-                # Simple visualization based on progress
                 if progress_ratio > threshold * 0.8:
                     chart_lines[line_idx] += " ▄"
                     
@@ -196,7 +183,7 @@ class SimpleRichTUI:
             
         return Panel(
             chart_text,
-            title="📈 Reward History",
+            title="Reward History",
             box=box.ROUNDED,
             style="green"
         )
@@ -206,21 +193,21 @@ class SimpleRichTUI:
         info_text = """
 [yellow]Training Information:[/yellow]
 
-• Environment: CartPole-v1
-• Algorithm: MuZero (MCTS + Neural Network)
-• Device: CPU/GPU (auto-detected)
+Environment: CartPole-v1
+Algorithm: MuZero (MCTS + Neural Network)
+Device: CPU/GPU (auto-detected)
 
 [yellow]Features:[/yellow]
-• Real-time metrics visualization
-• Progress tracking
-• Reward history chart
-• Multi-job support
+Real-time metrics visualization
+Progress tracking
+Reward history chart
+Multi-job support
 
 [dim]Press Ctrl+C to exit[/dim]
 """
         return Panel(
             info_text.strip(),
-            title="ℹ️  Information",
+            title="Information",
             box=box.ROUNDED
         )
         
@@ -228,36 +215,30 @@ class SimpleRichTUI:
         """Create the main layout."""
         layout = Layout(name="root")
         
-        # Split into header and body
         layout.split_column(
             Layout(name="header", size=4),
             Layout(name="body"),
             Layout(name="footer", size=1)
         )
         
-        # Split body into left and right
         layout["body"].split_row(
             Layout(name="left", ratio=3),
             Layout(name="right", ratio=2)
         )
         
-        # Split left into jobs and metrics
         layout["left"].split_column(
             Layout(name="jobs", ratio=1),
             Layout(name="metrics", ratio=2)
         )
         
-        # Split right into chart and info
         layout["right"].split_column(
             Layout(name="chart", ratio=2),
             Layout(name="info", ratio=1)
         )
         
-        # Update content
         layout["header"].update(self.create_header())
         layout["jobs"].update(self.create_job_list())
         
-        # Get first running job for display
         active_job = None
         for job in self.jobs.values():
             if job.status == JobStatus.RUNNING:
@@ -268,7 +249,6 @@ class SimpleRichTUI:
         layout["chart"].update(self.create_chart(active_job))
         layout["info"].update(self.create_info_panel())
         
-        # Footer
         footer_text = Text(
             f"Last updated: {datetime.now().strftime('%H:%M:%S')} | Ctrl+C to exit",
             style="dim",
@@ -283,11 +263,9 @@ class SimpleRichTUI:
         while self.running:
             for job in self.jobs.values():
                 if job.status == JobStatus.RUNNING and job.progress < 100:
-                    # Update progress
                     job.progress += 0.5
                     job.metrics.episode = int(job.progress * 5)
                     
-                    # Update metrics with realistic values
                     job.metrics.current_reward = 100 + (job.progress * 1.5)
                     job.metrics.avg_reward = 90 + (job.progress * 1.2)
                     job.metrics.best_reward = 150 + (job.progress * 1.0)
@@ -296,7 +274,6 @@ class SimpleRichTUI:
                     job.metrics.training_time += 0.25
                     job.metrics.memory_size = min(1000, int(job.metrics.episode * 4))
                     
-                    # Complete job
                     if job.progress >= 100:
                         job.status = JobStatus.COMPLETED
                         job.completed_at = datetime.now()
@@ -305,7 +282,6 @@ class SimpleRichTUI:
             
     def run(self):
         """Run the TUI."""
-        # Start simulation thread
         sim_thread = threading.Thread(target=self.update_simulation, daemon=True)
         sim_thread.start()
         

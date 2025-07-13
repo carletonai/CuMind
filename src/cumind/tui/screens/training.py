@@ -18,7 +18,7 @@ class TrainingScreen(Screen):
     def compose(self) -> ComposeResult:
         """Create the training dashboard layout."""
         with Container():
-            yield Static("🧠 CuMind Training Dashboard", classes="screen-title")
+            yield Static("CuMind Training Dashboard", classes="screen-title")
             
             # Progress section
             with Horizontal(classes="progress-section"):
@@ -36,14 +36,14 @@ class TrainingScreen(Screen):
             # Metrics section
             with Horizontal(classes="metrics-section"):
                 with Vertical():
-                    yield Static("📊 Training Metrics", classes="section-title")
+                    yield Static("Training Metrics", classes="section-title")
                     yield Static("Avg Reward: 187.3", classes="metric")
                     yield Static("Loss: 0.0234", classes="metric")
                     yield Static("Learning Rate: 0.001", classes="metric")
                     yield Static("Memory Size: 847/1000", classes="metric")
                 
                 with Vertical():
-                    yield Static("🎯 Performance", classes="section-title")
+                    yield Static("Performance", classes="section-title")
                     yield Static("Best Reward: 250", classes="metric")
                     yield Static("Success Rate: 78%", classes="metric")
                     yield Static("Steps/sec: 45.2", classes="metric")
@@ -51,12 +51,12 @@ class TrainingScreen(Screen):
             
             # Chart placeholder
             with Container(classes="chart-section"):
-                yield Static("📈 Reward History", classes="section-title")
+                yield Static("Reward History", classes="section-title")
                 yield Static(self._create_chart_placeholder(), classes="chart")
             
             # Controls
             with Horizontal(classes="controls"):
-                yield Button("⏸️  Pause", id="pause", variant="warning")
+                yield Button("Pause", id="pause", variant="warning")
                 yield Button("⏹️  Stop", id="stop", variant="error")
                 yield Button("📁 Save Checkpoint", id="save", variant="success")
                 yield Button("🏠 Main Menu", id="menu", variant="default")

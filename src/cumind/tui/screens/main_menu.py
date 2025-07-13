@@ -20,24 +20,24 @@ class MainMenuScreen(Screen):
         """Create the main menu layout."""
         with Center():
             with Vertical(classes="main-menu"):
-                yield Static("🧠 Welcome to CuMind TUI", classes="title")
+                yield Static("Welcome to CuMind TUI", classes="title")
                 yield Static("JAX-based Reinforcement Learning Framework", classes="subtitle")
                 
                 with Vertical(classes="menu-options"):
-                    yield Button("🚀 Start New Training", id="start_training", variant="primary")
-                    yield Button("🔍 Load Checkpoint & Inference", id="load_inference", variant="default")
+                    yield Button("Start New Training", id="start_training", variant="primary")
+                    yield Button("Load Checkpoint & Inference", id="load_inference", variant="default")
                     yield Button("⚙️  Edit Configuration", id="edit_config", variant="default")
-                    yield Button("📊 View Training History", id="view_history", variant="default")
+                    yield Button("View Training History", id="view_history", variant="default")
                     yield Button("❓ Help & Documentation", id="show_help", variant="default")
                 
                 with Horizontal(classes="info-panel"):
                     with Vertical():
-                        yield Static("📈 Recent Activity", classes="panel-title")
+                        yield Static("Recent Activity", classes="panel-title")
                         yield Static("• No recent training runs", classes="info-item")
                         yield Static("• No checkpoints found", classes="info-item")
                     
                     with Vertical():
-                        yield Static("🎯 Quick Stats", classes="panel-title")
+                        yield Static("Quick Stats", classes="panel-title")
                         yield Static("• Environment: CartPole-v1", classes="info-item")
                         yield Static("• Episodes: 0/500", classes="info-item")
 

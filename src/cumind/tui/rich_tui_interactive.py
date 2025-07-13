@@ -200,7 +200,7 @@ class InteractiveCuMindTUI(CuMindRichTUI):
     def create_job_table(self) -> Table:
         """Create job status table with selection highlight."""
         table = Table(
-            title="📋 Training Jobs",
+            title="Training Jobs",
             box=box.ROUNDED,
             show_header=True,
             header_style="bold magenta",

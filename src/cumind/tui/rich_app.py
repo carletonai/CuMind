@@ -134,7 +134,7 @@ class CuMindRichTUI:
     def create_header(self) -> Panel:
         """Create header panel."""
         header_text = Text()
-        header_text.append("🧠 CuMind ", style="bold cyan")
+        header_text.append("CuMind ", style="bold cyan")
         header_text.append("- JAX-based Reinforcement Learning\n", style="bright_white")
         header_text.append("Monte Carlo Tree Search + Neural Networks", style="dim")
         
@@ -147,7 +147,7 @@ class CuMindRichTUI:
     def create_job_table(self) -> Table:
         """Create job status table."""
         table = Table(
-            title="📋 Training Jobs",
+            title="Training Jobs",
             box=box.ROUNDED,
             show_header=True,
             header_style="bold magenta",
@@ -203,7 +203,7 @@ class CuMindRichTUI:
         if not job or job.status != JobStatus.RUNNING:
             return Panel(
                 "[dim italic]No active job[/dim italic]",
-                title="📊 Training Metrics",
+                title="Training Metrics",
                 box=box.ROUNDED,
             )
             
@@ -232,7 +232,7 @@ class CuMindRichTUI:
         
         return Panel(
             columns,
-            title=f"📊 Training Metrics - {job.name}",
+            title=f"Training Metrics - {job.name}",
             box=box.ROUNDED,
         )
         
@@ -241,7 +241,7 @@ class CuMindRichTUI:
         if not job or job.status == JobStatus.PENDING:
             return Panel(
                 "[dim italic]No data available[/dim italic]",
-                title="📈 Reward History",
+                title="Reward History",
                 box=box.ROUNDED,
             )
             
@@ -259,7 +259,7 @@ class CuMindRichTUI:
         
         return Panel(
             chart_text,
-            title="📈 Reward History",
+            title="Reward History",
             box=box.ROUNDED,
             style="green",
         )
