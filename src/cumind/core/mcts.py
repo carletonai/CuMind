@@ -8,7 +8,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from ..utils.dtype_utils import get_dtype
 from ..utils.logger import log
+from ..utils.prng import key
 
 if TYPE_CHECKING:
     from ..config import Config
@@ -84,7 +86,7 @@ class Node:
             hidden_state: Hidden state for this node
         """
         self.hidden_state = hidden_state
-        priors_array = jnp.asarray(priors, dtype=jnp.float32)
+        priors_array = jnp.asarray(priors)
         for action, prior in zip(actions, jnp.asarray(priors_array)):
             self.children[action] = Node(float(prior))
 
@@ -189,7 +191,7 @@ class MCTS:
             hidden_state_expanded = jnp.expand_dims(node.hidden_state, 0)
             policy_logits, value = self.network.prediction_network(hidden_state_expanded)
             priors = jax.nn.softmax(policy_logits, axis=-1)
-            priors_array = np.asarray(priors[0], dtype=np.float32)
+            priors_array = np.asarray(priors[0])
             leaf_value = float(jnp.asarray(value)[0, 0])
 
             actions = list(range(self.config.action_space_size))

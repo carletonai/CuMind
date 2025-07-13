@@ -16,6 +16,7 @@ from ..core.network import CuMindNetwork
 from ..data.memory import Memory
 from ..data.self_play import SelfPlay
 from ..utils.checkpoint import load_checkpoint, save_checkpoint
+from ..utils.dtype_utils import get_dtype
 from ..utils.logger import log
 from .agent import Agent
 
@@ -56,7 +57,6 @@ class Trainer:
         for episode in pbar:
             episode_reward, episode_steps, _ = self_play.run_episode(env)
 
-
             if episode > 0 and episode % train_frequency == 0:
                 loss_info = self.train_step()
 
@@ -70,11 +70,7 @@ class Trainer:
                 "Loss": float(loss_info.get("total_loss", 0)),
                 "Memory": float(self.memory.get_pct()),
             }
-            log.info(
-                f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, "
-                f"Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, "
-                f"Memory={metrics['Memory']:2.2f}"
-            )
+            log.info(f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, Memory={metrics['Memory']:2.2f}")
             pbar.set_postfix(metrics)
 
             if episode > 0 and episode % self.config.checkpoint_interval == 0:
@@ -144,11 +140,11 @@ class Trainer:
 
         return (
             jnp.array(observations),
-            jnp.array(action_sequences, dtype=jnp.int32),
+            jnp.array(action_sequences, dtype=get_dtype(self.config.action_dtype)),
             {
-                "values": jnp.array(value_targets, dtype=jnp.float32),
-                "rewards": jnp.array(reward_targets, dtype=jnp.float32),
-                "policies": jnp.array(policy_targets, dtype=jnp.float32),
+                "values": jnp.array(value_targets, dtype=get_dtype(self.config.target_dtype)),
+                "rewards": jnp.array(reward_targets, dtype=get_dtype(self.config.target_dtype)),
+                "policies": jnp.array(policy_targets, dtype=get_dtype(self.config.target_dtype)),
             },
         )
 
