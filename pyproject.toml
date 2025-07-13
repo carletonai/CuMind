@@ -20,6 +20,7 @@ dependencies = [
     "tensorboard>=2.19.0",
     "ipython>=9.3.0",
     "ipykernel>=6.29.5",
+    "textual>=3.5.0",
 ]
 
 # JAX Dependencies:

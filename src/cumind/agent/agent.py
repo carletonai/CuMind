@@ -40,7 +40,18 @@ class Agent:
         rngs = nnx.Rngs(params=key())
 
         with jax.default_device(self.device):
-            self.network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs, config=config)
+            model_dtype = get_dtype(config.model_dtype)
+            action_dtype = get_dtype(config.action_dtype)
+            self.network = CuMindNetwork(
+                observation_shape=config.observation_shape,
+                action_space_size=config.action_space_size,
+                hidden_dim=config.hidden_dim,
+                num_blocks=config.num_blocks,
+                conv_channels=config.conv_channels,
+                rngs=rngs,
+                model_dtype=model_dtype,
+                action_dtype=action_dtype
+            )
 
             log.info("Creating target network.")
             self.target_network = nnx.clone(self.network)

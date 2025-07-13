@@ -7,8 +7,6 @@ import jax
 import jax.numpy as jnp
 from flax import nnx
 
-from ..config import Config
-from ..utils.dtype_utils import get_dtype
 from ..utils.logger import log
 
 
@@ -277,7 +275,7 @@ class PredictionNetwork(nnx.Module):
 class CuMindNetwork(nnx.Module):
     """The complete CuMind network, combining representation, dynamics, and prediction."""
 
-    def __init__(self, observation_shape: Tuple[int, ...], action_space_size: int, hidden_dim: int, num_blocks: int, conv_channels: int, rngs: nnx.Rngs, config: Optional[Config] = None):
+    def __init__(self, observation_shape: Tuple[int, ...], action_space_size: int, hidden_dim: int, num_blocks: int, conv_channels: int, rngs: nnx.Rngs, model_dtype: jnp.dtype = jnp.float32, action_dtype: jnp.dtype = jnp.int32):
         """Initializes the complete CuMind network.
 
         Args:
@@ -287,16 +285,10 @@ class CuMindNetwork(nnx.Module):
             num_blocks: The number of processing blocks in the networks.
             conv_channels: The number of channels for the convolutional layers.
             rngs: Random number generators for layer initialization.
+            model_dtype: Data type for model computations.
+            action_dtype: Data type for action indices.
         """
         log.info(f"Initializing CuMindNetwork for observation shape {observation_shape} and action space size {action_space_size}.")
-
-        # Get dtypes from config or use defaults
-        if config:
-            model_dtype = get_dtype(config.model_dtype)
-            action_dtype = get_dtype(config.action_dtype)
-        else:
-            model_dtype = jnp.float32
-            action_dtype = jnp.int32
 
         self.representation_network = RepresentationNetwork(observation_shape, hidden_dim, num_blocks, conv_channels, rngs, model_dtype)
         self.dynamics_network = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs, model_dtype, action_dtype)
