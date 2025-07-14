@@ -52,11 +52,10 @@ class Trainer:
         log.info(f"Starting training loop for {num_episodes} episodes with train frequency {train_frequency}.")
         loss_info = {}
         pbar = tqdm(range(1, num_episodes + 1), desc="Training Progress")
+        self_play = SelfPlay(self.config, self.agent, self.memory)
         for episode in pbar:
-            self_play = SelfPlay(self.config, self.agent, self.memory)
             episode_reward, episode_steps, _ = self_play.run_episode(env)
 
-            log.info(f"Episode {episode:3d}: Reward={episode_reward:6.1f}, Length={episode_steps:3d}")
 
             if episode > 0 and episode % train_frequency == 0:
                 loss_info = self.train_step()
@@ -64,16 +63,19 @@ class Trainer:
                 if self.train_step_count > 0 and self.train_step_count % self.config.target_update_frequency == 0:
                     log.info(f"Updating target network at training step {self.train_step_count}")
                     self.agent.update_target_network()
-
-            pbar.set_postfix(
-                {
-                    "Episode": episode,
-                    "Reward": f"{episode_reward:.2f}",
-                    "Length": episode_steps,
-                    "Loss": f"{loss_info.get('total_loss', 0):.4f}",
-                    "Memory": f"{self.memory.get_pct():2.2f}",
-                }
+            metrics = {
+                "Episode": episode,
+                "Reward": float(episode_reward),
+                "Length": episode_steps,
+                "Loss": float(loss_info.get("total_loss", 0)),
+                "Memory": float(self.memory.get_pct()),
+            }
+            log.info(
+                f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, "
+                f"Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, "
+                f"Memory={metrics['Memory']:2.2f}"
             )
+            pbar.set_postfix(metrics)
 
             if episode > 0 and episode % self.config.checkpoint_interval == 0:
                 self.save_checkpoint(episode)
@@ -199,7 +201,6 @@ class Trainer:
             reward_loss /= self.config.num_unroll_steps
             value_loss /= self.config.num_unroll_steps + 1
             policy_loss /= self.config.num_unroll_steps + 1
-            log.info(f"Value loss: {value_loss}, Policy loss: {policy_loss}, Reward loss: {reward_loss}")
 
         return {"value_loss": value_loss, "policy_loss": policy_loss, "reward_loss": reward_loss}
 
