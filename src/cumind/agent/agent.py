@@ -13,6 +13,7 @@ from ..config import Config
 from ..core.mcts import MCTS
 from ..core.network import CuMindNetwork
 from ..utils.checkpoint import load_checkpoint, save_checkpoint
+from ..utils.dtype_utils import get_dtype
 from ..utils.logger import log
 from ..utils.prng import key
 
@@ -39,7 +40,18 @@ class Agent:
         rngs = nnx.Rngs(params=key())
 
         with jax.default_device(self.device):
-            self.network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
+            model_dtype = get_dtype(config.model_dtype)
+            action_dtype = get_dtype(config.action_dtype)
+            self.network = CuMindNetwork(
+                observation_shape=config.observation_shape,
+                action_space_size=config.action_space_size,
+                hidden_dim=config.hidden_dim,
+                num_blocks=config.num_blocks,
+                conv_channels=config.conv_channels,
+                rngs=rngs,
+                model_dtype=model_dtype,
+                action_dtype=action_dtype
+            )
 
             log.info("Creating target network.")
             self.target_network = nnx.clone(self.network)
@@ -73,7 +85,8 @@ class Agent:
         obs_tensor = jax.device_put(jnp.array(observation)[None], self.device)  # [None] adds batch dimension
 
         hidden_state, _, _ = self.network.initial_inference(obs_tensor)
-        hidden_state_array = jnp.asarray(hidden_state, dtype=jnp.float32)[0]  # Remove batch dimension
+        model_dtype = get_dtype(self.config.model_dtype)
+        hidden_state_array = jnp.asarray(hidden_state, dtype=model_dtype)[0]  # Remove batch dimension
 
         # Use MCTS to get action probabilities
         action_probs = self.mcts.search(root_hidden_state=hidden_state_array, add_noise=training)
