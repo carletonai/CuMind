@@ -289,23 +289,25 @@ class PredictionNetwork(nnx.Module):
 class CuMindNetwork(nnx.Module):
     """The complete CuMind network, combining representation, dynamics, and prediction."""
 
-    def __init__(self, observation_shape: Tuple[int, ...], action_space_size: int, hidden_dim: int, internal_hidden_dim: int, num_layers: int, num_blocks: int, conv_channels: int, rngs: nnx.Rngs):
+    def __init__(self, observation_shape: Tuple[int, ...], action_space_size: int, hidden_dim: int, prediction_internal_hidden_dim: int, dynamics_internal_hidden_dim: int, prediction_num_layers: int, dynamics_num_layers: int, num_blocks: int, conv_channels: int, rngs: nnx.Rngs):
         """Initializes the complete CuMind network.
 
         Args:
             observation_shape: The shape of the input observations.
             action_space_size: The number of possible actions.
             hidden_dim: The dimension of the hidden representations.
-            internal_hidden_dim: The dimension of the internal hidden layers.
-            num_layers: The number of hidden layers in the Prediction and Dynamics networks.
+            prediction_internal_hidden_dim: The dimension of the internal hidden layers in the Prediction network.
+            dynamics_internal_hidden_dim: The dimension of the internal hidden layers in the Dynamics network.
+            prediction_num_layers: The number of hidden layers in the Prediction network.
+            dynamics_num_layers: The number of hidden layers in the Dynamics network.
             num_blocks: The number of processing blocks in the Representation network.
             conv_channels: The number of channels for the convolutional layers.
             rngs: Random number generators for layer initialization.
         """
         log.info(f"Initializing CuMindNetwork for observation shape {observation_shape} and action space size {action_space_size}.")
         self.representation_network = RepresentationNetwork(observation_shape, hidden_dim, num_blocks, conv_channels, rngs)
-        self.dynamics_network = DynamicsNetwork(hidden_dim, internal_hidden_dim, action_space_size, num_layers, rngs)
-        self.prediction_network = PredictionNetwork(hidden_dim, internal_hidden_dim, action_space_size, num_layers, rngs)
+        self.dynamics_network = DynamicsNetwork(hidden_dim, dynamics_internal_hidden_dim, action_space_size, dynamics_num_layers, rngs)
+        self.prediction_network = PredictionNetwork(hidden_dim, prediction_internal_hidden_dim, action_space_size, prediction_num_layers, rngs)
 
     def initial_inference(self, observation: chex.Array) -> Tuple[chex.Array, chex.Array, chex.Array]:
         """Performs the initial inference step from an observation.
