@@ -233,10 +233,13 @@ class DynamicsNetwork(nnx.Module):
         action_embedded = self.action_embedding(jnp.asarray(action, dtype=jnp.int32))
         x = jnp.asarray(hidden_state, dtype=jnp.float32) + action_embedded
 
-        for layer in self.layers:
-            residual = x
-            x = nnx.relu(layer(x))
-            x = x + residual
+        for i, layer in enumerate(self.layers):
+            if self.hidden_dim != self.internal_hidden_dim and (i == 0 or i == len(self.layers) - 1):
+                x = nnx.relu(layer(x))
+            else:
+                residual = x
+                x = nnx.relu(layer(x))
+                x = x + residual
 
         reward = self.reward_head(x)
         return x, reward
