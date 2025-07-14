@@ -25,14 +25,24 @@ def test_network_creation():
     """Test network creation and basic functionality."""
     config = Config()
     config.hidden_dim = 32
-    config.num_blocks = 2
     config.action_space_size = 2
     config.observation_shape = (4,)
 
     key.seed(42)
     rngs = nnx.Rngs(params=key())
 
-    network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
+    network = CuMindNetwork(
+        observation_shape=config.observation_shape, 
+        action_space_size=config.action_space_size, 
+        hidden_dim=config.hidden_dim, 
+        prediction_internal_hidden_dim=config.prediction_network['internal_hidden_dim'],
+        dynamics_internal_hidden_dim=config.dynamics_network['internal_hidden_dim'],
+        prediction_num_layers=config.prediction_network['num_layers'],
+        dynamics_num_layers=config.dynamics_network['num_layers'],
+        num_blocks=config.representation_network['num_blocks'], 
+        conv_channels=config.representation_network['conv_channels'], 
+        rngs=rngs
+    )
 
     assert hasattr(network, "representation_network")
     assert hasattr(network, "dynamics_network")
@@ -43,14 +53,24 @@ def test_network_inference():
     """Test network inference functionality."""
     config = Config()
     config.hidden_dim = 32
-    config.num_blocks = 2
     config.action_space_size = 2
     config.observation_shape = (4,)
 
     key.seed(42)
     rngs = nnx.Rngs(params=key())
 
-    network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
+    network = CuMindNetwork(
+        observation_shape=config.observation_shape, 
+        action_space_size=config.action_space_size, 
+        hidden_dim=config.hidden_dim, 
+        prediction_internal_hidden_dim=config.prediction_network['internal_hidden_dim'],
+        dynamics_internal_hidden_dim=config.dynamics_network['internal_hidden_dim'],
+        prediction_num_layers=config.prediction_network['num_layers'],
+        dynamics_num_layers=config.dynamics_network['num_layers'],
+        num_blocks=config.representation_network['num_blocks'], 
+        conv_channels=config.representation_network['conv_channels'], 
+        rngs=rngs
+    )
 
     # Test initial inference
     batch_size = 2
