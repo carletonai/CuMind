@@ -20,18 +20,18 @@ class Config:
 
     # Network architecture
     hidden_dim: int = 128
-    representation_network: dict = {
+    representation_network: dict = dataclasses.field(default_factory=lambda: {
         "num_blocks": 2,
         "conv_channels": 32
-    }
-    dynamics_network: dict = {
+    })
+    dynamics_network: dict = dataclasses.field(default_factory=lambda: {
         "num_layers": 2,
         "internal_hidden_dim": 128,
-    }
-    prediction_network: dict = {
+    })
+    prediction_network: dict = dataclasses.field(default_factory=lambda: {
         "num_layers": 2,
         "internal_hidden_dim": 128,
-    }
+    })
 
     # Training
     batch_size: int = 32

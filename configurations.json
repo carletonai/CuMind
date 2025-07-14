@@ -1,0 +1,64 @@
+{
+  "Network architecture": {
+    "hidden_dim": 128,
+    "representation_network": {
+      "num_blocks": 2,
+      "conv_channels": 32
+    },
+    "dynamics_network": {
+      "num_layers": 2,
+      "internal_hidden_dim": 128
+    },
+    "prediction_network": {
+      "num_layers": 2,
+      "internal_hidden_dim": 128
+    }
+  },
+  "Training": {
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "target_update_frequency": 10000000,
+    "checkpoint_interval": 100,
+    "num_episodes": 500,
+    "train_frequency": 5,
+    "checkpoint_root_dir": "checkpoints"
+  },
+  "MCTS": {
+    "num_simulations": 10,
+    "c_puct": 1.0,
+    "dirichlet_alpha": 0.3,
+    "exploration_fraction": 0.25
+  },
+  "Environment": {
+    "env_name": "CartPole-v1",
+    "action_space_size": 2,
+    "observation_shape": [
+      4
+    ]
+  },
+  "Self-Play": {
+    "num_unroll_steps": 3,
+    "td_steps": 5,
+    "discount": 0.997
+  },
+  "Memory": {
+    "memory_capacity": 1000,
+    "min_memory_size": 3,
+    "min_memory_pct": 0.0,
+    "per_alpha": 0.6,
+    "per_epsilon": 1e-06,
+    "per_beta": 0.4
+  },
+  "Data Types": {
+    "model_dtype": "float32",
+    "action_dtype": "int32",
+    "target_dtype": "float32"
+  },
+  "Device": {
+    "device_type": "cpu"
+  },
+  "Other": {
+    "seed": 42
+  }
+}
