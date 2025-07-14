@@ -1,12 +1,12 @@
 """Utilities for handling data types from configuration."""
 
-from typing import Union
+from typing import Any, Union
 
 import jax.numpy as jnp
 import numpy as np
 
 
-def get_dtype(dtype_str: str) -> Union[jnp.dtype, np.dtype]:
+def get_dtype(dtype_str: str) -> Any:
     """Convert string dtype to JAX/NumPy dtype.
 
     Args:
