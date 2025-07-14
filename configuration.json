@@ -1,17 +1,17 @@
 {
   "Network architecture": {
+    "hidden_dim": 128,
     "representation_network": {
-      "hidden_dim": 128,
-      "hidden_layers": 2,
+      "num_blocks": 2,
       "conv_channels": 32
     },
     "dynamics_network": {
-      "hidden_dim": 128,
-      "hidden_layers": 2
+      "num_layers": 2,
+      "internal_hidden_dim": 128
     },
     "prediction_network": {
-      "hidden_dim": 128,
-      "hidden_layers": 2
+      "num_layers": 2,
+      "internal_hidden_dim": 128
     }
   },
   "Training": {
