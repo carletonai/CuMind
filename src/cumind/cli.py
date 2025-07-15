@@ -13,7 +13,11 @@ from .utils.logger import log
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="CuMind CLI")
-    parser.add_argument("--config", type=str, required=True, help="Path to configuration file")
+    parser.add_argument("--config", type=str, required=False, help="Path to configuration file")
+    parser.add_argument("--tui", action="store_true", help="Launch Terminal User Interface (Textual)")
+    parser.add_argument("--rich-tui", action="store_true", help="Launch Rich-based TUI for job monitoring")
+    parser.add_argument("--interactive-tui", action="store_true", help="Launch Interactive Rich TUI with keyboard controls")
+    parser.add_argument("--simple-tui", action="store_true", help="Launch Simple Rich TUI (no keyboard interaction needed)")
     return parser.parse_args()
 
 
@@ -58,6 +62,30 @@ def main() -> None:
     log.info("Welcome to CuMind!")
 
     args = parse_arguments()
+    
+    # Launch TUI if requested
+    if args.tui:
+        from .tui.app import run_tui
+        run_tui()
+        return
+    elif args.rich_tui:
+        from .tui.rich_app import run_rich_tui
+        run_rich_tui()
+        return
+    elif args.interactive_tui:
+        from .tui.rich_tui_interactive import run_interactive_tui
+        run_interactive_tui()
+        return
+    elif args.simple_tui:
+        from .tui.simple_rich_tui import run_simple_rich_tui
+        run_simple_rich_tui()
+        return
+    
+    # Training mode requires config
+    if not args.config:
+        log.error("Config file is required for training mode. Use --config or one of the TUI options.")
+        return
+    
     config_path = args.config
     if not os.path.exists(config_path):
         log.info(f"Default config not found at {config_path}. Using default parameters.")

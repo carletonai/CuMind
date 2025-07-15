@@ -1,0 +1,107 @@
+/* CuMind TUI Styles */
+
+/* Main Menu Styles */
+.main-menu {
+    width: 80%;
+    height: auto;
+    margin: 2 auto;
+    padding: 2;
+}
+
+.title {
+    text-align: center;
+    text-style: bold;
+    color: $primary;
+    margin: 1 0;
+}
+
+.subtitle {
+    text-align: center;
+    color: $text-muted;
+    margin: 0 0 2 0;
+}
+
+.menu-options {
+    margin: 2 0;
+    height: auto;
+}
+
+.menu-options Button {
+    width: 100%;
+    margin: 1 0;
+}
+
+.info-panel {
+    margin-top: 2;
+    height: auto;
+}
+
+.panel-title {
+    text-style: bold;
+    color: $accent;
+    margin: 0 0 1 0;
+}
+
+.info-item {
+    color: $text-muted;
+    margin: 0 2 0 2;
+}
+
+/* Training Screen Styles */
+.screen-title {
+    text-align: center;
+    text-style: bold;
+    color: $primary;
+    margin: 1 0 2 0;
+}
+
+.progress-section {
+    height: 8;
+    margin: 1 0;
+}
+
+.section-title {
+    text-style: bold;
+    color: $accent;
+    margin: 0 0 1 0;
+}
+
+.episode-progress {
+    margin: 1 0;
+}
+
+.progress-text {
+    text-align: center;
+    color: $text-muted;
+}
+
+.metrics-section {
+    height: 10;
+    margin: 1 0;
+}
+
+.metric {
+    margin: 0 0 0 2;
+    color: $text;
+}
+
+.chart-section {
+    height: 12;
+    margin: 1 0;
+    border: solid $primary;
+}
+
+.chart {
+    color: $success;
+    text-align: center;
+    margin: 1;
+}
+
+.controls {
+    height: 3;
+    margin: 1 0;
+}
+
+.controls Button {
+    margin: 0 1;
+}
