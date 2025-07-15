@@ -20,7 +20,18 @@ class Config:
 
     # Network architecture
     hidden_dim: int = 128
-    num_blocks: int = 2
+    representation_network: dict = dataclasses.field(default_factory=lambda: {
+        "num_blocks": 2,
+        "conv_channels": 32
+    })
+    dynamics_network: dict = dataclasses.field(default_factory=lambda: {
+        "num_layers": 2,
+        "internal_hidden_dim": 128,
+    })
+    prediction_network: dict = dataclasses.field(default_factory=lambda: {
+        "num_layers": 2,
+        "internal_hidden_dim": 128,
+    })
 
     # Training
     batch_size: int = 32
@@ -113,7 +124,7 @@ class Config:
 
         # Define the section mapping based on the comments in the dataclass
         section_mapping = {
-            "Network architecture": ["hidden_dim", "num_blocks", "conv_channels"],
+            "Network architecture": ["hidden_dim", "representation_network", "dynamics_network", "prediction_network"],
             "Training": ["batch_size", "learning_rate", "weight_decay", "target_update_frequency", "checkpoint_interval", "num_episodes", "train_frequency", "checkpoint_root_dir"],
             "MCTS": ["num_simulations", "c_puct", "dirichlet_alpha", "exploration_fraction"],
             "Environment": ["env_name", "action_space_size", "observation_shape"],
@@ -144,6 +155,24 @@ class Config:
         if self.hidden_dim <= 0:
             log.critical(f"Invalid hidden_dim: {self.hidden_dim}. Must be positive.")
             raise ValueError(f"hidden_dim must be positive, got {self.hidden_dim}")
+        if self.dynamics_network["internal_hidden_dim"] <= 0:
+            log.critical(f"Invalid internal_hidden_dim: {self.dynamics_network['internal_hidden_dim']}. Must be positive.")
+            raise ValueError(f"internal_hidden_dim must be positive, got {self.dynamics_network['internal_hidden_dim']}")
+        if self.prediction_network["internal_hidden_dim"] <= 0:
+            log.critical(f"Invalid internal_hidden_dim: {self.prediction_network['internal_hidden_dim']}. Must be positive.")
+            raise ValueError(f"internal_hidden_dim must be positive, got {self.prediction_network['internal_hidden_dim']}")
+        if self.prediction_network["num_layers"] <= 0:
+            log.critical(f"Invalid num_layers: {self.prediction_network['num_layers']}. Must be positive.")
+            raise ValueError(f"num_layers must be positive, got {self.prediction_network['num_layers']}")
+        if self.dynamics_network["num_layers"] <= 0:
+            log.critical(f"Invalid num_layers: {self.dynamics_network['num_layers']}. Must be positive.")
+            raise ValueError(f"num_layers must be positive, got {self.dynamics_network['num_layers']}")
+        if self.representation_network["num_blocks"] <= 0:
+            log.critical(f"Invalid num_blocks: {self.representation_network['num_blocks']}. Must be positive.")
+            raise ValueError(f"num_blocks must be positive, got {self.representation_network['num_blocks']}")
+        if self.representation_network["conv_channels"] <= 0:
+            log.critical(f"Invalid conv_channels: {self.representation_network['conv_channels']}. Must be positive.")
+            raise ValueError(f"conv_channels must be positive, got {self.representation_network['conv_channels']}")
         if self.action_space_size <= 0:
             log.critical(f"Invalid action_space_size: {self.action_space_size}. Must be positive.")
             raise ValueError(f"action_space_size must be positive, got {self.action_space_size}")

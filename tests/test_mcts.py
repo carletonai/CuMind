@@ -188,7 +188,18 @@ class TestNode:
         config.hidden_dim = 16
         key.seed(config.seed)
         rngs = nnx.Rngs(params=key())
-        network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
+        network = CuMindNetwork(
+            observation_shape=config.observation_shape, 
+            action_space_size=config.action_space_size, 
+            hidden_dim=config.hidden_dim,   
+            prediction_internal_hidden_dim=config.prediction_network['internal_hidden_dim'],
+            dynamics_internal_hidden_dim=config.dynamics_network['internal_hidden_dim'],
+            prediction_num_layers=config.prediction_network['num_layers'],
+            dynamics_num_layers=config.dynamics_network['num_layers'],
+            num_blocks=config.representation_network['num_blocks'], 
+            conv_channels=config.representation_network['conv_channels'], 
+            rngs=rngs
+        )
         mcts = MCTS(network, config)
         return mcts, network, config
 
@@ -262,7 +273,18 @@ class TestNode:
         config.action_space_size = 3
         key.seed(config.seed)
         rngs = nnx.Rngs(params=key())
-        network2 = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
+        network2 = CuMindNetwork(
+            observation_shape=config.observation_shape, 
+            action_space_size=config.action_space_size, 
+            hidden_dim=config.hidden_dim, 
+            prediction_internal_hidden_dim=config.prediction_network['internal_hidden_dim'],
+            dynamics_internal_hidden_dim=config.dynamics_network['internal_hidden_dim'],
+            prediction_num_layers=config.prediction_network['num_layers'],
+            dynamics_num_layers=config.dynamics_network['num_layers'],
+            num_blocks=config.representation_network['num_blocks'], 
+            conv_channels=config.representation_network['conv_channels'], 
+            rngs=rngs
+        )
         mcts2 = MCTS(network2, config)
         root_hidden_state = jnp.ones(config.hidden_dim)
         action_probs = mcts2.search(root_hidden_state, add_noise=False)

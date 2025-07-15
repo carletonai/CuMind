@@ -161,6 +161,7 @@ class RepresentationNetwork(nnx.Module):
             rngs: Random number generators for layer initialization.
         """
         log.info(f"Initializing RepresentationNetwork with hidden dim {hidden_dim} and {num_blocks} blocks.")
+
         self.observation_shape = observation_shape
         self.hidden_dim = hidden_dim
         self.num_blocks = num_blocks
@@ -194,43 +195,51 @@ class RepresentationNetwork(nnx.Module):
 class DynamicsNetwork(nnx.Module):
     """The dynamics network (g_theta) that predicts the next hidden state and reward."""
 
-    def __init__(self, hidden_dim: int, action_space_size: int, num_blocks: int, rngs: nnx.Rngs):
+    def __init__(self, hidden_dim: int, internal_hidden_dim: int, action_space_size: int, num_layers: int, rngs: nnx.Rngs):
         """Initializes the dynamics network.
 
         Args:
             hidden_dim: The dimension of the hidden states.
+            internal_hidden_dim: The dimension of the internal hidden layers.
             action_space_size: The number of possible actions.
-            num_blocks: The number of processing blocks.
+            num_layers: The number of hidden layers.
             rngs: Random number generators for layer initialization.
         """
-        log.info(f"Initializing DynamicsNetwork with hidden dim {hidden_dim}, action space size {action_space_size}, and {num_blocks} blocks.")
+        log.info(f"Initializing DynamicsNetwork with hidden dim {hidden_dim}, internal hidden dim {internal_hidden_dim}, action space size {action_space_size}, and {num_layers} hidden layers.")
+        
         self.hidden_dim = hidden_dim
+        self.internal_hidden_dim = internal_hidden_dim
         self.action_space_size = action_space_size
+        self.num_layers = num_layers
+
         self.action_embedding = nnx.Embed(action_space_size, hidden_dim, rngs=rngs)
-
         self.layers = []
-        for _ in range(num_blocks):
-            self.layers.append(nnx.Linear(hidden_dim, hidden_dim, rngs=rngs))
+        self.layers.append(nnx.Linear(hidden_dim, internal_hidden_dim, rngs=rngs))
+        for _ in range(num_layers - 2):
+            self.layers.append(nnx.Linear(internal_hidden_dim, internal_hidden_dim, rngs=rngs))
+        self.layers.append(nnx.Linear(internal_hidden_dim, hidden_dim, rngs=rngs))
+        self.reward_head = nnx.Linear(internal_hidden_dim, 1, rngs=rngs)
 
-        self.reward_head = nnx.Linear(hidden_dim, 1, rngs=rngs)
-
-    def __call__(self, state: chex.Array, action: chex.Array) -> Tuple[chex.Array, chex.Array]:
+    def __call__(self, hidden_state: chex.Array, action: chex.Array) -> Tuple[chex.Array, chex.Array]:
         """Predicts the next hidden state and reward.
 
         Args:
-            state: The current hidden state of shape (batch, hidden_dim).
+            hidden_state: The current hidden state of shape (batch, hidden_dim).
             action: The action indices of shape (batch,).
 
         Returns:
             A tuple containing the next hidden state and the predicted reward.
         """
         action_embedded = self.action_embedding(jnp.asarray(action, dtype=jnp.int32))
-        x = jnp.asarray(state, dtype=jnp.float32) + action_embedded
+        x = jnp.asarray(hidden_state, dtype=jnp.float32) + action_embedded
 
-        for layer in self.layers:
-            residual = x
-            x = nnx.relu(layer(x))
-            x = x + residual
+        for i, layer in enumerate(self.layers):
+            if self.hidden_dim != self.internal_hidden_dim and (i == 0 or i == len(self.layers) - 1):
+                x = nnx.relu(layer(x))
+            else:
+                residual = x
+                x = nnx.relu(layer(x))
+                x = x + residual
 
         reward = self.reward_head(x)
         return x, reward
@@ -239,17 +248,29 @@ class DynamicsNetwork(nnx.Module):
 class PredictionNetwork(nnx.Module):
     """The prediction network (f_theta) that predicts the policy and value from a hidden state."""
 
-    def __init__(self, hidden_dim: int, action_space_size: int, rngs: nnx.Rngs):
+    def __init__(self, hidden_dim: int, internal_hidden_dim: int, action_space_size: int, num_layers: int, rngs: nnx.Rngs):
         """Initializes the prediction network.
 
         Args:
-            hidden_dim: The dimension of the input hidden states.
+            hidden_dim: The dimension of the hidden states.
+            internal_hidden_dim: The dimension of the internal hidden layers.
+            num_layers: The number of hidden layers in the networks.
             action_space_size: The number of possible actions for the policy head.
             rngs: Random number generators for layer initialization.
         """
-        log.info(f"Initializing PredictionNetwork with hidden dim {hidden_dim} and action space size {action_space_size}.")
-        self.policy_head = nnx.Linear(hidden_dim, action_space_size, rngs=rngs)
-        self.value_head = nnx.Linear(hidden_dim, 1, rngs=rngs)
+        log.info(f"Initializing PredictionNetwork with hidden dim {hidden_dim}, internal hidden dim {internal_hidden_dim}, action space size {action_space_size}, and {num_layers} hidden layers.")
+
+        self.hidden_dim = hidden_dim
+        self.internal_hidden_dim = internal_hidden_dim
+        self.action_space_size = action_space_size
+        self.num_layers = num_layers
+
+        self.layers = []
+        self.layers.append(nnx.Linear(hidden_dim, internal_hidden_dim, rngs=rngs))
+        for _ in range(num_layers - 1):
+            self.layers.append(nnx.Linear(internal_hidden_dim, internal_hidden_dim, rngs=rngs))
+        self.policy_head = nnx.Linear(internal_hidden_dim, action_space_size, rngs=rngs)
+        self.value_head = nnx.Linear(internal_hidden_dim, 1, rngs=rngs)
 
     def __call__(self, hidden_state: chex.Array) -> Tuple[chex.Array, chex.Array]:
         """Predicts the policy logits and value from a hidden state.
@@ -261,6 +282,8 @@ class PredictionNetwork(nnx.Module):
             A tuple of (policy_logits, value).
         """
         x = jnp.asarray(hidden_state, dtype=jnp.float32)
+        for layer in self.layers:
+            x = nnx.relu(layer(x))
         policy_logits = self.policy_head(x)
         value = self.value_head(x)
         return policy_logits, value
@@ -269,21 +292,25 @@ class PredictionNetwork(nnx.Module):
 class CuMindNetwork(nnx.Module):
     """The complete CuMind network, combining representation, dynamics, and prediction."""
 
-    def __init__(self, observation_shape: Tuple[int, ...], action_space_size: int, hidden_dim: int, num_blocks: int, conv_channels: int, rngs: nnx.Rngs):
+    def __init__(self, observation_shape: Tuple[int, ...], action_space_size: int, hidden_dim: int, prediction_internal_hidden_dim: int, dynamics_internal_hidden_dim: int, prediction_num_layers: int, dynamics_num_layers: int, num_blocks: int, conv_channels: int, rngs: nnx.Rngs):
         """Initializes the complete CuMind network.
 
         Args:
             observation_shape: The shape of the input observations.
             action_space_size: The number of possible actions.
             hidden_dim: The dimension of the hidden representations.
-            num_blocks: The number of processing blocks in the networks.
+            prediction_internal_hidden_dim: The dimension of the internal hidden layers in the Prediction network.
+            dynamics_internal_hidden_dim: The dimension of the internal hidden layers in the Dynamics network.
+            prediction_num_layers: The number of hidden layers in the Prediction network.
+            dynamics_num_layers: The number of hidden layers in the Dynamics network.
+            num_blocks: The number of processing blocks in the Representation network.
             conv_channels: The number of channels for the convolutional layers.
             rngs: Random number generators for layer initialization.
         """
         log.info(f"Initializing CuMindNetwork for observation shape {observation_shape} and action space size {action_space_size}.")
         self.representation_network = RepresentationNetwork(observation_shape, hidden_dim, num_blocks, conv_channels, rngs)
-        self.dynamics_network = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
-        self.prediction_network = PredictionNetwork(hidden_dim, action_space_size, rngs)
+        self.dynamics_network = DynamicsNetwork(hidden_dim, dynamics_internal_hidden_dim, action_space_size, dynamics_num_layers, rngs)
+        self.prediction_network = PredictionNetwork(hidden_dim, prediction_internal_hidden_dim, action_space_size, prediction_num_layers, rngs)
 
     def initial_inference(self, observation: chex.Array) -> Tuple[chex.Array, chex.Array, chex.Array]:
         """Performs the initial inference step from an observation.

@@ -294,13 +294,14 @@ class TestDynamicsNetwork:
         key.seed(0)
         rngs = nnx.Rngs(params=key())
         hidden_dim = 64
+        internal_hidden_dim = 128
         action_space_size = 5
-        num_blocks = 3
-        net = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
+        num_layers = 3
+        net = DynamicsNetwork(hidden_dim, internal_hidden_dim, action_space_size, num_layers, rngs)
 
         assert isinstance(net.action_embedding, nnx.Embed)
         assert net.action_embedding.num_embeddings == action_space_size
-        assert len(net.layers) == num_blocks
+        assert len(net.layers) == num_layers
         assert isinstance(net.reward_head, nnx.Linear)
 
     def test_dynamics_forward(self):
@@ -308,10 +309,11 @@ class TestDynamicsNetwork:
         key.seed(0)
         rngs = nnx.Rngs(params=key())
         hidden_dim = 32
+        internal_hidden_dim = 64
         action_space_size = 4
-        num_blocks = 2
+        num_layers = 2
         batch_size = 8
-        net = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
+        net = DynamicsNetwork(hidden_dim, internal_hidden_dim, action_space_size, num_layers, rngs)
         state = jnp.ones((batch_size, hidden_dim))
         action = jnp.zeros(batch_size, dtype=jnp.int32)
         next_state, reward = net(state, action)
@@ -324,9 +326,11 @@ class TestDynamicsNetwork:
         key.seed(0)
         rngs = nnx.Rngs(params=key())
         hidden_dim = 16
+        internal_hidden_dim = 32
         action_space_size = 7
+        num_layers = 1
         batch_size = 3
-        net = DynamicsNetwork(hidden_dim, action_space_size, 1, rngs)
+        net = DynamicsNetwork(hidden_dim, internal_hidden_dim, action_space_size, num_layers, rngs)
         action = jnp.array([0, 2, 6])
         action_embedded = net.action_embedding(action)
 
@@ -337,10 +341,11 @@ class TestDynamicsNetwork:
         key.seed(0)
         rngs = nnx.Rngs(params=key())
         hidden_dim = 32
+        internal_hidden_dim = 64
         action_space_size = 4
-        num_blocks = 2
+        num_layers = 2
         batch_size = 8
-        net = DynamicsNetwork(hidden_dim, action_space_size, num_blocks, rngs)
+        net = DynamicsNetwork(hidden_dim, internal_hidden_dim, action_space_size, num_layers, rngs)
         state = jnp.ones((batch_size, hidden_dim))
         action = jnp.zeros(batch_size, dtype=jnp.int32)
         _, reward = net(state, action)
@@ -361,8 +366,10 @@ class TestPredictionNetwork:
         key.seed(0)
         rngs = nnx.Rngs(params=key())
         hidden_dim = 128
+        internal_hidden_dim = 256
         action_space_size = 10
-        net = PredictionNetwork(hidden_dim, action_space_size, rngs)
+        num_layers = 2
+        net = PredictionNetwork(hidden_dim, internal_hidden_dim, action_space_size, num_layers, rngs)
 
         assert isinstance(net.policy_head, nnx.Linear)
         assert isinstance(net.value_head, nnx.Linear)
@@ -374,9 +381,11 @@ class TestPredictionNetwork:
         key.seed(0)
         rngs = nnx.Rngs(params=key())
         hidden_dim = 64
+        internal_hidden_dim = 128
         action_space_size = 5
+        num_layers = 2
         batch_size = 4
-        net = PredictionNetwork(hidden_dim, action_space_size, rngs)
+        net = PredictionNetwork(hidden_dim, internal_hidden_dim, action_space_size, num_layers, rngs)
         hidden_state = jnp.ones((batch_size, hidden_dim))
         policy_logits, value = net(hidden_state)
 
@@ -388,9 +397,11 @@ class TestPredictionNetwork:
         key.seed(0)
         rngs = nnx.Rngs(params=key())
         hidden_dim = 64
+        internal_hidden_dim = 128
         action_space_size = 5
+        num_layers = 2
         batch_size = 4
-        net = PredictionNetwork(hidden_dim, action_space_size, rngs)
+        net = PredictionNetwork(hidden_dim, internal_hidden_dim, action_space_size, num_layers, rngs)
         hidden_state = jnp.ones((batch_size, hidden_dim))
         policy_logits, _ = net(hidden_state)
 
@@ -401,9 +412,11 @@ class TestPredictionNetwork:
         key.seed(0)
         rngs = nnx.Rngs(params=key())
         hidden_dim = 64
+        internal_hidden_dim = 128
         action_space_size = 5
+        num_layers = 2
         batch_size = 4
-        net = PredictionNetwork(hidden_dim, action_space_size, rngs)
+        net = PredictionNetwork(hidden_dim, internal_hidden_dim, action_space_size, num_layers, rngs)
         hidden_state = jnp.ones((batch_size, hidden_dim))
         _, value = net(hidden_state)
 
@@ -422,6 +435,10 @@ class TestCuMindNetwork:
             "hidden_dim": 32,
             "num_blocks": 1,
             "conv_channels": 0,  # Not used
+            "prediction_internal_hidden_dim": 64,
+            "dynamics_internal_hidden_dim": 64,
+            "prediction_num_layers": 2,
+            "dynamics_num_layers": 2,
             "rngs": nnx.Rngs(params=key()),
         }
 
@@ -434,6 +451,10 @@ class TestCuMindNetwork:
             "hidden_dim": 64,
             "num_blocks": 2,
             "conv_channels": 8,
+            "prediction_internal_hidden_dim": 128,
+            "dynamics_internal_hidden_dim": 128,
+            "prediction_num_layers": 2,
+            "dynamics_num_layers": 2,
             "rngs": nnx.Rngs(params=key()),
         }
 
