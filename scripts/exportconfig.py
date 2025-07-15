@@ -1,8 +1,7 @@
-from cumind.config import Config
+from cumind.utils.config import config
 
 
 def main() -> None:
-    config = Config()
     config.to_json("configuration.json")
 
 
