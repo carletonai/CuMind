@@ -1,8 +1,6 @@
 """Tests for the Agent class verifying initialization, action selection, state persistence, and input handling."""
 
 import chex
-import jax
-import jax.numpy as jnp
 import numpy as np
 import pytest
 from flax import nnx

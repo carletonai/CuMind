@@ -1,14 +1,11 @@
 """Comprehensive tests for data components (MemoryBuffer, SelfPlay)."""
 
 import gymnasium as gym
-import jax
-import jax.numpy as jnp
-import numpy as np
 import pytest
 
 from cumind.agent.agent import Agent
 from cumind.config import Config
-from cumind.data.memory import Memory, MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer
+from cumind.data.memory import MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer
 from cumind.data.self_play import SelfPlay
 
 

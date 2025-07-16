@@ -1,6 +1,5 @@
 """Basic integration tests for CuMind implementation."""
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -8,7 +7,9 @@ from flax import nnx
 
 from cumind.agent.agent import Agent
 from cumind.config import Config
+from cumind.core.mlp import MLPDual, MLPWithEmbedding
 from cumind.core.network import CuMindNetwork
+from cumind.core.resnet import ResNet
 from cumind.data.memory import Memory, MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer
 from cumind.utils.prng import key
 
@@ -32,7 +33,10 @@ def test_network_creation():
     key.seed(42)
     rngs = nnx.Rngs(params=key())
 
-    network = CuMindNetwork(observation_shape=config.env_observation_shape, action_space_size=config.env_action_space_size, hidden_dim=config.network_hidden_dim, num_blocks=config.network_num_blocks, conv_channels=config.network_conv_channels, rngs=rngs)
+    repre_net = ResNet(config.network_hidden_dim, config.env_observation_shape, config.network_num_blocks, config.network_conv_channels, rngs)
+    dyna_net = MLPWithEmbedding(config.network_hidden_dim, config.env_action_space_size, config.network_num_blocks, rngs)
+    pred_net = MLPDual(config.network_hidden_dim, config.env_action_space_size, rngs)
+    network = CuMindNetwork(repre_net, dyna_net, pred_net, rngs)
 
     assert hasattr(network, "representation_network")
     assert hasattr(network, "dynamics_network")
@@ -50,7 +54,10 @@ def test_network_inference():
     key.seed(42)
     rngs = nnx.Rngs(params=key())
 
-    network = CuMindNetwork(observation_shape=config.env_observation_shape, action_space_size=config.env_action_space_size, hidden_dim=config.network_hidden_dim, num_blocks=config.network_num_blocks, conv_channels=config.network_conv_channels, rngs=rngs)
+    repre_net = ResNet(config.network_hidden_dim, config.env_observation_shape, config.network_num_blocks, config.network_conv_channels, rngs)
+    dyna_net = MLPWithEmbedding(config.network_hidden_dim, config.env_action_space_size, config.network_num_blocks, rngs)
+    pred_net = MLPDual(config.network_hidden_dim, config.env_action_space_size, rngs)
+    network = CuMindNetwork(repre_net, dyna_net, pred_net, rngs)
 
     # Test initial inference
     batch_size = 2

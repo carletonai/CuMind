@@ -5,8 +5,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, cast
 
-from flax import nnx
-
 from .logger import log
 
 
