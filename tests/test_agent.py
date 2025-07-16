@@ -17,8 +17,8 @@ class TestAgent:
     def test_agent_initialization(self):
         """Test agent initialization."""
         config = Config()
-        config.action_space_size = 2
-        config.observation_shape = (4,)
+        config.env_action_space_size = 2
+        config.env_observation_shape = (4,)
         agent = Agent(config)
 
         assert agent.config == config
@@ -30,9 +30,9 @@ class TestAgent:
     def test_select_action_training_mode(self):
         """Test action selection in training mode."""
         config = Config()
-        config.num_simulations = 5
-        config.action_space_size = 2
-        config.observation_shape = (4,)
+        config.mcts_num_simulations = 5
+        config.env_action_space_size = 2
+        config.env_observation_shape = (4,)
         agent = Agent(config)
 
         obs = np.ones(4)
@@ -40,15 +40,15 @@ class TestAgent:
 
         assert isinstance(action, (int, np.integer))
         assert isinstance(policy, np.ndarray)
-        assert len(policy) == config.action_space_size
+        assert len(policy) == config.env_action_space_size
         assert np.isclose(np.sum(policy), 1.0)
 
     def test_select_action_evaluation_mode(self):
         """Test action selection in evaluation mode is deterministic."""
         config = Config()
-        config.num_simulations = 5
-        config.action_space_size = 2
-        config.observation_shape = (4,)
+        config.mcts_num_simulations = 5
+        config.env_action_space_size = 2
+        config.env_observation_shape = (4,)
         agent = Agent(config)
 
         obs = np.ones(4)
@@ -60,8 +60,8 @@ class TestAgent:
     def test_save_and_load_state(self):
         """Test saving and loading agent state."""
         config = Config()
-        config.action_space_size = 2
-        config.observation_shape = (4,)
+        config.env_action_space_size = 2
+        config.env_observation_shape = (4,)
         agent1 = Agent(config)
         obs = np.ones(4)
         agent1.select_action(obs)  # Run one step to have state
@@ -80,8 +80,8 @@ class TestAgent:
     def test_agent_with_vector_observations(self):
         """Test agent with 1D vector observations."""
         config = Config()
-        config.observation_shape = (8,)
-        config.action_space_size = 2
+        config.env_observation_shape = (8,)
+        config.env_action_space_size = 2
         agent = Agent(config)
 
         obs = np.ones(8)
@@ -91,8 +91,8 @@ class TestAgent:
     def test_agent_with_image_observations(self):
         """Test agent with 3D image observations (Atari)."""
         config = Config()
-        config.observation_shape = (84, 84, 4)
-        config.action_space_size = 4
+        config.env_observation_shape = (84, 84, 4)
+        config.env_action_space_size = 4
         agent = Agent(config)
 
         obs = np.ones((84, 84, 4))

@@ -122,25 +122,25 @@ class MCTS:
         Returns:
             Action probability distribution.
         """
-        log.debug(f"Starting MCTS search with {self.config.num_simulations} simulations. Noise: {add_noise}")
+        log.debug(f"Starting MCTS search with {self.config.mcts_num_simulations} simulations. Noise: {add_noise}")
         root_hidden_state_batched = jnp.expand_dims(root_hidden_state, 0)
         policy_logits, _ = self.network.prediction_network(root_hidden_state_batched)
         priors = jax.nn.softmax(policy_logits, axis=-1)[0]
 
         # Create root node and expand
         root = Node(1.0)
-        actions = list(range(self.config.action_space_size))
+        actions = list(range(self.config.env_action_space_size))
         root.expand(actions, priors, root_hidden_state)
 
         if add_noise:
             self._add_exploration_noise(root)
 
-        log.debug(f"Running {self.config.num_simulations} simulations...")
-        for _ in range(self.config.num_simulations):
+        log.debug(f"Running {self.config.mcts_num_simulations} simulations...")
+        for _ in range(self.config.mcts_num_simulations):
             self._simulate(root)
 
         # Extract visit counts and normalize
-        visit_counts = np.zeros(self.config.action_space_size)
+        visit_counts = np.zeros(self.config.env_action_space_size)
         for action, child in root.children.items():
             visit_counts[action] = child.visit_count
 
@@ -148,7 +148,7 @@ class MCTS:
         total_visits = np.sum(visit_counts)
         if total_visits == 0:
             log.warning("MCTS search resulted in zero visits. Returning uniform probabilities.")
-            return np.ones(self.config.action_space_size) / self.config.action_space_size
+            return np.ones(self.config.env_action_space_size) / self.config.env_action_space_size
 
         action_probs = visit_counts / total_visits
         log.debug(f"MCTS search complete. Action probabilities: {action_probs}")
@@ -166,7 +166,7 @@ class MCTS:
         node = root
 
         while node.is_expanded():
-            action = node.select_child(self.config.c_puct)
+            action = node.select_child(self.config.mcts_c_puct)
             path.append((node, action))
             node = node.children[action]
 
@@ -192,7 +192,7 @@ class MCTS:
             priors_array = np.asarray(priors[0], dtype=np.float32)
             leaf_value = float(jnp.asarray(value)[0, 0])
 
-            actions = list(range(self.config.action_space_size))
+            actions = list(range(self.config.env_action_space_size))
             node.expand(actions, priors_array, jnp.asarray(node.hidden_state))
             log.debug(f"MCTS simulation: Expanded leaf node with value {leaf_value:.4f}.")
 
@@ -215,8 +215,8 @@ class MCTS:
 
         # Sample Dirichlet noise
         num_actions = len(root.children)
-        noise = np.random.dirichlet([self.config.dirichlet_alpha] * num_actions)
+        noise = np.random.dirichlet([self.config.mcts_dirichlet_alpha] * num_actions)
 
         # Mix with existing priors
         for i, (_, child) in enumerate(root.children.items()):
-            child.prior = child.prior * (1 - self.config.exploration_fraction) + noise[i] * self.config.exploration_fraction
+            child.prior = child.prior * (1 - self.config.mcts_exploration_fraction) + noise[i] * self.config.mcts_exploration_fraction

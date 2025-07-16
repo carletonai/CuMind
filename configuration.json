@@ -1,54 +1,58 @@
 {
-  "Network architecture": {
-    "hidden_dim": 128,
-    "num_blocks": 2,
-    "conv_channels": 32
-  },
-  "Training": {
-    "batch_size": 64,
-    "learning_rate": 0.01,
-    "weight_decay": 0.0001,
-    "target_update_frequency": 250,
-    "checkpoint_interval": 50,
-    "num_episodes": 1220,
-    "train_frequency": 2,
-    "checkpoint_root_dir": "checkpoints"
-  },
-  "MCTS": {
-    "num_simulations": 25,
-    "c_puct": 1.25,
-    "dirichlet_alpha": 0.25,
-    "exploration_fraction": 0.25
-  },
-  "Environment": {
-    "env_name": "CartPole-v1",
-    "action_space_size": 2,
-    "observation_shape": [
-      4
-    ]
-  },
-  "Self-Play": {
-    "num_unroll_steps": 5,
-    "td_steps": 10,
-    "discount": 0.997
-  },
-  "Memory": {
-    "memory_capacity": 2000,
-    "min_memory_size": 100,
-    "min_memory_pct": 0.1,
-    "per_alpha": 0.6,
-    "per_epsilon": 1e-06,
-    "per_beta": 0.4
-  },
-  "Data Types": {
-    "model_dtype": "float32",
-    "action_dtype": "int32",
-    "target_dtype": "float32"
-  },
-  "Device": {
-    "device_type": "cpu"
-  },
-  "Other": {
+  "CuMind":
+  {
+    "network":
+    {
+      "hidden_dim": 128,
+      "num_blocks": 2,
+      "conv_channels": 32
+    },
+    "training":
+    {
+      "batch_size": 64,
+      "learning_rate": 0.01,
+      "weight_decay": 0.0001,
+      "target_update_frequency": 250,
+      "checkpoint_interval": 50,
+      "num_episodes": 1220,
+      "train_frequency": 2,
+      "checkpoint_root_dir": "checkpoints"
+    },
+    "mcts":
+    {
+      "num_simulations": 25,
+      "c_puct": 1.25,
+      "dirichlet_alpha": 0.25,
+      "exploration_fraction": 0.25
+    },
+    "env":
+    {
+      "name": "CartPole-v1",
+      "action_space_size": 2,
+      "observation_shape": [4]
+    },
+    "selfplay":
+    {
+      "num_unroll_steps": 5,
+      "td_steps": 10,
+      "discount": 0.997
+    },
+    "memory":
+    {
+      "capacity": 2000,
+      "min_size": 100,
+      "min_pct": 0.1,
+      "per_alpha": 0.6,
+      "per_epsilon": 1e-06,
+      "per_beta": 0.4
+    },
+    "dtypes":
+    {
+      "model": "float32",
+      "action": "int32",
+      "target": "float32"
+    },
+    "device": "cpu",
     "seed": 42
   }
 }

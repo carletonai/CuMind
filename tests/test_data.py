@@ -15,9 +15,9 @@ from cumind.data.self_play import SelfPlay
 def _create_buffer(BufferClass, capacity, config):  # noqa: N803
     """Helper function to create a buffer with the correct arguments."""
     if BufferClass == PrioritizedMemoryBuffer:
-        return BufferClass(capacity=capacity, alpha=config.per_alpha, epsilon=config.per_epsilon, beta=config.per_beta)
+        return BufferClass(capacity=capacity, alpha=config.memory_per_alpha, epsilon=config.memory_per_epsilon, beta=config.memory_per_beta)
     if BufferClass == TreeBuffer:
-        return BufferClass(capacity=capacity, alpha=config.per_alpha, epsilon=config.per_epsilon)
+        return BufferClass(capacity=capacity, alpha=config.memory_per_alpha, epsilon=config.memory_per_epsilon)
     return BufferClass(capacity=capacity)
 
 
@@ -113,8 +113,8 @@ class TestSelfPlay:
     def test_run_episode(self):
         """Test running a single self-play episode."""
         config = Config()
-        config.action_space_size = 2
-        config.observation_shape = (4,)
+        config.env_action_space_size = 2
+        config.env_observation_shape = (4,)
         agent = Agent(config)
         memory_buffer = MemoryBuffer(capacity=100)
         env = gym.make("CartPole-v1")
@@ -137,8 +137,8 @@ class TestSelfPlay:
     def test_collect_samples(self):
         """Test collecting samples from multiple episodes."""
         config = Config()
-        config.action_space_size = 2
-        config.observation_shape = (4,)
+        config.env_action_space_size = 2
+        config.env_observation_shape = (4,)
         agent = Agent(config)
         memory_buffer = MemoryBuffer(capacity=100)
         env = gym.make("CartPole-v1")

@@ -44,7 +44,7 @@ def inference(config: Config, checkpoint_file: str) -> None:
     inference_agent.load_state(state)
 
     env = gym.make(config.env_name, render_mode="human")
-    for episode in range(5):
+    for episode in range(500):
         obs, _ = env.reset()
         done = False
         total_reward = 0.0

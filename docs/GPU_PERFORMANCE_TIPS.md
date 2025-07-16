@@ -223,7 +223,7 @@ from cumind import Agent, Config
 def benchmark_inference(config: Config, num_runs: int = 1000):
     """Benchmark inference speed on GPU."""
     agent = Agent(config)
-    observation = jnp.ones(config.observation_shape)
+    observation = jnp.ones(config.env_observation_shape)
     
     # Warm-up
     for _ in range(10):
@@ -248,7 +248,7 @@ if __name__ == "__main__":
     ]
     
     for config in configs:
-        print(f"\nTesting with dtype: {config.model_dtype}")
+        print(f"\nTesting with dtype: {config.dtypes_model}")
         benchmark_inference(config)
 ```
 

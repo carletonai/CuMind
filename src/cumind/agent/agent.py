@@ -30,22 +30,22 @@ class Agent:
         log.info("Initializing CuMind agent...")
         self.config = config
 
-        self.device = jax.devices(config.device_type)[0]
+        self.device = jax.devices(config.device)[0]
 
         log.info(f"Using device: {self.device}")
 
-        log.info(f"Creating CuMindNetwork with observation shape {config.observation_shape} and action space size {config.action_space_size}")
+        log.info(f"Creating CuMindNetwork with observation shape {config.env_observation_shape} and action space size {config.env_action_space_size}")
         key.seed(config.seed)
         rngs = nnx.Rngs(params=key())
 
         with jax.default_device(self.device):
-            self.network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
+            self.network = CuMindNetwork(observation_shape=config.env_observation_shape, action_space_size=config.env_action_space_size, hidden_dim=config.network_hidden_dim, num_blocks=config.network_num_blocks, conv_channels=config.network_conv_channels, rngs=rngs)
 
             log.info("Creating target network.")
             self.target_network = nnx.clone(self.network)
 
-            log.info(f"Setting up AdamW optimizer with learning rate {config.learning_rate} and weight decay {config.weight_decay}")
-            self.optimizer = optax.adamw(learning_rate=config.learning_rate, weight_decay=config.weight_decay)
+            log.info(f"Setting up AdamW optimizer with learning rate {config.training_learning_rate} and weight decay {config.training_weight_decay}")
+            self.optimizer = optax.adamw(learning_rate=config.training_learning_rate, weight_decay=config.training_weight_decay)
 
             if existing_state:
                 log.info("Loading agent state from existing state.")
