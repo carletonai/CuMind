@@ -133,8 +133,8 @@ To run the full application:
 Make sure you can push a new branch:
 
 ```bash
-git checkout -b YOUR-BRANCH-NAME
-git push origin YOUR-BRANCH-NAME
+git checkout -b test-branch
+git push origin test-branch
 ```
 
 Once confirmed, please delete the test branch:
