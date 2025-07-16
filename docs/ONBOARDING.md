@@ -45,23 +45,33 @@ If not installed or the version is too old, install:
 
 - #### On macOS:
 
-  Download and install the latest version from: [https://www.python.org/downloads/](https://www.python.org/downloads/)
+  ```bash
+  brew install python
+  ```
 
 ### 2. **Install `uv`**
 
-Install the Python dependency manager `uv`:
+Install the Python dependency manager `uv` using one of two ways:
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+- Using pip/pipx:
 
-Or using pip/pipx:
+  ```bash
+  pip install uv
+  # or
+  pipx install uv
+  ```
 
-```bash
-pip install uv
-# or
-pipx install uv
-```
+- Using the standalone installer:
+
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
+
+  To update, run:
+
+  ```bash
+  uv self update
+  ```
 
 More details: [uv documentation](https://astral.sh/uv/)
 
@@ -126,7 +136,7 @@ Test out running a specific file to make sure your setup is working:
 
 To run the full application:
 
-`uv run python -m cumind`
+`uv run python -m cumind --config configuration.json`
 
 ## 6. Test Your Git Setup
 
