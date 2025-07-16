@@ -240,7 +240,7 @@ def test_select_action_training_mode(self):
     agent = Agent(config)
     action = agent.select_action(observation, training=True)
     assert isinstance(action, int)
-    assert 0 <= action < config.action_space_size
+    assert 0 <= action < config.env_action_space_size
 ```
 
 ##  Project Structure

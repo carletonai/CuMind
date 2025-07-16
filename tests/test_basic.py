@@ -24,15 +24,15 @@ def reset_prng_manager_singleton():
 def test_network_creation():
     """Test network creation and basic functionality."""
     config = Config()
-    config.hidden_dim = 32
-    config.num_blocks = 2
-    config.action_space_size = 2
-    config.observation_shape = (4,)
+    config.network_hidden_dim = 32
+    config.network_num_blocks = 2
+    config.env_action_space_size = 2
+    config.env_observation_shape = (4,)
 
     key.seed(42)
     rngs = nnx.Rngs(params=key())
 
-    network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
+    network = CuMindNetwork(observation_shape=config.env_observation_shape, action_space_size=config.env_action_space_size, hidden_dim=config.network_hidden_dim, num_blocks=config.network_num_blocks, conv_channels=config.network_conv_channels, rngs=rngs)
 
     assert hasattr(network, "representation_network")
     assert hasattr(network, "dynamics_network")
@@ -42,41 +42,41 @@ def test_network_creation():
 def test_network_inference():
     """Test network inference functionality."""
     config = Config()
-    config.hidden_dim = 32
-    config.num_blocks = 2
-    config.action_space_size = 2
-    config.observation_shape = (4,)
+    config.network_hidden_dim = 32
+    config.network_num_blocks = 2
+    config.env_action_space_size = 2
+    config.env_observation_shape = (4,)
 
     key.seed(42)
     rngs = nnx.Rngs(params=key())
 
-    network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
+    network = CuMindNetwork(observation_shape=config.env_observation_shape, action_space_size=config.env_action_space_size, hidden_dim=config.network_hidden_dim, num_blocks=config.network_num_blocks, conv_channels=config.network_conv_channels, rngs=rngs)
 
     # Test initial inference
     batch_size = 2
     obs = jnp.ones((batch_size, 4))
     hidden_state, policy_logits, value = network.initial_inference(obs)
 
-    assert hidden_state.shape == (batch_size, config.hidden_dim)
-    assert policy_logits.shape == (batch_size, config.action_space_size)
+    assert hidden_state.shape == (batch_size, config.network_hidden_dim)
+    assert policy_logits.shape == (batch_size, config.env_action_space_size)
     assert value.shape == (batch_size, 1)
 
     # Test recurrent inference
     actions = jnp.array([0, 1])
     next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
-    assert next_state.shape == (batch_size, config.hidden_dim)
+    assert next_state.shape == (batch_size, config.network_hidden_dim)
     assert reward.shape == (batch_size, 1)
-    assert next_policy.shape == (batch_size, config.action_space_size)
+    assert next_policy.shape == (batch_size, config.env_action_space_size)
     assert next_value.shape == (batch_size, 1)
 
 
 def test_agent_creation_and_action_selection():
     """Test agent creation and action selection."""
     config = Config()
-    config.num_simulations = 5  # Small for testing
-    config.action_space_size = 2
-    config.observation_shape = (4,)
+    config.mcts_num_simulations = 5  # Small for testing
+    config.env_action_space_size = 2
+    config.env_observation_shape = (4,)
 
     agent = Agent(config)
 
@@ -91,7 +91,7 @@ def test_agent_creation_and_action_selection():
     action, _ = agent.select_action(observation, training=False)
 
     assert isinstance(action, (int, np.integer))
-    assert 0 <= action < config.action_space_size
+    assert 0 <= action < config.env_action_space_size
 
 
 def test_memory_buffer_functionality():
@@ -102,11 +102,11 @@ def test_memory_buffer_functionality():
     _test_buffer_operations(memory_buffer, "MemoryBuffer")
 
     # Test PrioritizedMemoryBuffer
-    prioritized_buffer = PrioritizedMemoryBuffer(capacity=100, alpha=config.per_alpha, epsilon=config.per_epsilon, beta=config.per_beta)
+    prioritized_buffer = PrioritizedMemoryBuffer(capacity=100, alpha=config.memory_per_alpha, epsilon=config.memory_per_epsilon, beta=config.memory_per_beta)
     _test_buffer_operations(prioritized_buffer, "PrioritizedMemoryBuffer")
 
     # Test TreeBuffer
-    tree_buffer = TreeBuffer(capacity=100, alpha=config.per_alpha, epsilon=config.per_epsilon)
+    tree_buffer = TreeBuffer(capacity=100, alpha=config.memory_per_alpha, epsilon=config.memory_per_epsilon)
     _test_buffer_operations(tree_buffer, "TreeBuffer")
 
 
@@ -141,7 +141,7 @@ def test_prioritized_buffer_priority_update():
     """Test priority update functionality for prioritized buffers."""
     config = Config()
     # Test PrioritizedMemoryBuffer priority update
-    prioritized_buffer = PrioritizedMemoryBuffer(capacity=10, alpha=config.per_alpha, epsilon=config.per_epsilon, beta=config.per_beta)
+    prioritized_buffer = PrioritizedMemoryBuffer(capacity=10, alpha=config.memory_per_alpha, epsilon=config.memory_per_epsilon, beta=config.memory_per_beta)
     sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0}]
     prioritized_buffer.add(sample)
 
@@ -150,7 +150,7 @@ def test_prioritized_buffer_priority_update():
     assert prioritized_buffer.max_priority == 5.0
 
     # Test TreeBuffer priority update
-    tree_buffer = TreeBuffer(capacity=10, alpha=config.per_alpha, epsilon=config.per_epsilon)
+    tree_buffer = TreeBuffer(capacity=10, alpha=config.memory_per_alpha, epsilon=config.memory_per_epsilon)
     tree_buffer.add(sample)
 
     # Update priority - TreeBuffer applies alpha exponent, so we need to account for that
@@ -162,9 +162,9 @@ def test_prioritized_buffer_priority_update():
 def test_basic_integration():
     """Test basic integration of all components."""
     config = Config()
-    config.num_simulations = 3  # Very small for testing
-    config.action_space_size = 2
-    config.observation_shape = (4,)
+    config.mcts_num_simulations = 3  # Very small for testing
+    config.env_action_space_size = 2
+    config.env_observation_shape = (4,)
 
     # Create agent
     agent = Agent(config)
@@ -172,8 +172,8 @@ def test_basic_integration():
     # Test with different buffer types
     buffer_types = [
         (MemoryBuffer, {"capacity": 10}),
-        (PrioritizedMemoryBuffer, {"capacity": 10, "alpha": config.per_alpha, "epsilon": config.per_epsilon, "beta": config.per_beta}),
-        (TreeBuffer, {"capacity": 10, "alpha": config.per_alpha, "epsilon": config.per_epsilon}),
+        (PrioritizedMemoryBuffer, {"capacity": 10, "alpha": config.memory_per_alpha, "epsilon": config.memory_per_epsilon, "beta": config.memory_per_beta}),
+        (TreeBuffer, {"capacity": 10, "alpha": config.memory_per_alpha, "epsilon": config.memory_per_epsilon}),
     ]
 
     for BufferClass, kwargs in buffer_types:  # noqa: N806
@@ -192,7 +192,7 @@ def test_basic_integration():
 
         # Verify integration
         assert len(memory_buffer) == 1, f"{BufferClass.__name__}: Should have 1 experience"
-        assert 0 <= action < config.action_space_size
+        assert 0 <= action < config.env_action_space_size
 
 
 if __name__ == "__main__":
