@@ -1,6 +1,5 @@
 """Tests for the Node and MCTS classes, covering initialization, value computation, selection logic, and search behavior."""
 
-import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -9,7 +8,9 @@ from flax import nnx
 
 from cumind.config import Config
 from cumind.core import MCTS, Node
+from cumind.core.mlp import MLPDual, MLPWithEmbedding
 from cumind.core.network import CuMindNetwork
+from cumind.core.resnet import ResNet
 from cumind.utils.prng import key
 
 
@@ -188,7 +189,10 @@ class TestNode:
         config.network_hidden_dim = 16
         key.seed(config.seed)
         rngs = nnx.Rngs(params=key())
-        network = CuMindNetwork(observation_shape=config.env_observation_shape, action_space_size=config.env_action_space_size, hidden_dim=config.network_hidden_dim, num_blocks=config.network_num_blocks, conv_channels=config.network_conv_channels, rngs=rngs)
+        repre_net = ResNet(config.network_hidden_dim, config.env_observation_shape, config.network_num_blocks, config.network_conv_channels, rngs)
+        dyna_net = MLPWithEmbedding(config.network_hidden_dim, config.env_action_space_size, config.network_num_blocks, rngs)
+        pred_net = MLPDual(config.network_hidden_dim, config.env_action_space_size, rngs)
+        network = CuMindNetwork(repre_net, dyna_net, pred_net, rngs)
         mcts = MCTS(network, config)
         return mcts, network, config
 
@@ -262,7 +266,10 @@ class TestNode:
         config.env_action_space_size = 3
         key.seed(config.seed)
         rngs = nnx.Rngs(params=key())
-        network2 = CuMindNetwork(observation_shape=config.env_observation_shape, action_space_size=config.env_action_space_size, hidden_dim=config.network_hidden_dim, num_blocks=config.network_num_blocks, conv_channels=config.network_conv_channels, rngs=rngs)
+        repre_net2 = ResNet(config.network_hidden_dim, config.env_observation_shape, config.network_num_blocks, config.network_conv_channels, rngs)
+        dyna_net2 = MLPWithEmbedding(config.network_hidden_dim, config.env_action_space_size, config.network_num_blocks, rngs)
+        pred_net2 = MLPDual(config.network_hidden_dim, config.env_action_space_size, rngs)
+        network2 = CuMindNetwork(repre_net2, dyna_net2, pred_net2, rngs)
         mcts2 = MCTS(network2, config)
         root_hidden_state = jnp.ones(config.network_hidden_dim)
         action_probs = mcts2.search(root_hidden_state, add_noise=False)

@@ -1,8 +1,7 @@
 """CuMind agent implementation."""
 
-from typing import Any, Dict, List, Tuple, cast
+from typing import Any, Dict, Tuple
 
-import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -11,8 +10,9 @@ from flax import nnx
 
 from ..config import Config
 from ..core.mcts import MCTS
+from ..core.mlp import MLPDual, MLPWithEmbedding
 from ..core.network import CuMindNetwork
-from ..utils.checkpoint import load_checkpoint, save_checkpoint
+from ..core.resnet import ResNet
 from ..utils.logger import log
 from ..utils.prng import key
 
@@ -39,7 +39,10 @@ class Agent:
         rngs = nnx.Rngs(params=key())
 
         with jax.default_device(self.device):
-            self.network = CuMindNetwork(observation_shape=config.env_observation_shape, action_space_size=config.env_action_space_size, hidden_dim=config.network_hidden_dim, num_blocks=config.network_num_blocks, conv_channels=config.network_conv_channels, rngs=rngs)
+            representation_network = ResNet(config.network_hidden_dim, config.env_observation_shape, config.network_num_blocks, config.network_conv_channels, rngs)
+            dynamics_network = MLPWithEmbedding(config.network_hidden_dim, config.env_action_space_size, config.network_num_blocks, rngs)
+            prediction_network = MLPDual(config.network_hidden_dim, config.env_action_space_size, rngs)
+            self.network = CuMindNetwork(representation_network=representation_network, dynamics_network=dynamics_network, prediction_network=prediction_network, rngs=rngs)
 
             log.info("Creating target network.")
             self.target_network = nnx.clone(self.network)
