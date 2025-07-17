@@ -4,70 +4,97 @@ import dataclasses
 import inspect
 import json
 import re
+import threading
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple, Type, Union, get_args, get_origin
+from typing import Dict as DictType
+
+from flax import nnx
 
 from .logger import log
+from .prng import key
 from .resolve import resolve
 
 
 @dataclasses.dataclass(frozen=True)
-class RepresentationConfig:
+class HotSwappableConfig:
+    """Base class for hot-swappable module configurations."""
+
+    type: Optional[Union[str, Type[Any]]] = None
+
+    def __call__(self, *args, **kwargs):
+        if self.type is None:
+            raise ValueError("Type must be specified for hot-swappable config")
+
+        cls = resolve(self.type) if isinstance(self.type, str) else self.type
+
+        field_params = {k: v for k, v in dataclasses.asdict(self).items() if k != "type"}
+        extra_params = self.extras()
+        all_params = {**field_params, **extra_params}
+
+        # Get constructor signature to know which parameters to pass
+        sig = inspect.signature(cls.__init__)
+        constructor_params = list(sig.parameters.keys())
+        filtered_params = {k: v for k, v in all_params.items() if k in constructor_params and k != "self"}
+
+        try:
+            return cls(*args, **filtered_params, **kwargs)
+        except Exception as e:
+            log.exception(f"Failed to instantiate {cls.__name__} with params: {filtered_params}. {e}")
+            raise
+
+    def extras(self) -> DictType[str, Any]:
+        """Override this in subclasses to add global cfg values."""
+        return {}
+
+
+@dataclasses.dataclass(frozen=True)
+class RepresentationConfig(HotSwappableConfig):
     """Configuration for representation network."""
 
-    type: str = "cumind.core.resnet.ResNet"
-    hidden_dim: int = 128
+    type: Optional[Union[str, Type[Any]]] = "cumind.core.resnet.ResNet"
     num_blocks: int = 2
     conv_channels: int = 32
+    hidden_dim: int = 128
 
-    def __call__(self, **kwargs):
-        """Instantiate the representation network."""
-        cls = resolve(self.type)
-        params = {k: v for k, v in dataclasses.asdict(self).items() if k != "type"}
-        sig = inspect.signature(cls)
-        valid = {k: v for k, v in {**params, **kwargs}.items() if k in sig.parameters}
-        return cls(**valid)
+    def extras(self) -> DictType[str, Any]:
+        input_shape = cfg.env.observation_shape
+        rngs = nnx.Rngs(params=key())
+        return locals()
 
 
 @dataclasses.dataclass(frozen=True)
-class DynamicsConfig:
+class DynamicsConfig(HotSwappableConfig):
     """Configuration for dynamics network."""
 
-    type: str = "cumind.core.mlp.MLPWithEmbedding"
-    hidden_dim: int = 128
+    type: Optional[Union[str, Type[Any]]] = "cumind.core.mlp.MLPWithEmbedding"
     num_blocks: int = 2
 
-    def __call__(self, **kwargs):
-        """Instantiate the representation network."""
-        cls = resolve(self.type)
-        params = {k: v for k, v in dataclasses.asdict(self).items() if k != "type"}
-        sig = inspect.signature(cls)
-        valid = {k: v for k, v in {**params, **kwargs}.items() if k in sig.parameters}
-        return cls(**valid)
+    def extras(self) -> DictType[str, Any]:
+        hidden_dim = cfg.networks.hidden_dim
+        embedding_size = cfg.env.action_space_size
+        rngs = nnx.Rngs(params=key())
+        return locals()
 
 
 @dataclasses.dataclass(frozen=True)
-class PredictionConfig:
+class PredictionConfig(HotSwappableConfig):
     """Configuration for prediction network."""
 
-    type: str = "cumind.core.mlp.MLPDual"
-    hidden_dim: int = 128
-    num_blocks: int = 2
+    type: Optional[Union[str, Type[Any]]] = "cumind.core.mlp.MLPDual"
 
-    def __call__(self, **kwargs):
-        """Instantiate the representation network."""
-        cls = resolve(self.type)
-        params = {k: v for k, v in dataclasses.asdict(self).items() if k != "type"}
-        sig = inspect.signature(cls)
-        valid = {k: v for k, v in {**params, **kwargs}.items() if k in sig.parameters}
-        return cls(**valid)
+    def extras(self) -> DictType[str, Any]:
+        hidden_dim = cfg.networks.hidden_dim
+        output_size = cfg.env.action_space_size
+        rngs = nnx.Rngs(params=key())
+        return locals()
 
 
 @dataclasses.dataclass(frozen=True)
-class MemoryConfig:
+class MemoryConfig(HotSwappableConfig):
     """Configuration for memory buffer."""
 
-    type: str = "cumind.data.memory.MemoryBuffer"
+    type: Optional[Union[str, Type[Any]]] = "cumind.data.memory.MemoryBuffer"
     capacity: int = 2000
     min_size: int = 100
     min_pct: float = 0.1
@@ -75,13 +102,15 @@ class MemoryConfig:
     per_epsilon: float = 1e-6
     per_beta: float = 0.4
 
-    def __call__(self, **kwargs):
-        """Instantiate the representation network."""
-        cls = resolve(self.type)
-        params = {k: v for k, v in dataclasses.asdict(self).items() if k != "type"}
-        sig = inspect.signature(cls)
-        valid = {k: v for k, v in {**params, **kwargs}.items() if k in sig.parameters}
-        return cls(**valid)
+    def extras(self) -> DictType[str, Any]:
+        return {}
+
+
+@dataclasses.dataclass(frozen=True)
+class GeneralNetworksConfig:
+    """Configuration for general networks."""
+
+    hidden_dim: int = 128
 
 
 @dataclasses.dataclass(frozen=True)
@@ -138,6 +167,7 @@ class DataTypesConfig:
 
 @dataclasses.dataclass(frozen=True)
 class Configuration:
+    _set_lock = threading.RLock()
     """Main configuration for CuMind."""
 
     # Hot-swappable modules
@@ -147,6 +177,7 @@ class Configuration:
     memory: MemoryConfig = dataclasses.field(default_factory=MemoryConfig)
 
     # Other sections
+    networks: GeneralNetworksConfig = dataclasses.field(default_factory=GeneralNetworksConfig)
     training: TrainingConfig = dataclasses.field(default_factory=TrainingConfig)
     mcts: MCTSConfig = dataclasses.field(default_factory=MCTSConfig)
     env: EnvironmentConfig = dataclasses.field(default_factory=EnvironmentConfig)
@@ -157,81 +188,48 @@ class Configuration:
     device: str = "cpu"
     seed: int = 42
 
+    def __post_init__(self):
+        key.seed(self.seed)
+        self._validate()
+
+    def __getattr__(self, field: str) -> Any:
+        """Custom attribute access for config fields with clear error if missing."""
+        if field not in self.__dataclass_fields__:
+            log.critical(f"Config has no field '{field}' (available fields: {list(self.__dataclass_fields__.keys())})")
+            raise AttributeError(f"Config has no field '{field}' (available fields: {list(self.__dataclass_fields__.keys())})")
+        return self.__getattribute__(field)
+
     @classmethod
-    def _from_json(cls, json_path: str) -> "Configuration":
-        """Loads a configuration from a JSON file."""
-        log.info(f"Loading configuration from {json_path}...")
-        json_file = Path(json_path)
-        if not json_file.exists():
-            log.critical(f"Config file not found: {json_path}")
-            raise FileNotFoundError(f"Config file not found: {json_path}")
+    def load(cls, path: str) -> None:
+        """Load configuration from a JSON file and set as singleton instance. Automatically validates after loading."""
+        global cfg
+        log.info(f"Loading configuration from {path}")
+        cfg = cls._from_json(path)
+        try:
+            cfg._validate()
+            log.info("Configuration validated successfully after loading.")
+        except Exception as e:
+            log.exception(f"Configuration validation failed after loading: {e}")
+            raise
 
-        with open(json_file, "r", encoding="utf-8") as f:
-            config_dict = json.load(f)
+    @classmethod
+    def save(cls, path: str) -> None:
+        """Save configuration to a JSON file."""
+        global cfg
+        log.info(f"Saving configuration to {path}")
+        cfg._to_json(path)
+        log.info("Configuration saved successfully")
 
-        if "CuMind" not in config_dict:
-            log.critical("Root key 'CuMind' not found in config file.")
-            raise ValueError("Root key 'CuMind' not found in config file.")
+    @classmethod
+    def set(cls, config: "Configuration") -> None:
+        """Set the singleton config instance directly, thread-safe."""
+        log.debug("Setting new configuration instance")
+        with cls._set_lock:
+            global cfg
+            cfg = config
+        log.info("Configuration instance updated successfully")
 
-        config_params = config_dict["CuMind"]
-
-        # Create section configs
-        section_configs = {}
-        for section, params in config_params.items():
-            if section == "representation":
-                section_configs[section] = RepresentationConfig(**params)
-            elif section == "dynamics":
-                section_configs[section] = DynamicsConfig(**params)
-            elif section == "prediction":
-                section_configs[section] = PredictionConfig(**params)
-            elif section == "memory":
-                section_configs[section] = MemoryConfig(**params)
-            elif section == "training":
-                section_configs[section] = TrainingConfig(**params)
-            elif section == "mcts":
-                section_configs[section] = MCTSConfig(**params)
-            elif section == "env":
-                section_configs[section] = EnvironmentConfig(**params)
-            elif section == "selfplay":
-                section_configs[section] = SelfPlayConfig(**params)
-            elif section == "dtypes":
-                section_configs[section] = DataTypesConfig(**params)
-            else:
-                section_configs[section] = params
-
-        log.info("Configuration loaded successfully.")
-        return cls(**section_configs)
-
-    def _to_json(self, json_path: str) -> None:
-        """Saves the configuration to a JSON file."""
-        log.info(f"Saving configuration to {json_path}...")
-        json_file = Path(json_path)
-        json_file.parent.mkdir(parents=True, exist_ok=True)
-
-        config_dict = dataclasses.asdict(self)
-        organized_config = {}
-
-        for key, value in config_dict.items():
-            if hasattr(value, "__dataclass_fields__"):
-                # It's a dataclass, convert to dict
-                organized_config[key] = dataclasses.asdict(value)
-            else:
-                organized_config[key] = value
-
-        final_config = {"CuMind": organized_config}
-
-        # Dump to string first
-        json_str = json.dumps(final_config, indent=2)
-        # Compact single-element lists: [\n  4\n] -> [4]
-        json_str = re.sub(r"\[\s*([\d.eE+-]+)\s*\]", r"[\1]", json_str)
-
-        with open(json_file, "w", encoding="utf-8") as f:
-            f.write(json_str)
-            f.write("\n")
-
-        log.info("Configuration saved successfully.")
-
-    def validate(self) -> None:
+    def _validate(self) -> None:
         """Validates the configuration parameters."""
         log.info("Validating configuration...")
 
@@ -277,42 +275,78 @@ class Configuration:
 
         log.info("Configuration validation successful.")
 
-    def __getattr__(self, field: str) -> Any:
-        """
-        Custom attribute access for config fields. Raises a clear exception if the field does not exist.
-        This allows for runtime type checking and custom error messages for missing config fields.
-        """
-        if field not in self.__dataclass_fields__:
-            raise AttributeError(f"Config has no field '{field}' (available fields: {list(self.__dataclass_fields__.keys())})")
-        return self.__getattribute__(field)
-
     @classmethod
-    def load(cls, path: str) -> None:
-        """Load configuration from a JSON file and set as singleton instance."""
-        global cfg
-        cfg = cls._from_json(path)
+    def _from_json(cls, json_path: str) -> "Configuration":
+        """Loads a configuration from a JSON file."""
 
-    @classmethod
-    def save(cls, path: str) -> None:
-        """Save configuration to a JSON file."""
-        global cfg
-        if cfg is None:
-            raise RuntimeError("Configuration not loaded. Call Config.load(path) or Config.set(config) first.")
-        cfg._to_json(path)
+        def _resolve_field_type(field_def):
+            """Resolve the real type for a dataclass field, handling Optional and generics (Python 3.12+)."""
+            t = field_def.type
+            origin = get_origin(t)
+            if origin is Union:
+                args = get_args(t)
+                non_none = [a for a in args if a is not type(None)]
+                if non_none:
+                    return non_none[0]
+            return t
 
-    @classmethod
-    def set(cls, config: "Configuration") -> None:
-        """Set the singleton config instance directly."""
-        global cfg
-        cfg = config
+        log.info(f"Loading configuration from {json_path}...")
+        json_file = Path(json_path)
+        if not json_file.exists():
+            log.critical(f"Config file not found: {json_path}")
+            raise FileNotFoundError(f"Config file not found: {json_path}")
 
-    @classmethod
-    def get(cls) -> "Configuration":
-        """Get the current singleton config instance, or raise if not set."""
-        global cfg
-        if cfg is None:
-            raise RuntimeError("Configuration not loaded. Call Config.load(path) or Config.set(config) first.")
-        return cfg
+        with open(json_file, "r", encoding="utf-8") as f:
+            config_dict = json.load(f)
+
+        if "CuMind" not in config_dict:
+            log.critical("Root key 'CuMind' not found in config file.")
+            raise ValueError("Root key 'CuMind' not found in config file.")
+
+        config_params = config_dict["CuMind"]
+
+        # Automatically instantiate all dataclass fields from JSON
+        section_configs = {}
+        for field_name, field_def in cls.__dataclass_fields__.items():
+            field_type = _resolve_field_type(field_def)
+            if field_name in config_params:
+                if isinstance(field_type, type) and dataclasses.is_dataclass(field_type):
+                    section_configs[field_name] = field_type(**config_params[field_name])
+                else:
+                    section_configs[field_name] = config_params[field_name]
+            else:
+                log.warning(f"Config field '{field_name}' not found in config file. Using default value.")
+        # If a field is missing from the config file, dataclasses will use the default_factory/default value.
+        log.info("Configuration loaded successfully.")
+        return cls(**section_configs)
+
+    def _to_json(self, json_path: str) -> None:
+        """Saves the configuration to a JSON file."""
+        log.info(f"Saving configuration to {json_path}...")
+        json_file = Path(json_path)
+        json_file.parent.mkdir(parents=True, exist_ok=True)
+
+        config_dict = dataclasses.asdict(self)
+        organized_config = {}
+
+        for k, v in config_dict.items():
+            if hasattr(v, "__dataclass_fields__"):
+                organized_config[k] = dataclasses.asdict(v)
+            else:
+                organized_config[k] = v
+
+        final_config = {"CuMind": organized_config}
+
+        # Dump to string first
+        json_str = json.dumps(final_config, indent=2)
+        # Compact single-element lists: [\n  4\n] -> [4]
+        json_str = re.sub(r"\[\s*([\d.eE+-]+)\s*\]", r"[\1]", json_str)
+
+        with open(json_file, "w", encoding="utf-8") as f:
+            f.write(json_str)
+            f.write("\n")
+
+        log.info("Configuration saved successfully.")
 
 
 # Singleton instance for configuration
