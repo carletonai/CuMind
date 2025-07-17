@@ -124,9 +124,6 @@ class Logger:
     def critical(self, msg: str, *args: Any, **kwargs: Any) -> None:
         self._logger.critical(msg, *args, **kwargs)
 
-    def log(self, level: int, msg: str, *args: Any, **kwargs: Any) -> None:
-        self._logger.log(level, msg, *args, **kwargs)
-
     def log_scalar(self, name: str, value: float, step: int) -> None:
         self.info(f"Step {step:4d}: {name} = {value:.6f}")
         if self.use_wandb:
@@ -152,7 +149,7 @@ class Logger:
         with type(self)._lock:
             if self._console_handler is None:
                 self._console_handler = logging.StreamHandler(sys.stdout)
-                self._console_handler.setFormatter(self._formatter)
+                self._console_handler.setFormatter(ColorFormatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p"))
                 self._logger.addHandler(self._console_handler)
                 self.info("Console output opened")
 
@@ -177,6 +174,21 @@ class Logger:
             handler.close()
             self._logger.removeHandler(handler)
         logging.shutdown()
+
+
+class ColorFormatter(logging.Formatter):
+    COLORS = {
+        'DEBUG': '\033[36m',    # Cyan
+        'INFO': '\033[32m',     # Green
+        'WARNING': '\033[33m',  # Yellow
+        'ERROR': '\033[31m',    # Red
+        'CRITICAL': '\033[41m', # Red background
+    }
+    RESET = '\033[0m'
+    def format(self, record):
+        color = self.COLORS.get(record.levelname, '')
+        msg = super().format(record)
+        return f"{color}{msg}{self.RESET}"
 
 
 # Singleton instance
