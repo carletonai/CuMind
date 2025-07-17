@@ -1,10 +1,4 @@
-from cumind.config import Config
-
-
-def main() -> None:
-    config = Config()
-    config.to_json("configuration.json")
-
+from cumind.utils.config import cfg
 
 if __name__ == "__main__":
-    main()
+    cfg.save("configuration.json")
