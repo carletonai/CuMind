@@ -1,6 +1,6 @@
 """CuMind: A modular reinforcement learning framework."""
 
-__version__ = "0.1.7"
+__version__ = "0.1.8"
 
 # Most commonly used components
 from .agent import Agent, inference, train

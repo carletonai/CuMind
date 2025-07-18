@@ -2,6 +2,15 @@ CuMind Release Notes
 -------------------------------------------------------------------
 Document all technical changes introduced in this release as concise bullet points below.
 
+v0.1.8 (2025-07-18)
+----------------------
+Tarek Ibrahim (68)
+- Major configuration refactor: unified and simplified config, key, logger management
+- Refactored agent, core, and data modules for consistency with new config structure
+- Replaced explicit relative imports for absolute imports
+- Added standard output coloring for logs
+- Enhanced code quality: 126 passing tests, 86% code coverage
+- Decoupled neural network code in core/
 
 v0.1.7 (2025-07-15)
 ----------------------

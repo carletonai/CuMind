@@ -3,8 +3,8 @@
 # =========================
 [project]
 name = "cumind"
-version = "0.1.7"
-description = "CUAIS CuMind implementation"
+version = "0.1.8"
+description = "A JAX-based CuMind is a JAX-based RL framework inspired by Google DeepMind. Achieve's superhuman performance in complex domains without pretraining nor prior knowledge of their rules."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
