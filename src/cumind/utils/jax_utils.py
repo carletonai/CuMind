@@ -6,7 +6,7 @@ import chex
 import jax
 import jax.numpy as jnp
 
-from .logger import log
+from cumind.utils.logger import log
 
 
 def tree_stack(trees: Sequence[Any]) -> Any:
