@@ -1,16 +1,22 @@
 {
   "CuMind": {
+    "networks": {
+      "hidden_dim": 128
+    },
     "representation": {
       "type": "cumind.core.resnet.ResNet",
       "num_blocks": 2,
-      "conv_channels": 32
+      "conv_channels": 32,
+      "seed": 42
     },
     "dynamics": {
       "type": "cumind.core.mlp.MLPWithEmbedding",
-      "num_blocks": 2
+      "num_blocks": 2,
+      "seed": 42
     },
     "prediction": {
-      "type": "cumind.core.mlp.MLPDual"
+      "type": "cumind.core.mlp.MLPDual",
+      "seed": 42
     },
     "memory": {
       "type": "cumind.data.memory.MemoryBuffer",
@@ -20,9 +26,6 @@
       "per_alpha": 0.6,
       "per_epsilon": 1e-06,
       "per_beta": 0.4
-    },
-    "networks": {
-      "hidden_dim": 128
     },
     "training": {
       "optimizer": "optax.adamw",
@@ -56,11 +59,12 @@
       "action": "int32",
       "target": "float32"
     },
-    "logger": {
-      "log_dir": "logs",
+    "logging": {
+      "dir": "logs",
       "level": "INFO",
-      "log_console": false,
-      "use_timestamp": true
+      "console": true,
+      "timestamps": false,
+      "tqdm": false
     },
     "device": "cpu",
     "seed": 42

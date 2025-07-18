@@ -3,7 +3,7 @@
 import logging
 import sys
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -14,36 +14,11 @@ from cumind.utils.config import cfg
 
 
 class Logger:
-    """A singleton logger that provides a unified, configurable interface.
-
-    The Logger is implemented as a singleton, meaning that it is configured
-    only once when the first instance is created. Subsequent calls to the
-    constructor will return the already-existing instance without
-    re-initializing it. This ensures a single, consistent logging setup
-    throughout the application.
-
-    The primary way to use the logger is through the `log` object, which
-    provides a direct, convenient interface.
-
-    Usage:
-        from cumind.utils.logger import log
-
-        # Use the `log` object directly - no setup required!
-        def my_function():
-            log.info("This is an informational message.")
-            log.debug("This is a debug message.")
-
-        # You can change the log level at runtime if needed.
-        log.set_level("DEBUG")
-        my_function()
-    """
+    """A singleton logger that provides a unified, configurable interface."""
 
     _instance: Optional["Logger"] = None
     _initialized: bool = False
     _lock: threading.RLock = threading.RLock()
-
-    FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
-    DATEFMT = "%I:%M:%S %p"
 
     def __new__(cls, *args: Any, **kwargs: Any) -> "Logger":
         if cls._instance is None:
@@ -51,49 +26,53 @@ class Logger:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
                     cls._instance._initialized = False
+                    # Initialize the instance immediately
+                    cls._instance._initialize(*args, **kwargs)
         return cls._instance
 
-    @classmethod
-    def instance(cls) -> "Logger":
-        """Get the singleton instance of Logger."""
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = cls()
-            return cls._instance
-
-    def __init__(
+    def _initialize(
         self,
-        log_dir: str = cfg.logger.log_dir,
-        level: str = cfg.logger.level,
-        log_console: bool = cfg.logger.log_console,
-        use_timestamp: bool = cfg.logger.use_timestamp,
+        cfg: Optional[cfg] = None,
+        dir: str = "logs",
+        level: str = "INFO",
+        console: bool = False,
+        timestamps: bool = True,
         wandb_config: Optional[Dict[str, Any]] = None,
         tensorboard_config: Optional[Dict[str, Any]] = None,
-    ):
-        """Initialize and configure the logger. This method runs only once."""
-        if type(self)._initialized:
-            return
+    ) -> None:
+        """Initialize the logger instance."""
+
+        if cfg is not None:
+            dir = cfg.logging.dir
+            level = cfg.logging.level
+            console = cfg.logging.console
+            timestamps = cfg.logging.timestamps
 
         self._logger = logging.getLogger("CuMindLogger")
         self.tb_writer: Optional[Any] = None
         self._console_handler: Optional[logging.StreamHandler[Any]] = None
 
+        if not timestamps:
+            self.FORMAT = "%(levelname)s - %(message)s"
+            self.DATEFMT = ""
+        else:
+            self.FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+            self.DATEFMT = "%I:%M:%S %p"
+
         # Single formatter for all handlers
-        self._formatter = logging.Formatter(self.FORMAT, datefmt=self.DATEFMT)  # %(name)s sub logger
+        self._formatter = logging.Formatter(self.FORMAT, datefmt=self.DATEFMT)
 
         # Setup file handler
-        if use_timestamp:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.log_dir = Path(log_dir) / timestamp
-        else:
-            self.log_dir = Path(log_dir)
+
+        self.start_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_dir = Path(dir) / self.start_time
         self.log_dir.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(self.log_dir / "training.log")
         file_handler.setFormatter(self._formatter)
         self._logger.addHandler(file_handler)
 
         # Setup console handler if requested
-        if log_console:
+        if console:
             self.open()
 
         self.set_level(level)
@@ -109,75 +88,115 @@ class Logger:
             self.tb_writer = tb.summary.create_file_writer(str(self.log_dir))
 
         type(self)._initialized = True
-        self.info(f"Unified logger initialized. Logging to: {self.log_dir}")
 
-    def debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
-        self._logger.debug(msg, *args, **kwargs)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Constructor - initialization is handled in __new__."""
+        pass
 
-    def info(self, msg: str, *args: Any, **kwargs: Any) -> None:
-        self._logger.info(msg, *args, **kwargs)
+    @classmethod
+    def _get_instance(cls) -> "Logger":
+        """Get the singleton instance, creating it if necessary."""
+        if cls._instance is None:
+            cls()
+        assert cls._instance is not None
+        return cls._instance
 
-    def warning(self, msg: str, *args: Any, **kwargs: Any) -> None:
-        self._logger.warning(msg, *args, **kwargs)
+    @classmethod
+    def debug(cls, msg: str, *args: Any, **kwargs: Any) -> None:
+        cls._get_instance()._logger.debug(msg, *args, **kwargs)
 
-    def error(self, msg: str, *args: Any, **kwargs: Any) -> None:
-        self._logger.error(msg, *args, **kwargs)
+    @classmethod
+    def info(cls, msg: str, *args: Any, **kwargs: Any) -> None:
+        cls._get_instance()._logger.info(msg, *args, **kwargs)
 
-    def exception(self, msg: str, *args: Any, **kwargs: Any) -> None:
-        self._logger.exception(msg, *args, **kwargs)
+    @classmethod
+    def warning(cls, msg: str, *args: Any, **kwargs: Any) -> None:
+        cls._get_instance()._logger.warning(msg, *args, **kwargs)
 
-    def critical(self, msg: str, *args: Any, **kwargs: Any) -> None:
-        self._logger.critical(msg, *args, **kwargs)
+    @classmethod
+    def error(cls, msg: str, *args: Any, **kwargs: Any) -> None:
+        cls._get_instance()._logger.error(msg, *args, **kwargs)
 
-    def log_scalar(self, name: str, value: float, step: int) -> None:
-        self.info(f"Step {step:4d}: {name} = {value:.6f}")
-        if self.use_wandb:
+    @classmethod
+    def exception(cls, msg: str, *args: Any, **kwargs: Any) -> None:
+        cls._get_instance()._logger.exception(msg, *args, **kwargs)
+
+    @classmethod
+    def critical(cls, msg: str, *args: Any, **kwargs: Any) -> None:
+        cls._get_instance()._logger.critical(msg, *args, **kwargs)
+
+    @classmethod
+    def log_scalar(cls, name: str, value: float, step: int) -> None:
+        instance = cls._get_instance()
+        cls.info(f"Step {step:4d}: {name} = {value:.6f}")
+        if instance.use_wandb:
             wandb.log({name: value}, step=step)
-        if self.use_tensorboard and self.tb_writer:
-            with self.tb_writer.as_default():
+        if instance.use_tensorboard and instance.tb_writer:
+            with instance.tb_writer.as_default():
                 tb.summary.scalar(name, value, step=step)
 
-    def log_scalars(self, metrics: Dict[str, float], step: int) -> None:
+    @classmethod
+    def log_scalars(cls, metrics: Dict[str, float], step: int) -> None:
         for name, value in metrics.items():
-            self.log_scalar(name, value, step)
+            cls.log_scalar(name, value, step)
 
-    def set_level(self, level: str) -> None:
+    @classmethod
+    def set_level(cls, level: str) -> None:
         """Change the logging level at runtime.
         Args:
             level: The new logging level (e.g., "DEBUG", "INFO").
         """
-        self._logger.setLevel(getattr(logging, level.upper(), logging.INFO))
-        self.info(f"Logger level set to {level.upper()}")
+        instance = cls._get_instance()
+        instance._logger.setLevel(getattr(logging, level.upper(), logging.INFO))
+        cls.info(f"Logger level set to {level.upper()}")
 
-    def open(self) -> None:
+    @classmethod
+    def open(cls) -> None:
         """Open console output for logging to stdout."""
-        with type(self)._lock:
-            if self._console_handler is None:
-                self._console_handler = logging.StreamHandler(sys.stdout)
-                self._console_handler.setFormatter(ColorFormatter(self.FORMAT, datefmt=self.DATEFMT))
-                self._logger.addHandler(self._console_handler)
-                self.info("Console output opened")
+        with cls._lock:
+            instance = cls._get_instance()
+            if instance._console_handler is None:
+                instance._console_handler = logging.StreamHandler(sys.stdout)
+                # Use instance's FORMAT/DATEFMT, not class variables
+                instance._console_handler.setFormatter(ColorFormatter(instance.FORMAT, datefmt=instance.DATEFMT))
+                instance._logger.addHandler(instance._console_handler)
+                cls.info("Console output opened")
 
-    def close(self) -> None:
+    @classmethod
+    def close(cls) -> None:
         """Close console output for logging to stdout."""
-        with type(self)._lock:
-            if self._console_handler is not None:
-                self._logger.removeHandler(self._console_handler)
-                self._console_handler.close()
-                self._console_handler = None
-                self.info("Console output closed")
+        with cls._lock:
+            instance = cls._get_instance()
+            if instance._console_handler is not None:
+                instance._logger.removeHandler(instance._console_handler)
+                instance._console_handler.close()
+                instance._console_handler = None
+                cls.info("Console output closed")
 
-    def shutdown(self) -> None:
+    @classmethod
+    def elapsed(cls) -> timedelta:
+        """Return the elapsed time since logger start as a timedelta."""
+        start = datetime.strptime(cls._get_instance().start_time, "%Y%m%d_%H%M%S")
+        end = datetime.now()
+        return end - start
+
+    @classmethod
+    def shutdown(cls) -> None:
         """Close logger and cleanup resources."""
-        if self.use_wandb and wandb.run is not None:
-            wandb.finish()
-        if self.use_tensorboard and self.tb_writer is not None:
-            self.tb_writer.close()
+        instance = cls._get_instance()
 
-        self.info("Closing logger handlers and shutting down logging system.")
-        for handler in self._logger.handlers[:]:
+        elapsed = instance.elapsed()
+        instance._logger.info(f"Logging Session ran for {elapsed}.")
+
+        if instance.use_wandb and wandb.run is not None:
+            wandb.finish()
+        if instance.use_tensorboard and instance.tb_writer is not None:
+            instance.tb_writer.close()
+
+        cls.info("Closing logger handlers and shutting down logging system.")
+        for handler in instance._logger.handlers[:]:
             handler.close()
-            self._logger.removeHandler(handler)
+            instance._logger.removeHandler(handler)
         logging.shutdown()
 
 
@@ -197,5 +216,5 @@ class ColorFormatter(logging.Formatter):
         return f"{color}{msg}{self.RESET}"
 
 
-# Singleton instance
-log = Logger.instance()
+# Alias
+log = Logger

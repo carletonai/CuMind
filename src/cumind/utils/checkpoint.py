@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, cast
 
-from .logger import log
+from cumind.utils.logger import log
 
 
 def save_checkpoint(state: Dict[str, Any], path: str) -> None:
@@ -60,7 +60,7 @@ def find_latest_checkpoint_in_dir(checkpoint_dir: str) -> Optional[str]:
     return str(latest_file)
 
 
-def get_available_checkpoints(root_dir: str) -> Dict[str, List[Tuple[str, datetime]]]:
+def latest_checkpoints(root_dir: str) -> Dict[str, List[Tuple[str, datetime]]]:
     """Scans for available checkpoints and returns a structured dictionary."""
     root_path = Path(root_dir)
     checkpoints: Dict[str, List[Tuple[str, datetime]]] = {}
