@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!./.venv/bin/python3.12
 import datetime
 import os
 import re
