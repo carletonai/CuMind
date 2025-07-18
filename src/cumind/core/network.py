@@ -5,20 +5,19 @@ from typing import Callable, Tuple
 import chex
 from flax import nnx
 
-from ..utils.logger import log
+from cumind.utils.logger import log
 
 
 class CuMindNetwork(nnx.Module):
     """The complete CuMind network, combining representation, dynamics, and prediction."""
 
-    def __init__(self, representation_network: Callable[[chex.Array], chex.Array], dynamics_network: Callable[[chex.Array, chex.Array], Tuple[chex.Array, chex.Array]], prediction_network: Callable[[chex.Array], Tuple[chex.Array, chex.Array]], rngs: nnx.Rngs):
+    def __init__(self, representation_network: Callable[[chex.Array], chex.Array], dynamics_network: Callable[[chex.Array, chex.Array], Tuple[chex.Array, chex.Array]], prediction_network: Callable[[chex.Array], Tuple[chex.Array, chex.Array]]):
         """Initializes the complete CuMind network.
 
         Args:
             representation_network: The network responsible for encoding observations into latent representations.
             dynamics_network: The network that models environment dynamics in the latent space.
             prediction_network: The network that predicts policy and value from latent states.
-            rngs: Random number generators for layer initialization.
         """
         log.info(f"Initializing CuMindNetwork with representation_network={type(representation_network).__name__}, dynamics_network={type(dynamics_network).__name__}, prediction_network={type(prediction_network).__name__}")
         self.representation_network = representation_network
