@@ -2,19 +2,16 @@
   "CuMind": {
     "representation": {
       "type": "cumind.core.resnet.ResNet",
-      "hidden_dim": 128,
       "num_blocks": 2,
-      "conv_channels": 32
+      "conv_channels": 32,
+      "hidden_dim": 128
     },
     "dynamics": {
       "type": "cumind.core.mlp.MLPWithEmbedding",
-      "hidden_dim": 128,
       "num_blocks": 2
     },
     "prediction": {
-      "type": "cumind.core.mlp.MLPDual",
-      "hidden_dim": 128,
-      "num_blocks": 2
+      "type": "cumind.core.mlp.MLPDual"
     },
     "memory": {
       "type": "cumind.data.memory.MemoryBuffer",
@@ -24,6 +21,9 @@
       "per_alpha": 0.6,
       "per_epsilon": 1e-06,
       "per_beta": 0.4
+    },
+    "networks": {
+      "hidden_dim": 128
     },
     "training": {
       "optimizer": "optax.adamw",

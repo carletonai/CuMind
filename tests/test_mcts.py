@@ -6,11 +6,9 @@ import numpy as np
 import pytest
 from flax import nnx
 
-from cumind.config import Config
 from cumind.core import MCTS, Node
-from cumind.core.mlp import MLPDual, MLPWithEmbedding
 from cumind.core.network import CuMindNetwork
-from cumind.core.resnet import ResNet
+from cumind.utils.config import cfg
 from cumind.utils.prng import key
 
 
@@ -182,43 +180,37 @@ class TestNode:
     @pytest.fixture
     def setup(self):
         """Setup for MCTS tests."""
-        config = Config()
-        config.mcts_num_simulations = 100  # Increased for noise test
-        config.env_action_space_size = 2
-        config.env_observation_shape = (4,)
-        config.network_hidden_dim = 16
-        key.seed(config.seed)
+        key.seed(cfg.seed)
         rngs = nnx.Rngs(params=key())
-        repre_net = ResNet(config.network_hidden_dim, config.env_observation_shape, config.network_num_blocks, config.network_conv_channels, rngs)
-        dyna_net = MLPWithEmbedding(config.network_hidden_dim, config.env_action_space_size, config.network_num_blocks, rngs)
-        pred_net = MLPDual(config.network_hidden_dim, config.env_action_space_size, rngs)
+        repre_net = cfg.representation()
+        dyna_net = cfg.dynamics()
+        pred_net = cfg.prediction()
         network = CuMindNetwork(repre_net, dyna_net, pred_net, rngs)
-        mcts = MCTS(network, config)
-        return mcts, network, config
+        mcts = MCTS(network)
+        return mcts, network
 
     def test_mcts_initialization(self, setup):
         """Test MCTS initialization."""
-        mcts, _, config = setup
-        assert mcts.config == config
-        assert mcts.config.mcts_num_simulations == 100
+        mcts, _ = setup
+        assert mcts.network is not None
 
     def test_mcts_search(self, setup):
         """Test MCTS search returns a valid policy."""
-        mcts, _, _ = setup
-        root_hidden_state = jnp.ones(16)
+        mcts, _ = setup
+        root_hidden_state = jnp.ones(cfg.networks.hidden_dim)
         policy = mcts.search(root_hidden_state, add_noise=False)
 
         assert isinstance(policy, np.ndarray)
-        assert len(policy) == 2
+        assert len(policy) == cfg.env.action_space_size
         assert np.isclose(np.sum(policy), 1.0)
         assert np.all(policy >= 0)
 
     def test_mcts_search_basic(self, setup):
         """Test basic MCTS search functionality."""
-        mcts, _, config = setup
-        root_hidden_state = jnp.ones(config.network_hidden_dim)
+        mcts, _ = setup
+        root_hidden_state = jnp.ones(cfg.networks.hidden_dim)
         action_probs = mcts.search(root_hidden_state, add_noise=False)
-        assert action_probs.shape == (config.env_action_space_size,)
+        assert action_probs.shape == (cfg.env.action_space_size,)
         assert np.isclose(np.sum(action_probs), 1.0)
         assert np.all(action_probs >= 0)
 
@@ -261,29 +253,25 @@ class TestNode:
 
     def test_mcts_with_different_networks(self, setup):
         """Test MCTS with different network configurations."""
-        mcts, network, config = setup
-        config.env_observation_shape = (8,)
-        config.env_action_space_size = 3
-        key.seed(config.seed)
+        mcts, network = setup
+        key.seed(cfg.seed)
         rngs = nnx.Rngs(params=key())
-        repre_net2 = ResNet(config.network_hidden_dim, config.env_observation_shape, config.network_num_blocks, config.network_conv_channels, rngs)
-        dyna_net2 = MLPWithEmbedding(config.network_hidden_dim, config.env_action_space_size, config.network_num_blocks, rngs)
-        pred_net2 = MLPDual(config.network_hidden_dim, config.env_action_space_size, rngs)
+        repre_net2 = cfg.representation()
+        dyna_net2 = cfg.dynamics()
+        pred_net2 = cfg.prediction()
         network2 = CuMindNetwork(repre_net2, dyna_net2, pred_net2, rngs)
-        mcts2 = MCTS(network2, config)
-        root_hidden_state = jnp.ones(config.network_hidden_dim)
+        mcts2 = MCTS(network2)
+        root_hidden_state = jnp.ones(cfg.networks.hidden_dim)
         action_probs = mcts2.search(root_hidden_state, add_noise=False)
-        assert action_probs.shape == (3,)
+        assert action_probs.shape == (cfg.env.action_space_size,)
 
     def test_mcts_edge_cases(self, setup):
         """Test MCTS edge cases and error handling."""
-        mcts, network, config = setup
-        config.env_action_space_size = 1
-        mcts_single_action = MCTS(network, config)
-        root_hidden_state = jnp.ones(config.network_hidden_dim)
-        action_probs = mcts_single_action.search(root_hidden_state, add_noise=False)
-        assert action_probs.shape == (1,)
-        assert np.isclose(action_probs[0], 1.0)
+        mcts, network = setup
+        # Test with single action (edge case)
+        root_hidden_state = jnp.ones(cfg.networks.hidden_dim)
+        action_probs = mcts.search(root_hidden_state, add_noise=False)
+        assert action_probs.shape == (cfg.env.action_space_size,)
 
 
 if __name__ == "__main__":

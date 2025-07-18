@@ -1,6 +1,6 @@
 """CuMind agent implementation."""
 
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -8,11 +8,9 @@ import numpy as np
 import optax  # type: ignore
 from flax import nnx
 
-from ..config import Config
 from ..core.mcts import MCTS
-from ..core.mlp import MLPDual, MLPWithEmbedding
 from ..core.network import CuMindNetwork
-from ..core.resnet import ResNet
+from ..utils.config import cfg
 from ..utils.logger import log
 from ..utils.prng import key
 
@@ -20,35 +18,30 @@ from ..utils.prng import key
 class Agent:
     """CuMind agent for training and inference."""
 
-    def __init__(self, config: Config, existing_state: Dict[str, Any] | None = None):
+    def __init__(self, existing_state: Optional[Dict[str, Any]] = None):
         """Initialize CuMind agent with network, optimizer, and MCTS.
 
         Args:
-            config: Config with network architecture and training parameters.
             existing_state: Optional dictionary to load agent state from.
         """
         log.info("Initializing CuMind agent...")
-        self.config = config
 
-        self.device = jax.devices(config.device)[0]
+        self.device = jax.devices(cfg.device)[0]
 
         log.info(f"Using device: {self.device}")
 
-        log.info(f"Creating CuMindNetwork with observation shape {config.env_observation_shape} and action space size {config.env_action_space_size}")
-        key.seed(config.seed)
+        log.info(f"Creating CuMindNetwork with observation shape {cfg.env.observation_shape} and action space size {cfg.env.action_space_size}")
+        key.seed(cfg.seed)
         rngs = nnx.Rngs(params=key())
 
         with jax.default_device(self.device):
-            representation_network = ResNet(config.network_hidden_dim, config.env_observation_shape, config.network_num_blocks, config.network_conv_channels, rngs)
-            dynamics_network = MLPWithEmbedding(config.network_hidden_dim, config.env_action_space_size, config.network_num_blocks, rngs)
-            prediction_network = MLPDual(config.network_hidden_dim, config.env_action_space_size, rngs)
-            self.network = CuMindNetwork(representation_network=representation_network, dynamics_network=dynamics_network, prediction_network=prediction_network, rngs=rngs)
+            self.network = CuMindNetwork(representation_network=cfg.representation(), dynamics_network=cfg.dynamics(), prediction_network=cfg.prediction(), rngs=rngs)
 
             log.info("Creating target network.")
             self.target_network = nnx.clone(self.network)
 
-            log.info(f"Setting up AdamW optimizer with learning rate {config.training_learning_rate} and weight decay {config.training_weight_decay}")
-            self.optimizer = optax.adamw(learning_rate=config.training_learning_rate, weight_decay=config.training_weight_decay)
+            log.info(f"Setting up AdamW optimizer with learning rate {cfg.training.learning_rate} and weight decay {cfg.training.weight_decay}")
+            self.optimizer = optax.adamw(learning_rate=cfg.training.learning_rate, weight_decay=cfg.training.weight_decay)
 
             if existing_state:
                 log.info("Loading agent state from existing state.")
@@ -57,8 +50,7 @@ class Agent:
                 log.info("Initializing new optimizer state.")
                 self.optimizer_state = self.optimizer.init(nnx.state(self.network, nnx.Param))
 
-        log.info("Initializing MCTS.")
-        self.mcts = MCTS(self.network, config)
+        self.mcts = MCTS(self.network)
         log.info("Agent initialization complete.")
 
     def select_action(self, observation: np.ndarray, training: bool = False) -> Tuple[int, np.ndarray]:

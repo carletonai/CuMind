@@ -4,9 +4,9 @@ import argparse
 import os
 from typing import Optional
 
-from .config import Config
 from .runner import inference, train
 from .utils.checkpoint import get_available_checkpoints
+from .utils.config import cfg
 from .utils.logger import log
 
 
@@ -60,21 +60,18 @@ def main() -> None:
     args = parse_arguments()
     config_path = args.config
     if not os.path.exists(config_path):
-        log.info(f"Default config not found at {config_path}. Using default parameters.")
-        config = Config()
-        config.to_json(config_path)
+        log.info(f"Default config not found at {config_path}. Creating default config there.")
+        cfg.save(config_path)
     else:
-        config = Config.from_json(config_path)
+        cfg.load(config_path)
 
     checkpoint_path = select_checkpoint()
 
     if checkpoint_path:
         log.info(f"Loading from checkpoint: {checkpoint_path}")
-        config.validate()
-        inference(config, checkpoint_path)
+        inference(checkpoint_path)
     else:
         log.info("Starting a new run.")
-        config.validate()
-        train(config)
+        train()
 
     log.close()

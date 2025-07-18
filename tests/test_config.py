@@ -1,13 +1,11 @@
 """Test suite for CuMind configuration system."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
-from src.cumind.core.mlp import MLPDual, MLPWithEmbedding
-from src.cumind.core.resnet import ResNet
-from src.cumind.data.memory import MemoryBuffer
-from src.cumind.utils.config import (
+from cumind.core.resnet import ResNet
+from cumind.utils.config import (
     Configuration,
     DynamicsConfig,
     HotSwappableConfig,
@@ -16,7 +14,7 @@ from src.cumind.utils.config import (
     RepresentationConfig,
     cfg,
 )
-from src.cumind.utils.prng import key
+from cumind.utils.prng import key
 
 
 class TestHotSwappableConfig:
@@ -52,6 +50,7 @@ class TestRepresentationConfig:
 
     def test_representation_config_extras(self):
         """Test RepresentationConfig extras method."""
+        key.seed(cfg.seed)
         config = RepresentationConfig()
         extras = config.extras()
 
@@ -250,7 +249,7 @@ class TestDynamicResolution:
 
     def test_resolve_not_called_for_class_types(self):
         """Test that resolve is not called for class types."""
-        with patch("src.cumind.utils.resolve.resolve") as mock_resolve:
+        with patch("cumind.utils.resolve.resolve") as mock_resolve:
             config = RepresentationConfig(type=ResNet)
             key.seed(cfg.seed)
             config()

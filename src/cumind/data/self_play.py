@@ -3,7 +3,6 @@
 from typing import Any, Dict, List
 
 from ..agent.agent import Agent
-from ..config import Config
 from ..utils.logger import log
 from .memory import Memory
 
@@ -11,16 +10,14 @@ from .memory import Memory
 class SelfPlay:
     """Self-play runner: collects game data and stores it in a buffer."""
 
-    def __init__(self, config: Config, agent: Agent, memory: Memory):
+    def __init__(self, agent: Agent, memory: Memory):
         """Initialize self-play runner.
 
         Args:
-            config: CuMind configuration.
             agent: Agent for self-play.
             memory: Buffer to store collected data.
         """
         log.info("Initializing SelfPlay runner.")
-        self.config = config
         self.agent = agent
         self.memory = memory
 
