@@ -1,5 +1,7 @@
 """Test suite for CuMind configuration system."""
 
+import os
+import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -15,6 +17,15 @@ from cumind.utils.config import (
     cfg,
 )
 from cumind.utils.prng import key
+
+
+@pytest.fixture(autouse=True)
+def reset_config():
+    """Reset the configuration singleton before and after each test."""
+    # Reset the singleton instance
+    Configuration._instance = None
+    yield
+    Configuration._instance = None
 
 
 class TestHotSwappableConfig:
@@ -168,8 +179,6 @@ class TestMemoryConfig:
         extras = config.extras()
 
         # MemoryConfig extras should be empty since dataclass fields are handled by base class
-        for item in extras:
-            print(item)
         assert extras == {}
 
     def test_memory_config_instantiation(self):
@@ -195,9 +204,11 @@ class TestConfigurationIntegration:
 
     def test_configuration_singleton(self):
         """Test that cfg is a singleton instance."""
-        assert isinstance(cfg, Configuration)
-        # Use the global cfg instance directly
-        assert cfg is cfg
+        # cfg is the Configuration class itself due to metaclass
+        assert cfg is Configuration
+        # The actual instance should be accessible
+        instance = cfg._get_instance()
+        assert isinstance(instance, Configuration)
 
     def test_configuration_hot_swappable_modules(self):
         """Test that all hot-swappable modules are properly configured."""
@@ -226,6 +237,62 @@ class TestConfigurationIntegration:
         """Test that configuration validation works."""
         # This should not raise any errors
         cfg._validate()
+
+
+class TestConfigurationLoading:
+    """Test configuration loading and saving functionality."""
+
+    def test_load_default_config(self):
+        """Test loading default configuration."""
+        # Reset singleton
+        Configuration._instance = None
+
+        # cfg should be the Configuration class
+        assert cfg is Configuration
+        # The instance should be created when accessed
+        instance = cfg._get_instance()
+        assert isinstance(instance, Configuration)
+
+    def test_load_from_json(self):
+        """Test loading configuration from JSON file."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            config_data = {"CuMind": {"networks": {"hidden_dim": 256}, "env": {"name": "TestEnv", "action_space_size": 4, "observation_shape": [8]}, "seed": 123}}
+            import json
+
+            json.dump(config_data, f)
+            config_path = f.name
+
+        try:
+            # Load the config
+            cfg.load(config_path)
+
+            # Verify the loaded values
+            assert cfg.networks.hidden_dim == 256
+            assert cfg.env.name == "TestEnv"
+            assert cfg.env.action_space_size == 4
+            assert cfg.env.observation_shape == (8,)
+            assert cfg.seed == 123
+        finally:
+            os.unlink(config_path)
+
+    def test_save_config(self):
+        """Test saving configuration to JSON file."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            config_path = f.name
+
+        try:
+            # Save the current config
+            cfg.save(config_path)
+
+            # Verify file was created and contains valid JSON
+            assert os.path.exists(config_path)
+            with open(config_path, "r") as f:
+                import json
+
+                saved_config = json.load(f)
+                assert "CuMind" in saved_config
+        finally:
+            os.unlink(config_path)
 
 
 class TestDynamicResolution:

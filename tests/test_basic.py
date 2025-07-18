@@ -3,7 +3,6 @@
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from flax import nnx
 
 from cumind.agent.agent import Agent
 from cumind.core.network import CuMindNetwork
@@ -15,20 +14,18 @@ from cumind.utils.prng import key
 @pytest.fixture(autouse=True)
 def reset_prng_manager_singleton():
     """Reset the PRNGManager singleton before and after each test."""
-    key.reset()
+    key.seed(42)  # Initialize with a default seed
     yield
-    key.reset()
 
 
 def test_network_creation():
     """Test network creation and basic functionality."""
     key.seed(42)
-    rngs = nnx.Rngs(params=key())
 
     repre_net = cfg.representation()
     dyna_net = cfg.dynamics()
     pred_net = cfg.prediction()
-    network = CuMindNetwork(repre_net, dyna_net, pred_net, rngs)
+    network = CuMindNetwork(repre_net, dyna_net, pred_net)
 
     assert hasattr(network, "representation_network")
     assert hasattr(network, "dynamics_network")
@@ -38,12 +35,11 @@ def test_network_creation():
 def test_network_inference():
     """Test network inference functionality."""
     key.seed(42)
-    rngs = nnx.Rngs(params=key())
 
     repre_net = cfg.representation()
     dyna_net = cfg.dynamics()
     pred_net = cfg.prediction()
-    network = CuMindNetwork(repre_net, dyna_net, pred_net, rngs)
+    network = CuMindNetwork(repre_net, dyna_net, pred_net)
 
     # Test initial inference
     batch_size = 2
