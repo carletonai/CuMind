@@ -56,6 +56,12 @@
       "action": "int32",
       "target": "float32"
     },
+    "logger": {
+      "log_dir": "logs",
+      "level": "INFO",
+      "log_console": false,
+      "use_timestamp": true
+    },
     "device": "cpu",
     "seed": 42
   }

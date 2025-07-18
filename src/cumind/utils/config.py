@@ -166,6 +166,16 @@ class DataTypesConfig:
 
 
 @dataclasses.dataclass(frozen=True)
+class LoggerConfig:
+    """Configuration for logger."""
+
+    log_dir: str = "logs"
+    level: str = "INFO"
+    log_console: bool = False
+    use_timestamp: bool = True
+
+
+@dataclasses.dataclass(frozen=True)
 class Configuration:
     _set_lock = threading.RLock()
     """Main configuration for CuMind."""
@@ -183,6 +193,7 @@ class Configuration:
     env: EnvironmentConfig = dataclasses.field(default_factory=EnvironmentConfig)
     selfplay: SelfPlayConfig = dataclasses.field(default_factory=SelfPlayConfig)
     dtypes: DataTypesConfig = dataclasses.field(default_factory=DataTypesConfig)
+    logger: LoggerConfig = dataclasses.field(default_factory=LoggerConfig)
 
     # Global settings
     device: str = "cpu"

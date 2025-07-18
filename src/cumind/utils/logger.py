@@ -10,6 +10,8 @@ from typing import Any, Dict, Optional
 import tensorboard as tb  # type: ignore
 import wandb
 
+from cumind.utils.config import cfg
+
 
 class Logger:
     """A singleton logger that provides a unified, configurable interface.
@@ -40,6 +42,9 @@ class Logger:
     _initialized: bool = False
     _lock: threading.RLock = threading.RLock()
 
+    FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+    DATEFMT = "%I:%M:%S %p"
+
     def __new__(cls, *args: Any, **kwargs: Any) -> "Logger":
         if cls._instance is None:
             with cls._lock:
@@ -58,10 +63,10 @@ class Logger:
 
     def __init__(
         self,
-        log_dir: str = "logs",
-        level: str = "INFO",
-        log_console: bool = False,
-        use_timestamp: bool = True,
+        log_dir: str = cfg.logger.log_dir,
+        level: str = cfg.logger.level,
+        log_console: bool = cfg.logger.log_console,
+        use_timestamp: bool = cfg.logger.use_timestamp,
         wandb_config: Optional[Dict[str, Any]] = None,
         tensorboard_config: Optional[Dict[str, Any]] = None,
     ):
@@ -74,7 +79,7 @@ class Logger:
         self._console_handler: Optional[logging.StreamHandler[Any]] = None
 
         # Single formatter for all handlers
-        self._formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p")  # %(name)s sub logger
+        self._formatter = logging.Formatter(self.FORMAT, datefmt=self.DATEFMT)  # %(name)s sub logger
 
         # Setup file handler
         if use_timestamp:
@@ -149,7 +154,7 @@ class Logger:
         with type(self)._lock:
             if self._console_handler is None:
                 self._console_handler = logging.StreamHandler(sys.stdout)
-                self._console_handler.setFormatter(ColorFormatter("%(asctime)s - %(levelname)s - %(message)s", datefmt="%I:%M:%S %p"))
+                self._console_handler.setFormatter(ColorFormatter(self.FORMAT, datefmt=self.DATEFMT))
                 self._logger.addHandler(self._console_handler)
                 self.info("Console output opened")
 
