@@ -22,6 +22,7 @@ class ResNet(nnx.Module):
     Raises:
         ValueError: If input_shape is not 1D (vector) or 3D (image).
     """
+
     def __init__(self, hidden_dim: int, input_shape: Tuple[int, ...], num_blocks: int, conv_channels: int, rngs: nnx.Rngs):
         self.input_shape = input_shape
         self.hidden_dim = hidden_dim

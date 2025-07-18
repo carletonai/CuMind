@@ -231,8 +231,6 @@ class TestResNet:
         net_3d = ResNet(hidden_dim, (84, 84, 3), num_blocks, conv_channels, rngs)
         assert isinstance(net_3d.encoder, ConvEncoder)
 
-
-
     def test_resnet_forward_1d(self):
         """Test ResNet with 1D observations."""
         key.seed(0)
