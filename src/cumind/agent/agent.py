@@ -8,11 +8,11 @@ import numpy as np
 import optax  # type: ignore
 from flax import nnx
 
-from ..core.mcts import MCTS
-from ..core.network import CuMindNetwork
-from ..utils.config import cfg
-from ..utils.logger import log
-from ..utils.prng import key
+from cumind.core.mcts import MCTS
+from cumind.core.network import CuMindNetwork
+from cumind.utils.config import cfg
+from cumind.utils.logger import log
+from cumind.utils.prng import key
 
 
 class Agent:
@@ -24,18 +24,15 @@ class Agent:
         Args:
             existing_state: Optional dictionary to load agent state from.
         """
-        log.info("Initializing CuMind agent...")
+        log.info("Initializing CuMind agent.")
 
         self.device = jax.devices(cfg.device)[0]
-
         log.info(f"Using device: {self.device}")
 
         log.info(f"Creating CuMindNetwork with observation shape {cfg.env.observation_shape} and action space size {cfg.env.action_space_size}")
-        key.seed(cfg.seed)
-        rngs = nnx.Rngs(params=key())
 
         with jax.default_device(self.device):
-            self.network = CuMindNetwork(representation_network=cfg.representation(), dynamics_network=cfg.dynamics(), prediction_network=cfg.prediction(), rngs=rngs)
+            self.network = CuMindNetwork(representation_network=cfg.representation(), dynamics_network=cfg.dynamics(), prediction_network=cfg.prediction())
 
             log.info("Creating target network.")
             self.target_network = nnx.clone(self.network)
@@ -75,7 +72,7 @@ class Agent:
 
         if training:
             # Sample action from probabilities
-            action_idx = int(jax.random.choice(key(), len(action_probs), p=action_probs))
+            action_idx = int(jax.random.choice(key.get(), len(action_probs), p=action_probs))
         else:
             # Take best action
             action_idx = int(np.argmax(action_probs))
