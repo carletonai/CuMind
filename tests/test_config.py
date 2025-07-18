@@ -46,7 +46,6 @@ class TestRepresentationConfig:
         assert config.type == "cumind.core.resnet.ResNet"
         assert config.num_blocks == 2
         assert config.conv_channels == 32
-        assert config.hidden_dim == 128
 
     def test_representation_config_extras(self):
         """Test RepresentationConfig extras method."""
@@ -72,13 +71,12 @@ class TestRepresentationConfig:
 
     def test_representation_config_custom_params(self):
         """Test RepresentationConfig with custom parameters."""
-        config = RepresentationConfig(num_blocks=5, conv_channels=64, hidden_dim=256)
+        config = RepresentationConfig(num_blocks=5, conv_channels=64)
         key.seed(cfg.seed)
         network = config()
 
         assert network.num_blocks == 5
         assert network.conv_channels == 64
-        assert network.hidden_dim == 256
 
 
 class TestDynamicsConfig:
