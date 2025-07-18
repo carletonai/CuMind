@@ -8,11 +8,11 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from ..utils.config import cfg
-from ..utils.logger import log
+from cumind.utils.config import cfg
+from cumind.utils.logger import log
 
 if TYPE_CHECKING:
-    from .network import CuMindNetwork
+    from cumind.core.network import CuMindNetwork
 
 
 class Node:

@@ -6,8 +6,8 @@ import chex
 import jax.numpy as jnp
 from flax import nnx
 
-from ..utils.logger import log
-from .utils import ResidualBlock
+from cumind.core.blocks import ResidualBlock
+from cumind.utils.logger import log
 
 
 class BaseEncoder(nnx.Module):

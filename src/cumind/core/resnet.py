@@ -5,7 +5,7 @@ from typing import Tuple
 import chex
 from flax import nnx
 
-from .encoder import BaseEncoder, ConvEncoder, VectorEncoder
+from cumind.core.encoder import BaseEncoder, ConvEncoder, VectorEncoder
 
 
 class ResNet(nnx.Module):

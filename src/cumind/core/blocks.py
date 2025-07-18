@@ -4,7 +4,7 @@ import chex
 import jax.numpy as jnp
 from flax import nnx
 
-from ..utils.logger import log
+from cumind.utils.logger import log
 
 
 class ResidualBlock(nnx.Module):
