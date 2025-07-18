@@ -7,7 +7,7 @@ from typing import Any, Deque, Dict, List
 
 import numpy as np
 
-from ..utils.logger import log
+from cumind.utils.logger import log
 
 
 class Memory(ABC):

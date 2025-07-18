@@ -2,9 +2,9 @@
 
 from typing import Any, Dict, List
 
-from ..agent.agent import Agent
-from ..utils.logger import log
-from .memory import Memory
+from cumind.agent.agent import Agent
+from cumind.data.memory import Memory
+from cumind.utils.logger import log
 
 
 class SelfPlay:
