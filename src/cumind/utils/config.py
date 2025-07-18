@@ -6,7 +6,7 @@ import json
 import re
 import threading
 from pathlib import Path
-from typing import Any, Optional, Tuple, Type, Union, get_args, get_origin
+from typing import Any, Optional, Tuple, Type, Union, cast, get_args, get_origin
 from typing import Dict as DictType
 
 from flax import nnx
@@ -22,7 +22,7 @@ class HotSwappableConfig:
 
     type: Optional[Union[str, Type[Any]]] = None
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         if self.type is None:
             raise ValueError("Type must be specified for hot-swappable config")
 
@@ -55,9 +55,9 @@ class RepresentationConfig(HotSwappableConfig):
     type: Optional[Union[str, Type[Any]]] = "cumind.core.resnet.ResNet"
     num_blocks: int = 2
     conv_channels: int = 32
-    hidden_dim: int = 128
 
     def extras(self) -> DictType[str, Any]:
+        hidden_dim = cfg.networks.hidden_dim
         input_shape = cfg.env.observation_shape
         rngs = nnx.Rngs(params=key())
         return locals()
@@ -188,7 +188,7 @@ class Configuration:
     device: str = "cpu"
     seed: int = 42
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         key.seed(self.seed)
         self._validate()
 
@@ -234,8 +234,8 @@ class Configuration:
         log.info("Validating configuration...")
 
         # Validate representation
-        if self.representation.hidden_dim <= 0:
-            raise ValueError(f"representation.hidden_dim must be positive, got {self.representation.hidden_dim}")
+        if self.networks.hidden_dim <= 0:
+            raise ValueError(f"representation.hidden_dim must be positive, got {self.networks.hidden_dim}")
 
         # Validate environment
         if self.env.action_space_size <= 0:
@@ -279,7 +279,7 @@ class Configuration:
     def _from_json(cls, json_path: str) -> "Configuration":
         """Loads a configuration from a JSON file."""
 
-        def _resolve_field_type(field_def):
+        def _resolve_field_type(field_def: dataclasses.Field[Any]) -> type[Any]:
             """Resolve the real type for a dataclass field, handling Optional and generics (Python 3.12+)."""
             t = field_def.type
             origin = get_origin(t)
@@ -287,8 +287,8 @@ class Configuration:
                 args = get_args(t)
                 non_none = [a for a in args if a is not type(None)]
                 if non_none:
-                    return non_none[0]
-            return t
+                    return cast(type[Any], non_none[0])
+            return cast(type[Any], t)
 
         log.info(f"Loading configuration from {json_path}...")
         json_file = Path(json_path)
@@ -318,7 +318,7 @@ class Configuration:
                 log.warning(f"Config field '{field_name}' not found in config file. Using default value.")
         # If a field is missing from the config file, dataclasses will use the default_factory/default value.
         log.info("Configuration loaded successfully.")
-        return cls(**section_configs)
+        return cls(**section_configs)  # type: ignore
 
     def _to_json(self, json_path: str) -> None:
         """Saves the configuration to a JSON file."""

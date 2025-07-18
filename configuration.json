@@ -3,8 +3,7 @@
     "representation": {
       "type": "cumind.core.resnet.ResNet",
       "num_blocks": 2,
-      "conv_channels": 32,
-      "hidden_dim": 128
+      "conv_channels": 32
     },
     "dynamics": {
       "type": "cumind.core.mlp.MLPWithEmbedding",
