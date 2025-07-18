@@ -1,6 +1,8 @@
 """Training loop implementation."""
 
+import math
 import os
+import sys
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
@@ -11,13 +13,21 @@ import optax  # type: ignore
 from flax import nnx
 from tqdm import tqdm  # type: ignore
 
-from ..core.network import CuMindNetwork
-from ..data.memory import Memory
-from ..data.self_play import SelfPlay
-from ..utils.checkpoint import load_checkpoint, save_checkpoint
-from ..utils.config import cfg
-from ..utils.logger import log
-from .agent import Agent
+from cumind.agent.agent import Agent
+from cumind.core.network import CuMindNetwork
+from cumind.data.memory import Memory
+from cumind.data.self_play import SelfPlay
+from cumind.utils.checkpoint import load_checkpoint, save_checkpoint
+from cumind.utils.config import cfg
+from cumind.utils.logger import log
+
+
+class DummyTqdmFile:
+    def write(self, _: Any) -> None:
+        pass
+
+    def flush(self) -> None:
+        pass
 
 
 class Trainer:
@@ -39,38 +49,63 @@ class Trainer:
         self.train_step_count = 0
 
     def run_training_loop(self, env: Any) -> None:
-        """Runs the main training loop.
-        Args:
-            env: The environment to run episodes in.
-        """
+        """Runs the main training loop."""
         num_episodes = cfg.training.num_episodes
         train_frequency = cfg.training.train_frequency
-
-        log.info(f"Starting training loop for {num_episodes} episodes with train frequency {train_frequency}.")
-        loss_info = {}
-        pbar = tqdm(range(1, num_episodes + 1), desc="Training Progress")
+        tqdm_file = sys.stdout if cfg.logging.tqdm else DummyTqdmFile()
+        pbar = tqdm(range(1, num_episodes + 1), desc="Training Progress", file=tqdm_file)
         self_play = SelfPlay(self.agent, self.memory)
+        last_logged_percent = -1
+        self.last_loss: Dict[str, float] = {}
+
         for episode in pbar:
-            episode_reward, episode_steps, _ = self_play.run_episode(env)
+            self._run_episode_and_log(env, self_play, episode)
+            self._maybe_train_and_update(episode, train_frequency)
+            last_logged_percent = self._maybe_log_progress(pbar, episode, num_episodes, last_logged_percent)
+            self._maybe_checkpoint(episode)
 
-            if episode > 0 and episode % train_frequency == 0:
-                loss_info = self.train_step()
+    def _run_episode_and_log(self, env: Any, self_play: SelfPlay, episode: int) -> None:
+        episode_reward, episode_steps, _ = self_play.run_episode(env)
+        metrics = {
+            "Episode": episode,
+            "Reward": float(episode_reward),
+            "Length": episode_steps,
+            "Loss": float(self.last_loss.get("total_loss", 0)),
+            "Memory": float(self.memory.get_pct()),
+        }
+        self._log_metrics(metrics)
 
-                if self.train_step_count > 0 and self.train_step_count % cfg.training.target_update_frequency == 0:
-                    log.info(f"Updating target network at training step {self.train_step_count}")
-                    self.agent.update_target_network()
-            metrics = {
-                "Episode": episode,
-                "Reward": float(episode_reward),
-                "Length": episode_steps,
-                "Loss": float(loss_info.get("total_loss", 0)),
-                "Memory": float(self.memory.get_pct()),
-            }
-            log.info(f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, Memory={metrics['Memory']:2.2f}")
-            pbar.set_postfix(metrics)
+    def _maybe_train_and_update(self, episode: int, train_frequency: int) -> None:
+        if episode > 0 and episode % train_frequency == 0:
+            self.last_loss = self.train_step()
+            if self.train_step_count > 0 and self.train_step_count % cfg.training.target_update_frequency == 0:
+                log.info(f"Updating target network at training step {self.train_step_count}")
+                self.agent.update_target_network()
 
-            if episode > 0 and episode % cfg.training.checkpoint_interval == 0:
-                self.save_checkpoint(episode)
+    def _maybe_log_progress(self, pbar: tqdm, episode: int, num_episodes: int, last_logged_percent: int) -> int:
+        percent = 100 * (episode - 1) / num_episodes
+        rate = pbar.format_dict.get("rate", 0.0) or 0.0
+        n = pbar.format_dict.get("n", 0)
+        total = pbar.format_dict.get("total", None)
+        eta_val = pbar.format_dict.get("eta", None)
+        if eta_val is not None and isinstance(eta_val, (int, float)) and math.isfinite(eta_val):
+            eta = pbar.format_interval(eta_val)
+        elif rate > 0 and total is not None:
+            remaining = total - n
+            eta = pbar.format_interval(remaining / rate)
+        else:
+            eta = "?"
+        if int(percent) != last_logged_percent or episode == num_episodes:
+            log.info(f"Progress: {percent:.1f}% | {rate:.2f} it/s | ETA: {eta}")
+            return int(percent)
+        return last_logged_percent
+
+    def _maybe_checkpoint(self, episode: int) -> None:
+        if episode > 0 and episode % cfg.training.checkpoint_interval == 0:
+            self.save_checkpoint(episode)
+
+    def _log_metrics(self, metrics: Dict[str, Any]) -> None:
+        log.info(f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, Memory={metrics['Memory']:2.2f}")
 
     def train_step(self) -> Dict[str, float]:
         """Performs one full training step, including sampling and network update."""
@@ -200,7 +235,6 @@ class Trainer:
         """Saves the agent's state to a checkpoint file."""
         state = self.agent.save_state()
         path = f"{self.checkpoint_dir}/episode_{episode:05d}.pkl"
-        log.info(f"Saving checkpoint at episode {episode} to {path}")
         save_checkpoint(state, path)
 
     def load_checkpoint(self, path: str) -> None:
