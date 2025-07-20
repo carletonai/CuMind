@@ -69,7 +69,7 @@ def main() -> None:
 
     if checkpoint_path:
         log.info(f"Loading from checkpoint: {checkpoint_path}")
-        inference(checkpoint_path)
+        inference(checkpoint_path, 500)
     else:
         log.info("Starting a new run.")
         train()

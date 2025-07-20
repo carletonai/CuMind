@@ -1,21 +1,24 @@
 {
   "CuMind": {
     "networks": {
-      "hidden_dim": 128
+      "hidden_state_dim": 128
     },
     "representation": {
       "type": "cumind.core.resnet.ResNet",
-      "num_blocks": 2,
+      "num_hidden_layers": 2,
       "conv_channels": 32,
       "seed": 42
     },
     "dynamics": {
       "type": "cumind.core.mlp.MLPWithEmbedding",
-      "num_blocks": 2,
+      "hidden_dim": 128,
+      "num_hidden_layers": 2,
       "seed": 42
     },
     "prediction": {
       "type": "cumind.core.mlp.MLPDual",
+      "hidden_dim": 128,
+      "num_hidden_layers": 2,
       "seed": 42
     },
     "memory": {
@@ -34,9 +37,9 @@
       "weight_decay": 0.0001,
       "target_update_frequency": 250,
       "checkpoint_interval": 50,
-      "num_episodes": 1220,
+      "num_episodes": 2000,
       "train_frequency": 2,
-      "checkpoint_root_dir": "checkpoints"
+      "checkpoint_dir": "checkpoints"
     },
     "mcts": {
       "num_simulations": 25,
@@ -62,11 +65,12 @@
     "logging": {
       "dir": "logs",
       "level": "INFO",
-      "console": true,
-      "timestamps": false,
-      "tqdm": false
+      "console": false,
+      "timestamps": true,
+      "tqdm": true
     },
     "device": "cpu",
-    "seed": 42
+    "seed": 42,
+    "validate": true
   }
 }

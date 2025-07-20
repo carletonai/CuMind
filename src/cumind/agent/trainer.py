@@ -42,9 +42,9 @@ class Trainer:
         log.info(f"Initializing trainer for environment: {cfg.env.name}")
         self.agent = agent
         self.memory = memory
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.checkpoint_dir = f"{cfg.training.checkpoint_root_dir}/{cfg.env.name}/{timestamp}"
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+        # Get checkpoint directory from logger (already created during config boot)
+        self.checkpoint_dir = log.get_checkpoint_dir()
         log.info(f"Checkpoints will be saved to {self.checkpoint_dir}")
         self.train_step_count = 0
 
@@ -80,7 +80,7 @@ class Trainer:
             self.last_loss = self.train_step()
             if self.train_step_count > 0 and self.train_step_count % cfg.training.target_update_frequency == 0:
                 log.info(f"Updating target network at training step {self.train_step_count}")
-                self.agent.update_target_network()
+                self.agent.update_target_network() #loss goes up here, swap only value?
 
     def _maybe_log_progress(self, pbar: tqdm, episode: int, num_episodes: int, last_logged_percent: int) -> int:
         percent = 100 * (episode - 1) / num_episodes
@@ -191,7 +191,8 @@ class Trainer:
 
         if len(item) > n_steps:
             last_obs = jnp.array(item[n_steps]["observation"])[None, :]
-            _, _, value = self.agent.target_network.initial_inference(last_obs)
+            #_, _, value = self.agent.target_network.initial_inference(last_obs)
+            _, _, value = self.agent.network.initial_inference(last_obs)
             n_step_return += (discount**n_steps) * float(jnp.asarray(value)[0, 0])
 
         return n_step_return
