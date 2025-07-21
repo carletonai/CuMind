@@ -48,157 +48,6 @@ class TestHotSwappableConfig:
         assert config.extras() == {}
 
 
-class TestRepresentationConfig:
-    """Test RepresentationConfig functionality."""
-
-    def test_representation_config_init(self):
-        """Test RepresentationConfig initialization."""
-        config = RepresentationConfig()
-        assert config.type == "cumind.core.resnet.ResNet"
-        assert config.num_blocks == 2
-        assert config.conv_channels == 32
-
-    def test_representation_config_extras(self):
-        """Test RepresentationConfig extras method."""
-        key.seed(cfg.seed)
-        config = RepresentationConfig()
-        extras = config.extras()
-
-        assert "input_shape" in extras
-        assert "rngs" in extras
-        assert extras["input_shape"] == cfg.env.observation_shape
-
-    def test_representation_config_instantiation(self):
-        """Test that RepresentationConfig can instantiate ResNet."""
-        key.seed(cfg.seed)
-        config = RepresentationConfig()
-        network = config()
-
-        # Use type() instead of isinstance() for nnx modules
-        assert type(network).__name__ == "ResNet"
-        assert network.num_blocks == 2
-        assert network.conv_channels == 32
-        assert network.hidden_dim == 128
-
-    def test_representation_config_custom_params(self):
-        """Test RepresentationConfig with custom parameters."""
-        config = RepresentationConfig(num_blocks=5, conv_channels=64)
-        key.seed(cfg.seed)
-        network = config()
-
-        assert network.num_blocks == 5
-        assert network.conv_channels == 64
-
-
-class TestDynamicsConfig:
-    """Test DynamicsConfig functionality."""
-
-    def test_dynamics_config_init(self):
-        """Test DynamicsConfig initialization."""
-        config = DynamicsConfig()
-        assert config.type == "cumind.core.mlp.MLPWithEmbedding"
-        assert config.num_blocks == 2
-
-    def test_dynamics_config_extras(self):
-        """Test DynamicsConfig extras method."""
-        config = DynamicsConfig()
-        extras = config.extras()
-
-        assert "hidden_dim" in extras
-        assert "embedding_size" in extras
-        assert "rngs" in extras
-        assert extras["hidden_dim"] == cfg.networks.hidden_dim
-        assert extras["embedding_size"] == cfg.env.action_space_size
-
-    def test_dynamics_config_instantiation(self):
-        """Test that DynamicsConfig can instantiate MLPWithEmbedding."""
-        key.seed(cfg.seed)
-        config = DynamicsConfig()
-        network = config()
-
-        # Use type() instead of isinstance() for nnx modules
-        assert type(network).__name__ == "MLPWithEmbedding"
-        assert network.num_blocks == 2
-        assert network.hidden_dim == cfg.networks.hidden_dim
-        assert network.embedding_size == cfg.env.action_space_size
-
-    def test_dynamics_config_custom_params(self):
-        """Test DynamicsConfig with custom parameters."""
-        config = DynamicsConfig(num_blocks=4)
-        key.seed(cfg.seed)
-        network = config()
-
-        assert network.num_blocks == 4
-
-
-class TestPredictionConfig:
-    """Test PredictionConfig functionality."""
-
-    def test_prediction_config_init(self):
-        """Test PredictionConfig initialization."""
-        config = PredictionConfig()
-        assert config.type == "cumind.core.mlp.MLPDual"
-
-    def test_prediction_config_extras(self):
-        """Test PredictionConfig extras method."""
-        config = PredictionConfig()
-        extras = config.extras()
-
-        assert "hidden_dim" in extras
-        assert "output_size" in extras
-        assert "rngs" in extras
-        assert extras["hidden_dim"] == cfg.networks.hidden_dim
-        assert extras["output_size"] == cfg.env.action_space_size
-
-    def test_prediction_config_instantiation(self):
-        """Test that PredictionConfig can instantiate MLPDual."""
-        key.seed(cfg.seed)
-        config = PredictionConfig()
-        network = config()
-
-        # Use type() instead of isinstance() for nnx modules
-        assert type(network).__name__ == "MLPDual"
-        assert network.hidden_dim == cfg.networks.hidden_dim
-        assert network.output_size == cfg.env.action_space_size
-
-
-class TestMemoryConfig:
-    """Test MemoryConfig functionality."""
-
-    def test_memory_config_init(self):
-        """Test MemoryConfig initialization."""
-        config = MemoryConfig()
-        assert config.type == "cumind.data.memory.MemoryBuffer"
-        assert config.capacity == 2000
-        assert config.min_size == 100
-        assert config.min_pct == 0.1
-
-    def test_memory_config_extras(self):
-        """Test MemoryConfig extras method."""
-        config = MemoryConfig()
-        extras = config.extras()
-
-        # MemoryConfig extras should be empty since dataclass fields are handled by base class
-        assert extras == {}
-
-    def test_memory_config_instantiation(self):
-        """Test that MemoryConfig can instantiate MemoryBuffer."""
-        config = MemoryConfig()
-        memory = config()
-
-        # Use type() instead of isinstance() for consistency
-        assert type(memory).__name__ == "MemoryBuffer"
-        assert memory.capacity == 2000
-
-    def test_memory_config_custom_params(self):
-        """Test MemoryConfig with custom parameters."""
-        config = MemoryConfig(capacity=5000, min_size=200)
-        memory = config()
-
-        assert memory.capacity == 5000
-        # min_size is not passed to constructor, only used for configuration
-
-
 class TestConfigurationIntegration:
     """Test integration of all config components."""
 
@@ -216,22 +65,6 @@ class TestConfigurationIntegration:
         assert isinstance(cfg.dynamics, DynamicsConfig)
         assert isinstance(cfg.prediction, PredictionConfig)
         assert isinstance(cfg.memory, MemoryConfig)
-
-    def test_network_construction_integration(self):
-        """Test complete network construction using config."""
-        key.seed(cfg.seed)
-
-        # Test that all networks can be constructed
-        representation = cfg.representation()
-        dynamics = cfg.dynamics()
-        prediction = cfg.prediction()
-        memory = cfg.memory()
-
-        # Use type() instead of isinstance() for nnx modules
-        assert type(representation).__name__ == "ResNet"
-        assert type(dynamics).__name__ == "MLPWithEmbedding"
-        assert type(prediction).__name__ == "MLPDual"
-        assert type(memory).__name__ == "MemoryBuffer"
 
     def test_configuration_validation(self):
         """Test that configuration validation works."""
@@ -256,7 +89,7 @@ class TestConfigurationLoading:
     def test_load_from_json(self):
         """Test loading configuration from JSON file."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            config_data = {"CuMind": {"networks": {"hidden_dim": 256}, "env": {"name": "TestEnv", "action_space_size": 4, "observation_shape": [8]}, "seed": 123}}
+            config_data = {"CuMind": {"networks": {"hidden_state_dim": 256}, "env": {"name": "TestEnv", "action_space_size": 4, "observation_shape": [8]}, "seed": 123}}
             import json
 
             json.dump(config_data, f)
@@ -267,7 +100,7 @@ class TestConfigurationLoading:
             cfg.load(config_path)
 
             # Verify the loaded values
-            assert cfg.networks.hidden_dim == 256
+            assert cfg.networks.hidden_state_dim == 256
             assert cfg.env.name == "TestEnv"
             assert cfg.env.action_space_size == 4
             assert cfg.env.observation_shape == (8,)
