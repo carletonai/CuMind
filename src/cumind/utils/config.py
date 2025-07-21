@@ -46,7 +46,7 @@ class HotSwappableConfig:
 class GeneralNetworksConfig:
     """Configuration for general networks."""
 
-    hidden_dim: int = 128
+    hidden_state_dim: int = 128
 
 
 @dataclasses.dataclass(frozen=True)
@@ -54,13 +54,13 @@ class RepresentationConfig(HotSwappableConfig):
     """Configuration for representation network."""
 
     type: Optional[Union[str, Type[Any]]] = "cumind.core.resnet.ResNet"
-    num_blocks: int = 2
+    num_hidden_layers: int = 2
     conv_channels: int = 32
     seed: int = 42
 
     def extras(self) -> DictType[str, Any]:
-        hidden_dim = cfg.networks.hidden_dim
-        input_shape = cfg.env.observation_shape
+        input_dim = cfg.env.observation_shape
+        hidden_dim = cfg.networks.hidden_state_dim
         rngs = nnx.Rngs(params=self.seed)
         return locals()
 
@@ -70,11 +70,12 @@ class DynamicsConfig(HotSwappableConfig):
     """Configuration for dynamics network."""
 
     type: Optional[Union[str, Type[Any]]] = "cumind.core.mlp.MLPWithEmbedding"
-    num_blocks: int = 2
+    hidden_dim: int = 128
+    num_hidden_layers: int = 2
     seed: int = 42
 
     def extras(self) -> DictType[str, Any]:
-        hidden_dim = cfg.networks.hidden_dim
+        input_dim = cfg.networks.hidden_state_dim
         embedding_size = cfg.env.action_space_size
         rngs = nnx.Rngs(params=self.seed)
         return locals()
@@ -85,11 +86,13 @@ class PredictionConfig(HotSwappableConfig):
     """Configuration for prediction network."""
 
     type: Optional[Union[str, Type[Any]]] = "cumind.core.mlp.MLPDual"
+    hidden_dim: int = 128
+    num_hidden_layers: int = 2
     seed: int = 42
 
     def extras(self) -> DictType[str, Any]:
-        hidden_dim = cfg.networks.hidden_dim
-        output_size = cfg.env.action_space_size
+        input_dim = cfg.networks.hidden_state_dim
+        num_actions = cfg.env.action_space_size
         rngs = nnx.Rngs(params=self.seed)
         return locals()
 
@@ -102,9 +105,9 @@ class MemoryConfig(HotSwappableConfig):
     capacity: int = 2000
     min_size: int = 100
     min_pct: float = 0.1
-    per_alpha: float = 0.6
-    per_epsilon: float = 1e-6
-    per_beta: float = 0.4
+    alpha: float = 0.6
+    epsilon: float = 1e-6
+    beta: float = 0.4
 
     def extras(self) -> DictType[str, Any]:
         return {}
@@ -120,9 +123,9 @@ class TrainingConfig:
     weight_decay: float = 0.0001
     target_update_frequency: int = 250
     checkpoint_interval: int = 50
-    num_episodes: int = 1220
+    num_episodes: int = 2000
     train_frequency: int = 2
-    checkpoint_root_dir: str = "checkpoints"
+    checkpoint_dir: str = "checkpoints"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -214,8 +217,9 @@ class Configuration(metaclass=ConfigMeta):
     # Global settings
     device: str = "cpu"
     seed: int = 42
+    validate: bool = True
 
-    def boot(self, path: Optional[str] = None) -> None:
+    def boot(self, path: Optional[str] = None) -> Tuple[str, str]:
         self._validate()
 
         from cumind.utils.logger import log
@@ -223,11 +227,17 @@ class Configuration(metaclass=ConfigMeta):
 
         log(cfg=self)
         key.seed(self.seed)
+
         if path is not None:
             log.info(f"Config location: {path}")
         else:
             log.info("Loaded default config")
         log.info("Configuration validated and loaded successfully.")
+
+        # Return timestamp and checkpoint directory from logger
+        timestamp = log.get_timestamp()
+        checkpoint_dir = log.get_checkpoint_dir()
+        return timestamp, checkpoint_dir
 
     @classmethod
     def _get_instance(cls) -> "Configuration":
@@ -238,12 +248,12 @@ class Configuration(metaclass=ConfigMeta):
         return cls._instance
 
     @classmethod
-    def load(cls, path: str) -> None:
+    def load(cls, path: str) -> Tuple[str, str]:
         """Load configuration from a JSON file and set as singleton instance. Automatically validates after loading."""
         cfg = cls._from_json(path)
         with cls._lock:
             cls._instance = cfg
-            cfg.boot(path)
+            return cfg.boot(path)
 
     @classmethod
     def save(cls, path: str) -> None:
@@ -252,22 +262,24 @@ class Configuration(metaclass=ConfigMeta):
 
     def _validate(self) -> None:
         """Validates the configuration parameters."""
+        if not self.validate:
+            return
 
         # 1. GeneralNetworksConfig
-        if self.networks.hidden_dim <= 0:
-            raise ValueError(f"networks.hidden_dim must be positive, got {self.networks.hidden_dim}")
+        if self.networks.hidden_state_dim <= 0:
+            raise ValueError(f"networks.hidden_dim must be positive, got {self.networks.hidden_state_dim}")
 
         # 2. RepresentationConfig
-        if self.representation.num_blocks <= 0:
-            raise ValueError(f"representation.num_blocks must be positive, got {self.representation.num_blocks}")
+        if self.representation.num_hidden_layers <= 0:
+            raise ValueError(f"representation.num_hidden_layers must be positive, got {self.representation.num_hidden_layers}")
         if self.representation.conv_channels <= 0:
             raise ValueError(f"representation.conv_channels must be positive, got {self.representation.conv_channels}")
         if self.representation.type is None:
             raise ValueError("representation.type must be specified")
 
         # 3. DynamicsConfig
-        if self.dynamics.num_blocks <= 0:
-            raise ValueError(f"dynamics.num_blocks must be positive, got {self.dynamics.num_blocks}")
+        if self.dynamics.num_hidden_layers <= 0:
+            raise ValueError(f"dynamics.num_hidden_layers must be positive, got {self.dynamics.num_hidden_layers}")
         if self.dynamics.type is None:
             raise ValueError("dynamics.type must be specified")
 
@@ -306,8 +318,8 @@ class Configuration(metaclass=ConfigMeta):
             raise ValueError(f"training.num_episodes must be positive, got {self.training.num_episodes}")
         if self.training.train_frequency <= 0:
             raise ValueError(f"training.train_frequency must be positive, got {self.training.train_frequency}")
-        if not isinstance(self.training.checkpoint_root_dir, str) or not self.training.checkpoint_root_dir:
-            raise ValueError("training.checkpoint_root_dir must be a non-empty string")
+        if not isinstance(self.training.checkpoint_dir, str) or not self.training.checkpoint_dir:
+            raise ValueError("training.checkpoint_dir must be a non-empty string")
         if not isinstance(self.training.optimizer, str) or not self.training.optimizer:
             raise ValueError("training.optimizer must be a non-empty string")
 

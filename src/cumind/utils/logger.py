@@ -20,6 +20,14 @@ class Logger:
     _initialized: bool = False
     _lock: threading.RLock = threading.RLock()
 
+    @classmethod
+    def _get_instance(cls) -> "Logger":
+        """Get the singleton instance, creating it if necessary."""
+        if cls._instance is None:
+            cls()
+        assert cls._instance is not None
+        return cls._instance
+
     def __new__(cls, *args: Any, **kwargs: Any) -> "Logger":
         if cls._instance is None:
             with cls._lock:
@@ -30,23 +38,21 @@ class Logger:
                     cls._instance._initialize(*args, **kwargs)
         return cls._instance
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Constructor - initialization is handled in __new__."""
+        pass
+
     def _initialize(
         self,
-        cfg: Optional[cfg] = None,
-        dir: str = "logs",
-        level: str = "INFO",
-        console: bool = False,
-        timestamps: bool = True,
-        wandb_config: Optional[Dict[str, Any]] = None,
-        tensorboard_config: Optional[Dict[str, Any]] = None,
+        cfg: cfg,
     ) -> None:
         """Initialize the logger instance."""
 
-        if cfg is not None:
-            dir = cfg.logging.dir
-            level = cfg.logging.level
-            console = cfg.logging.console
-            timestamps = cfg.logging.timestamps
+        level: str = cfg.logging.level
+        console: bool = cfg.logging.console
+        timestamps: bool = cfg.logging.timestamps
+        wandb_config: Optional[Dict[str, Any]] = None  # cfg.logging.wb
+        tensorboard_config: Optional[Dict[str, Any]] = None  # cfg.logging.tb
 
         self._logger = logging.getLogger("CuMindLogger")
         self.tb_writer: Optional[Any] = None
@@ -62,11 +68,11 @@ class Logger:
         # Single formatter for all handlers
         self._formatter = logging.Formatter(self.FORMAT, datefmt=self.DATEFMT)
 
-        # Setup file handler
-
+        # Setup directories
         self.start_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_dir = Path(dir) / self.start_time
-        self.log_dir.mkdir(parents=True, exist_ok=True)
+        self._create_directories(cfg)
+
+        # Setup file handler
         file_handler = logging.FileHandler(self.log_dir / "training.log")
         file_handler.setFormatter(self._formatter)
         self._logger.addHandler(file_handler)
@@ -89,17 +95,28 @@ class Logger:
 
         type(self)._initialized = True
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Constructor - initialization is handled in __new__."""
-        pass
+    def _create_directories(self, cfg: cfg) -> None:
+        """Create both log and checkpoint directories with consistent timestamp."""
+        # Log directory
+        self.log_dir = Path(cfg.logging.dir) / self.start_time
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Checkpoint directory
+        self.checkpoint_dir = f"{cfg.training.checkpoint_dir}/{cfg.env.name}/{self.start_time}"
+        Path(self.checkpoint_dir).mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def _get_instance(cls) -> "Logger":
-        """Get the singleton instance, creating it if necessary."""
-        if cls._instance is None:
-            cls()
-        assert cls._instance is not None
-        return cls._instance
+    def get_timestamp(cls) -> str:
+        """Get the current timestamp used for directories."""
+        return cls._get_instance().start_time
+
+    @classmethod
+    def get_checkpoint_dir(cls) -> str:
+        """Get the checkpoint directory path."""
+        instance = cls._get_instance()
+        if instance.checkpoint_dir is None:
+            raise RuntimeError("Checkpoint directory not available - logger was initialized without config")
+        return instance.checkpoint_dir
 
     @classmethod
     def debug(cls, msg: str, *args: Any, **kwargs: Any) -> None:
