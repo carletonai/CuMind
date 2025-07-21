@@ -7,7 +7,11 @@ from cumind.agent.agent import Agent
 from cumind.data.memory import MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer
 from cumind.data.self_play import SelfPlay
 from cumind.utils.config import cfg
+from cumind.utils.logger import log
 from cumind.utils.prng import key
+
+cfg.boot()
+log.info(cfg.env.observation_shape)
 
 
 @pytest.fixture(autouse=True)
@@ -20,9 +24,9 @@ def reset_prng_manager_singleton():
 def _create_buffer(BufferClass, capacity):  # noqa: N803
     """Helper function to create a buffer with the correct arguments."""
     if BufferClass == PrioritizedMemoryBuffer:
-        return BufferClass(capacity=capacity, alpha=cfg.memory.per_alpha, epsilon=cfg.memory.per_epsilon, beta=cfg.memory.per_beta)
+        return BufferClass(capacity=capacity, alpha=cfg.memory.alpha, epsilon=cfg.memory.epsilon, beta=cfg.memory.beta)
     if BufferClass == TreeBuffer:
-        return BufferClass(capacity=capacity, alpha=cfg.memory.per_alpha, epsilon=cfg.memory.per_epsilon)
+        return BufferClass(capacity=capacity, alpha=cfg.memory.alpha, epsilon=cfg.memory.epsilon)
     return BufferClass(capacity=capacity)
 
 

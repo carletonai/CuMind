@@ -13,12 +13,16 @@ from cumind.utils.config import cfg
 from cumind.utils.logger import log
 from cumind.utils.prng import key
 
+cfg.boot()
+log.info(cfg.env.observation_shape)
+
 
 @pytest.fixture(autouse=True)
 def reset_singletons():
     """Reset the singletons before and after each test."""
     log._instance = None
     log._initialized = False
+    log(cfg=cfg)
     key.seed(42)  # Initialize with a default seed
     yield
     log._instance = None
