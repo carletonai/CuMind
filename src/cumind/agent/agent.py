@@ -12,7 +12,6 @@ from cumind.core.mcts import MCTS
 from cumind.core.network import CuMindNetwork
 from cumind.utils.config import cfg
 from cumind.utils.logger import log
-from cumind.utils.prng import key
 
 
 class Agent:

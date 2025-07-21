@@ -11,7 +11,11 @@ from cumind.core.mlp import MLPDual, MLPWithEmbedding
 from cumind.core.network import CuMindNetwork
 from cumind.core.resnet import ResNet
 from cumind.utils.config import cfg
+from cumind.utils.logger import log
 from cumind.utils.prng import key
+
+cfg.boot()
+log.info(cfg.env.observation_shape)
 
 
 @pytest.fixture(autouse=True)
@@ -95,13 +99,13 @@ class TestVectorEncoder:
 
         observation_shape = (4,)
         hidden_dim = 64
-        num_blocks = 2
+        num_hidden_layers = 2
 
-        encoder = VectorEncoder(observation_shape, hidden_dim, num_blocks, rngs)
+        encoder = VectorEncoder(observation_shape, hidden_dim, num_hidden_layers, rngs)
 
         # Test that encoder has required attributes
         assert hasattr(encoder, "layers")
-        assert len(encoder.layers) == num_blocks
+        assert len(encoder.layers) == num_hidden_layers
         assert encoder.hidden_dim == hidden_dim
         assert encoder.observation_shape == observation_shape
 
@@ -112,10 +116,10 @@ class TestVectorEncoder:
 
         observation_shape = (4,)
         hidden_dim = 32
-        num_blocks = 2
+        num_hidden_layers = 2
         batch_size = 3
 
-        encoder = VectorEncoder(observation_shape, hidden_dim, num_blocks, rngs)
+        encoder = VectorEncoder(observation_shape, hidden_dim, num_hidden_layers, rngs)
 
         # Test forward pass
         obs = jnp.ones((batch_size, observation_shape[0]))
@@ -136,9 +140,9 @@ class TestVectorEncoder:
 
         observation_shape = (8,)
         hidden_dim = 16
-        num_blocks = 1
+        num_hidden_layers = 1
 
-        encoder = VectorEncoder(observation_shape, hidden_dim, num_blocks, rngs)
+        encoder = VectorEncoder(observation_shape, hidden_dim, num_hidden_layers, rngs)
 
         # Test forward pass
         obs = jax.random.normal(key.get(), (2, observation_shape[0]))
@@ -161,15 +165,15 @@ class TestConvEncoder:
         rngs = nnx.Rngs(params=key.get())
         observation_shape = (84, 84, 3)
         hidden_dim = 256
-        num_blocks = 2
+        num_hidden_layers = 2
         conv_channels = 32
 
-        encoder = ConvEncoder(observation_shape, hidden_dim, num_blocks, conv_channels, rngs)
+        encoder = ConvEncoder(observation_shape, hidden_dim, num_hidden_layers, conv_channels, rngs)
 
         assert hasattr(encoder, "initial_conv")
         assert isinstance(encoder.initial_conv, nnx.Conv)
         assert hasattr(encoder, "residual_blocks")
-        assert len(encoder.residual_blocks) == num_blocks
+        assert len(encoder.residual_blocks) == num_hidden_layers
         assert isinstance(encoder.residual_blocks[0], ResidualBlock)
         assert hasattr(encoder, "final_dense")
         assert isinstance(encoder.final_dense, nnx.Linear)
@@ -180,11 +184,11 @@ class TestConvEncoder:
         rngs = nnx.Rngs(params=key.get())
         observation_shape = (84, 84, 3)
         hidden_dim = 256
-        num_blocks = 2
+        num_hidden_layers = 2
         conv_channels = 32
         batch_size = 4
 
-        encoder = ConvEncoder(observation_shape, hidden_dim, num_blocks, conv_channels, rngs)
+        encoder = ConvEncoder(observation_shape, hidden_dim, num_hidden_layers, conv_channels, rngs)
         obs = jnp.ones((batch_size, *observation_shape))
         output = encoder(obs)
 
@@ -196,10 +200,10 @@ class TestConvEncoder:
         rngs = nnx.Rngs(params=key.get())
         observation_shape = (10, 10, 4)
         hidden_dim = 128
-        num_blocks = 4
+        num_hidden_layers = 4
         conv_channels = 16
 
-        encoder = ConvEncoder(observation_shape, hidden_dim, num_blocks, conv_channels, rngs)
+        encoder = ConvEncoder(observation_shape, hidden_dim, num_hidden_layers, conv_channels, rngs)
 
         # Test forward pass
         batch_size = 2
@@ -224,14 +228,19 @@ class TestResNet:
 
         observation_shape = (4,)
         hidden_dim = 64
-        num_blocks = 2
+        num_hidden_layers = 2
         conv_channels = 16
 
-        resnet = ResNet(hidden_dim, observation_shape, num_blocks, conv_channels, rngs)
+        resnet = ResNet(
+            input_dim=observation_shape,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=num_hidden_layers,
+            rngs=rngs,
+            conv_channels=conv_channels,
+        )
 
         assert hasattr(resnet, "encoder")
         assert resnet.hidden_dim == hidden_dim
-        assert resnet.input_shape == observation_shape
 
     def test_resnet_forward_1d(self):
         """Test ResNet forward pass with 1D observations."""
@@ -240,10 +249,16 @@ class TestResNet:
 
         observation_shape = (8,)
         hidden_dim = 32
-        num_blocks = 1
+        num_hidden_layers = 1
         conv_channels = 8
 
-        resnet = ResNet(hidden_dim, observation_shape, num_blocks, conv_channels, rngs)
+        resnet = ResNet(
+            input_dim=observation_shape,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=num_hidden_layers,
+            rngs=rngs,
+            conv_channels=conv_channels,
+        )
 
         # Test forward pass
         batch_size = 3
@@ -259,10 +274,16 @@ class TestResNet:
 
         observation_shape = (10, 10, 3)
         hidden_dim = 64
-        num_blocks = 2
+        num_hidden_layers = 2
         conv_channels = 16
 
-        resnet = ResNet(hidden_dim, observation_shape, num_blocks, conv_channels, rngs)
+        resnet = ResNet(
+            input_dim=observation_shape,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=num_hidden_layers,
+            rngs=rngs,
+            conv_channels=conv_channels,
+        )
 
         # Test forward pass
         batch_size = 2
@@ -282,12 +303,17 @@ class TestMLPWithEmbedding:
 
         hidden_dim = 64
         embedding_size = 4
-        num_blocks = 2
+        num_hidden_layers = 2
 
-        mlp = MLPWithEmbedding(hidden_dim, embedding_size, num_blocks, rngs)
+        mlp = MLPWithEmbedding(
+            input_dim=hidden_dim,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=num_hidden_layers,
+            embedding_size=embedding_size,
+            rngs=rngs,
+        )
 
-        assert hasattr(mlp, "embedding")
-        assert hasattr(mlp, "layers")
+        assert hasattr(mlp, "action_embedding")
         assert mlp.hidden_dim == hidden_dim
         assert mlp.embedding_size == embedding_size
 
@@ -298,9 +324,15 @@ class TestMLPWithEmbedding:
 
         hidden_dim = 32
         embedding_size = 3
-        num_blocks = 1
+        num_hidden_layers = 1
 
-        mlp = MLPWithEmbedding(hidden_dim, embedding_size, num_blocks, rngs)
+        mlp = MLPWithEmbedding(
+            input_dim=hidden_dim,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=num_hidden_layers,
+            embedding_size=embedding_size,
+            rngs=rngs,
+        )
 
         # Test forward pass
         batch_size = 2
@@ -319,9 +351,15 @@ class TestMLPWithEmbedding:
 
         hidden_dim = 16
         embedding_size = 2
-        num_blocks = 1
+        num_hidden_layers = 1
 
-        mlp = MLPWithEmbedding(hidden_dim, embedding_size, num_blocks, rngs)
+        mlp = MLPWithEmbedding(
+            input_dim=hidden_dim,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=num_hidden_layers,
+            embedding_size=embedding_size,
+            rngs=rngs,
+        )
 
         # Test with different actions
         batch_size = 3
@@ -341,9 +379,15 @@ class TestMLPWithEmbedding:
 
         hidden_dim = 8
         embedding_size = 2
-        num_blocks = 1
+        num_hidden_layers = 1
 
-        mlp = MLPWithEmbedding(hidden_dim, embedding_size, num_blocks, rngs)
+        mlp = MLPWithEmbedding(
+            input_dim=hidden_dim,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=num_hidden_layers,
+            embedding_size=embedding_size,
+            rngs=rngs,
+        )
 
         # Test forward pass
         batch_size = 2
@@ -371,12 +415,17 @@ class TestMLPDual:
         hidden_dim = 64
         output_size = 4
 
-        mlp = MLPDual(hidden_dim, output_size, rngs)
+        mlp = MLPDual(
+            input_dim=hidden_dim,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=2,
+            num_actions=output_size,
+            rngs=rngs,
+        )
 
-        assert hasattr(mlp, "head1")
-        assert hasattr(mlp, "head2")
+        assert hasattr(mlp, "policy_head")
+        assert hasattr(mlp, "value_head")
         assert mlp.hidden_dim == hidden_dim
-        assert mlp.output_size == output_size
 
     def test_mlp_dual_forward(self):
         """Test MLPDual forward pass."""
@@ -386,7 +435,13 @@ class TestMLPDual:
         hidden_dim = 32
         output_size = 3
 
-        mlp = MLPDual(hidden_dim, output_size, rngs)
+        mlp = MLPDual(
+            input_dim=hidden_dim,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=1,
+            num_actions=output_size,
+            rngs=rngs,
+        )
 
         # Test forward pass
         batch_size = 2
@@ -405,7 +460,13 @@ class TestMLPDual:
         hidden_dim = 16
         output_size = 2
 
-        mlp = MLPDual(hidden_dim, output_size, rngs)
+        mlp = MLPDual(
+            input_dim=hidden_dim,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=1,
+            num_actions=output_size,
+            rngs=rngs,
+        )
 
         # Test policy head
         batch_size = 3
@@ -425,7 +486,13 @@ class TestMLPDual:
         hidden_dim = 8
         output_size = 2
 
-        mlp = MLPDual(hidden_dim, output_size, rngs)
+        mlp = MLPDual(
+            input_dim=hidden_dim,
+            hidden_dim=hidden_dim,
+            num_hidden_layers=1,
+            num_actions=output_size,
+            rngs=rngs,
+        )
 
         # Test value head
         batch_size = 2
@@ -462,14 +529,26 @@ class TestCuMindNetwork:
         from cumind.core.resnet import ResNet
 
         repre_net = ResNet(
-            hidden_dim=cfg.networks.hidden_dim,
-            input_shape=(10, 10, 3),  # 3D observation shape
-            num_blocks=cfg.representation.num_blocks,
+            input_dim=(10, 10, 3),
+            hidden_dim=cfg.networks.hidden_state_dim,
+            num_hidden_layers=cfg.representation.num_hidden_layers,
+            rngs=rngs,
             conv_channels=cfg.representation.conv_channels,
+        )
+        dyna_net = MLPWithEmbedding(
+            input_dim=cfg.networks.hidden_state_dim,
+            hidden_dim=cfg.networks.hidden_state_dim,
+            num_hidden_layers=cfg.dynamics.num_hidden_layers,
+            embedding_size=cfg.env.action_space_size,
             rngs=rngs,
         )
-        dyna_net = MLPWithEmbedding(hidden_dim=cfg.networks.hidden_dim, embedding_size=cfg.env.action_space_size, num_blocks=cfg.dynamics.num_blocks, rngs=rngs)
-        pred_net = MLPDual(hidden_dim=cfg.networks.hidden_dim, output_size=cfg.env.action_space_size, rngs=rngs)
+        pred_net = MLPDual(
+            input_dim=cfg.networks.hidden_state_dim,
+            hidden_dim=cfg.networks.hidden_state_dim,
+            num_hidden_layers=cfg.prediction.num_hidden_layers,
+            num_actions=cfg.env.action_space_size,
+            rngs=rngs,
+        )
         network = CuMindNetwork(repre_net, dyna_net, pred_net)
         return network, rngs
 
@@ -490,7 +569,7 @@ class TestCuMindNetwork:
 
         hidden_state, policy_logits, value = network.initial_inference(obs)
 
-        assert hidden_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert hidden_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert policy_logits.shape == (batch_size, cfg.env.action_space_size)
         assert value.shape == (batch_size, 1)
 
@@ -499,12 +578,12 @@ class TestCuMindNetwork:
         network, _ = setup_1d
 
         batch_size = 2
-        hidden_state = jnp.ones((batch_size, cfg.networks.hidden_dim))
+        hidden_state = jnp.ones((batch_size, cfg.networks.hidden_state_dim))
         actions = jnp.array([0, 1])
 
         next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
-        assert next_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert next_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert reward.shape == (batch_size, 1)
         assert next_policy.shape == (batch_size, cfg.env.action_space_size)
         assert next_value.shape == (batch_size, 1)
@@ -524,10 +603,10 @@ class TestCuMindNetwork:
         next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
         # Verify all outputs have correct shapes
-        assert hidden_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert hidden_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert policy_logits.shape == (batch_size, cfg.env.action_space_size)
         assert value.shape == (batch_size, 1)
-        assert next_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert next_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert reward.shape == (batch_size, 1)
         assert next_policy.shape == (batch_size, cfg.env.action_space_size)
         assert next_value.shape == (batch_size, 1)
@@ -543,7 +622,7 @@ class TestCuMindNetwork:
         hidden_state, policy_logits, value = network.initial_inference(obs)
 
         # Verify shapes
-        assert hidden_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert hidden_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert policy_logits.shape == (batch_size, cfg.env.action_space_size)
         assert value.shape == (batch_size, 1)
 
@@ -552,7 +631,7 @@ class TestCuMindNetwork:
         next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
         # Verify shapes
-        assert next_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert next_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert reward.shape == (batch_size, 1)
         assert next_policy.shape == (batch_size, cfg.env.action_space_size)
         assert next_value.shape == (batch_size, 1)
@@ -568,7 +647,7 @@ class TestCuMindNetwork:
         hidden_state, policy_logits, value = network.initial_inference(obs)
 
         # Verify shapes
-        assert hidden_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert hidden_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert policy_logits.shape == (batch_size, cfg.env.action_space_size)
         assert value.shape == (batch_size, 1)
 
@@ -577,7 +656,7 @@ class TestCuMindNetwork:
         next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
         # Verify shapes
-        assert next_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert next_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert reward.shape == (batch_size, 1)
         assert next_policy.shape == (batch_size, cfg.env.action_space_size)
         assert next_value.shape == (batch_size, 1)
