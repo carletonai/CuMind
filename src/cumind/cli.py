@@ -55,8 +55,6 @@ def select_checkpoint() -> Optional[str]:
 
 def main() -> None:
     """Main CLI entry point."""
-    log.info("Welcome to CuMind!")
-
     args = parse_arguments()
     config_path = args.config
     if not os.path.exists(config_path):
@@ -69,7 +67,7 @@ def main() -> None:
 
     if checkpoint_path:
         log.info(f"Loading from checkpoint: {checkpoint_path}")
-        inference(checkpoint_path)
+        inference(checkpoint_path, 500)
     else:
         log.info("Starting a new run.")
         train()
