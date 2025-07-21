@@ -50,7 +50,8 @@
     "env": {
       "name": "CartPole-v1",
       "action_space_size": 2,
-      "observation_shape": [4]
+      "observation_shape": [4],
+      "max_episode_steps": 500
     },
     "selfplay": {
       "num_unroll_steps": 5,
@@ -64,13 +65,13 @@
     },
     "logging": {
       "dir": "logs",
-      "level": "DEBUG",
-      "console": true,
+      "level": "INFO",
+      "console": false,
       "timestamps": true,
-      "tqdm": false
+      "tqdm": true
     },
     "device": "cpu",
     "seed": 42,
-    "validate": false
+    "validate": true
   }
 }

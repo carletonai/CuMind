@@ -23,26 +23,30 @@ class ResNet(nnx.Module):
             conv_channels: Number of channels for convolutional layers (image input only)
             rngs: Random number generators for parameter initialization
         """
-        self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.num_hidden_layers = num_hidden_layers
         self.conv_channels = conv_channels
         self.encoder: BaseEncoder
-        # Handle 1D tuples as integers (e.g., (4,) -> 4)
-        if isinstance(input_dim, tuple) and len(input_dim) == 1:
-            input_dim: int = input_dim[0] #type: ignore
 
-        if isinstance(input_dim, int):
-            # Vector input: (input_dim,) -> hidden_dim
-            observation_shape = (input_dim,)
+        # Handle 1D tuples as integers (e.g., (4,) -> 4)
+        in_dim: Union[int, Tuple[int, ...]]
+        if isinstance(input_dim, tuple) and len(input_dim) == 1:
+            in_dim = input_dim[0]
+        else:
+            in_dim = input_dim
+
+        observation_shape: Tuple[int, ...]
+        if isinstance(in_dim, int):
+            # Vector input: (in_dim,) -> hidden_dim
+            observation_shape = (in_dim,)
             self.encoder = VectorEncoder(observation_shape=observation_shape, hidden_dim=hidden_dim, num_blocks=num_hidden_layers, rngs=rngs)
-        elif isinstance(input_dim, tuple) and len(input_dim) == 3:
+        elif isinstance(in_dim, tuple) and len(in_dim) == 3:
             # Image input: (height, width, channels) -> hidden_dim
-            observation_shape = input_dim
+            observation_shape = in_dim
             assert conv_channels is not None, "conv_channels must be provided for image input"
             self.encoder = ConvEncoder(observation_shape=observation_shape, hidden_dim=hidden_dim, num_blocks=num_hidden_layers, conv_channels=conv_channels, rngs=rngs)
         else:
-            raise ValueError(f"Unsupported input_dim: {input_dim}. Use int or (X,) for vector input or (H, W, C) tuple for image input.")
+            raise ValueError(f"Unsupported input_dim: {in_dim}. Use int or (X,) for vector input or (H, W, C) tuple for image input.")
 
     def __call__(self, x: chex.Array) -> chex.Array:
         """
