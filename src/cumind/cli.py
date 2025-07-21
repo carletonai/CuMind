@@ -55,7 +55,7 @@ def select_checkpoint() -> Optional[str]:
 
 def main() -> None:
     """Main CLI entry point."""
-    log.info("Welcome to CuMind!")
+    #log.info("Welcome to CuMind!")
 
     args = parse_arguments()
     config_path = args.config

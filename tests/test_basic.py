@@ -46,7 +46,7 @@ def test_network_inference():
     obs = jnp.ones((batch_size, 4))
     hidden_state, policy_logits, value = network.initial_inference(obs)
 
-    assert hidden_state.shape == (batch_size, cfg.networks.hidden_dim)
+    assert hidden_state.shape == (batch_size, cfg.networks.hidden_state_dim)
     assert policy_logits.shape == (batch_size, cfg.env.action_space_size)
     assert value.shape == (batch_size, 1)
 
@@ -54,7 +54,7 @@ def test_network_inference():
     actions = jnp.array([0, 1])
     next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
-    assert next_state.shape == (batch_size, cfg.networks.hidden_dim)
+    assert next_state.shape == (batch_size, cfg.networks.hidden_state_dim)
     assert reward.shape == (batch_size, 1)
     assert next_policy.shape == (batch_size, cfg.env.action_space_size)
     assert next_value.shape == (batch_size, 1)

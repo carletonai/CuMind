@@ -34,9 +34,6 @@ class Agent:
         with jax.default_device(self.device):
             self.network = CuMindNetwork(representation_network=cfg.representation(), dynamics_network=cfg.dynamics(), prediction_network=cfg.prediction())
 
-            log.info("Creating target network.")
-            self.target_network = nnx.clone(self.network)
-
             log.info(f"Setting up AdamW optimizer with learning rate {cfg.training.learning_rate} and weight decay {cfg.training.weight_decay}")
             self.optimizer = optax.adamw(learning_rate=cfg.training.learning_rate, weight_decay=cfg.training.weight_decay)
 
@@ -46,6 +43,9 @@ class Agent:
             else:
                 log.info("Initializing new optimizer state.")
                 self.optimizer_state = self.optimizer.init(nnx.state(self.network, nnx.Param))
+                # Ensure target network is properly initialized
+                log.info("Initializing target prediction network.")
+                self.network.update_target_prediction_network(hard=True)
 
         self.mcts = MCTS(self.network)
         log.info("Agent initialization complete.")
@@ -60,7 +60,7 @@ class Agent:
         Returns:
             A tuple containing the selected action index and the MCTS policy probabilities.
         """
-        log.debug(f"Selecting action. Training mode: {training}")
+        # log.debug(f"Selecting action. Training mode: {training}")
 
         obs_tensor = jax.device_put(jnp.array(observation)[None], self.device)  # [None] adds batch dimension
 
@@ -77,14 +77,19 @@ class Agent:
             # Take best action
             action_idx = int(np.argmax(action_probs))
 
-        log.debug(f"Selected action: {action_idx}")
+        # log.debug(f"Selected action: {action_idx}")
         return int(action_idx), action_probs
 
     def update_target_network(self) -> None:
-        """Update the target network's weights with the main network's weights."""
-        log.debug("Updating target network.")
-        online_params = nnx.state(self.network, nnx.Param)
-        nnx.update(self.target_network, online_params)
+        """Update the target prediction network's weights with the main network's weights."""
+        log.debug("Updating target prediction network.")
+        log.debug(f"Before update - Online prediction network type: {type(self.network.prediction_network)}")
+        log.debug(f"Before update - Target prediction network type: {type(self.network.target_prediction_network)}")
+
+        self.network.update_target_prediction_network(hard=True)
+
+        log.debug(f"After update - Target prediction network type: {type(self.network.target_prediction_network)}")
+        log.debug("Target prediction network update completed successfully.")
 
     def save_state(self) -> Dict[str, Any]:
         """Get the current state of the agent for checkpointing.
@@ -107,7 +112,6 @@ class Agent:
         log.info("Loading agent state from dictionary.")
         nnx.update(self.network, state["network_state"])
         self.optimizer_state = state["optimizer_state"]
-
-        log.info("Updating target network after loading state.")
-        self.update_target_network()
+        log.info("Updating target prediction network after loading state.")
+        self.network.update_target_prediction_network(hard=True)
         log.info("Agent state loaded successfully.")

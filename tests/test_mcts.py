@@ -193,7 +193,7 @@ class TestNode:
     def test_mcts_search(self, setup):
         """Test MCTS search returns a valid policy."""
         mcts, _ = setup
-        root_hidden_state = jnp.ones(cfg.networks.hidden_dim)
+        root_hidden_state = jnp.ones(cfg.networks.hidden_state_dim)
 
         # Test search with default parameters
         policy = mcts.search(root_hidden_state)
@@ -207,7 +207,7 @@ class TestNode:
     def test_mcts_search_basic(self, setup):
         """Test basic MCTS search functionality."""
         mcts, _ = setup
-        root_hidden_state = jnp.ones(cfg.networks.hidden_dim)
+        root_hidden_state = jnp.ones(cfg.networks.hidden_state_dim)
 
         # Test search (uses default number of simulations from config)
         policy = mcts.search(root_hidden_state)
@@ -260,7 +260,7 @@ class TestNode:
     def test_mcts_with_different_networks(self, setup):
         """Test MCTS with different network configurations."""
         mcts, _ = setup
-        root_hidden_state = jnp.ones(cfg.networks.hidden_dim)
+        root_hidden_state = jnp.ones(cfg.networks.hidden_state_dim)
 
         # Test search (uses default number of simulations from config)
         policy = mcts.search(root_hidden_state)
@@ -270,7 +270,7 @@ class TestNode:
     def test_mcts_edge_cases(self, setup):
         """Test MCTS edge cases and error handling."""
         mcts, _ = setup
-        root_hidden_state = jnp.ones(cfg.networks.hidden_dim)
+        root_hidden_state = jnp.ones(cfg.networks.hidden_state_dim)
 
         # Test search (uses default number of simulations from config)
         policy = mcts.search(root_hidden_state)

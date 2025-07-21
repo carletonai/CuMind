@@ -105,9 +105,9 @@ class MemoryConfig(HotSwappableConfig):
     capacity: int = 2000
     min_size: int = 100
     min_pct: float = 0.1
-    per_alpha: float = 0.6
-    per_epsilon: float = 1e-6
-    per_beta: float = 0.4
+    alpha: float = 0.6
+    epsilon: float = 1e-6
+    beta: float = 0.4
 
     def extras(self) -> DictType[str, Any]:
         return {}

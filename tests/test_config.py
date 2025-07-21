@@ -107,7 +107,7 @@ class TestDynamicsConfig:
         assert "hidden_dim" in extras
         assert "embedding_size" in extras
         assert "rngs" in extras
-        assert extras["hidden_dim"] == cfg.networks.hidden_dim
+        assert extras["hidden_dim"] == cfg.networks.hidden_state_dim
         assert extras["embedding_size"] == cfg.env.action_space_size
 
     def test_dynamics_config_instantiation(self):
@@ -119,7 +119,7 @@ class TestDynamicsConfig:
         # Use type() instead of isinstance() for nnx modules
         assert type(network).__name__ == "MLPWithEmbedding"
         assert network.num_blocks == 2
-        assert network.hidden_dim == cfg.networks.hidden_dim
+        assert network.hidden_dim == cfg.networks.hidden_state_dim
         assert network.embedding_size == cfg.env.action_space_size
 
     def test_dynamics_config_custom_params(self):
@@ -147,7 +147,7 @@ class TestPredictionConfig:
         assert "hidden_dim" in extras
         assert "output_size" in extras
         assert "rngs" in extras
-        assert extras["hidden_dim"] == cfg.networks.hidden_dim
+        assert extras["hidden_dim"] == cfg.networks.hidden_state_dim
         assert extras["output_size"] == cfg.env.action_space_size
 
     def test_prediction_config_instantiation(self):
@@ -158,7 +158,7 @@ class TestPredictionConfig:
 
         # Use type() instead of isinstance() for nnx modules
         assert type(network).__name__ == "MLPDual"
-        assert network.hidden_dim == cfg.networks.hidden_dim
+        assert network.hidden_dim == cfg.networks.hidden_state_dim
         assert network.output_size == cfg.env.action_space_size
 
 
@@ -267,7 +267,7 @@ class TestConfigurationLoading:
             cfg.load(config_path)
 
             # Verify the loaded values
-            assert cfg.networks.hidden_dim == 256
+            assert cfg.networks.hidden_state_dim == 256
             assert cfg.env.name == "TestEnv"
             assert cfg.env.action_space_size == 4
             assert cfg.env.observation_shape == (8,)

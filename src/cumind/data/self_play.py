@@ -30,7 +30,7 @@ class SelfPlay:
         Returns:
             A tuple containing total reward, episode length, and a list of step data dictionaries.
         """
-        log.debug("Starting new self-play episode.")
+        #log.debug("Starting new self-play episode.")
         episode_data = []
         observation, _ = environment.reset()
         done = False
@@ -54,9 +54,9 @@ class SelfPlay:
             total_reward += reward
             episode_steps += 1
 
-        log.debug(f"Episode finished. Total reward: {total_reward}, Steps: {episode_steps}.")
+        #log.debug(f"Episode finished. Total reward: {total_reward}, Steps: {episode_steps}.")
         self.memory.add(episode_data)
-        log.debug(f"Added episode data to memory buffer. Buffer size: {len(self.memory)}.")
+        #log.debug(f"Added episode data to memory buffer. Buffer size: {len(self.memory)}.")
         return total_reward, episode_steps, episode_data
 
     def collect_samples(self, environment: Any, num_episodes: int) -> None:

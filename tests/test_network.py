@@ -462,14 +462,14 @@ class TestCuMindNetwork:
         from cumind.core.resnet import ResNet
 
         repre_net = ResNet(
-            hidden_dim=cfg.networks.hidden_dim,
+            hidden_dim=cfg.networks.hidden_state_dim,
             input_shape=(10, 10, 3),  # 3D observation shape
             num_blocks=cfg.representation.num_blocks,
             conv_channels=cfg.representation.conv_channels,
             rngs=rngs,
         )
-        dyna_net = MLPWithEmbedding(hidden_dim=cfg.networks.hidden_dim, embedding_size=cfg.env.action_space_size, num_blocks=cfg.dynamics.num_blocks, rngs=rngs)
-        pred_net = MLPDual(hidden_dim=cfg.networks.hidden_dim, output_size=cfg.env.action_space_size, rngs=rngs)
+        dyna_net = MLPWithEmbedding(hidden_dim=cfg.networks.hidden_state_dim, embedding_size=cfg.env.action_space_size, num_blocks=cfg.dynamics.num_blocks, rngs=rngs)
+        pred_net = MLPDual(hidden_dim=cfg.networks.hidden_state_dim, output_size=cfg.env.action_space_size, rngs=rngs)
         network = CuMindNetwork(repre_net, dyna_net, pred_net)
         return network, rngs
 
@@ -490,7 +490,7 @@ class TestCuMindNetwork:
 
         hidden_state, policy_logits, value = network.initial_inference(obs)
 
-        assert hidden_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert hidden_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert policy_logits.shape == (batch_size, cfg.env.action_space_size)
         assert value.shape == (batch_size, 1)
 
@@ -499,12 +499,12 @@ class TestCuMindNetwork:
         network, _ = setup_1d
 
         batch_size = 2
-        hidden_state = jnp.ones((batch_size, cfg.networks.hidden_dim))
+        hidden_state = jnp.ones((batch_size, cfg.networks.hidden_state_dim))
         actions = jnp.array([0, 1])
 
         next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
-        assert next_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert next_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert reward.shape == (batch_size, 1)
         assert next_policy.shape == (batch_size, cfg.env.action_space_size)
         assert next_value.shape == (batch_size, 1)
@@ -524,10 +524,10 @@ class TestCuMindNetwork:
         next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
         # Verify all outputs have correct shapes
-        assert hidden_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert hidden_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert policy_logits.shape == (batch_size, cfg.env.action_space_size)
         assert value.shape == (batch_size, 1)
-        assert next_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert next_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert reward.shape == (batch_size, 1)
         assert next_policy.shape == (batch_size, cfg.env.action_space_size)
         assert next_value.shape == (batch_size, 1)
@@ -543,7 +543,7 @@ class TestCuMindNetwork:
         hidden_state, policy_logits, value = network.initial_inference(obs)
 
         # Verify shapes
-        assert hidden_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert hidden_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert policy_logits.shape == (batch_size, cfg.env.action_space_size)
         assert value.shape == (batch_size, 1)
 
@@ -552,7 +552,7 @@ class TestCuMindNetwork:
         next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
         # Verify shapes
-        assert next_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert next_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert reward.shape == (batch_size, 1)
         assert next_policy.shape == (batch_size, cfg.env.action_space_size)
         assert next_value.shape == (batch_size, 1)
@@ -568,7 +568,7 @@ class TestCuMindNetwork:
         hidden_state, policy_logits, value = network.initial_inference(obs)
 
         # Verify shapes
-        assert hidden_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert hidden_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert policy_logits.shape == (batch_size, cfg.env.action_space_size)
         assert value.shape == (batch_size, 1)
 
@@ -577,7 +577,7 @@ class TestCuMindNetwork:
         next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
         # Verify shapes
-        assert next_state.shape == (batch_size, cfg.networks.hidden_dim)
+        assert next_state.shape == (batch_size, cfg.networks.hidden_state_dim)
         assert reward.shape == (batch_size, 1)
         assert next_policy.shape == (batch_size, cfg.env.action_space_size)
         assert next_value.shape == (batch_size, 1)

@@ -22,18 +22,18 @@
       "seed": 42
     },
     "memory": {
-      "type": "cumind.data.memory.MemoryBuffer",
-      "capacity": 2000,
+      "type": "cumind.data.memory.PrioritizedMemoryBuffer",
+      "capacity": 1000,
       "min_size": 100,
       "min_pct": 0.1,
-      "per_alpha": 0.6,
-      "per_epsilon": 1e-06,
-      "per_beta": 0.4
+      "alpha": 0.6,
+      "epsilon": 1e-06,
+      "beta": 0.4
     },
     "training": {
       "optimizer": "optax.adamw",
       "batch_size": 64,
-      "learning_rate": 0.01,
+      "learning_rate": 0.001,
       "weight_decay": 0.0001,
       "target_update_frequency": 250,
       "checkpoint_interval": 50,
@@ -64,13 +64,13 @@
     },
     "logging": {
       "dir": "logs",
-      "level": "INFO",
-      "console": false,
+      "level": "DEBUG",
+      "console": true,
       "timestamps": true,
-      "tqdm": true
+      "tqdm": false
     },
     "device": "cpu",
     "seed": 42,
-    "validate": true
+    "validate": false
   }
 }

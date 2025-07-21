@@ -80,7 +80,8 @@ class Trainer:
             self.last_loss = self.train_step()
             if self.train_step_count > 0 and self.train_step_count % cfg.training.target_update_frequency == 0:
                 log.info(f"Updating target network at training step {self.train_step_count}")
-                self.agent.update_target_network() #loss goes up here, swap only value?
+                self.agent.update_target_network()
+                log.info("Target network update completed")
 
     def _maybe_log_progress(self, pbar: tqdm, episode: int, num_episodes: int, last_logged_percent: int) -> int:
         percent = 100 * (episode - 1) / num_episodes
@@ -191,8 +192,7 @@ class Trainer:
 
         if len(item) > n_steps:
             last_obs = jnp.array(item[n_steps]["observation"])[None, :]
-            #_, _, value = self.agent.target_network.initial_inference(last_obs)
-            _, _, value = self.agent.network.initial_inference(last_obs)
+            _, _, value = self.agent.network.initial_inference(last_obs, use_target=True)
             n_step_return += (discount**n_steps) * float(jnp.asarray(value)[0, 0])
 
         return n_step_return

@@ -30,7 +30,7 @@ class ResNet(nnx.Module):
         self.encoder: BaseEncoder
         # Handle 1D tuples as integers (e.g., (4,) -> 4)
         if isinstance(input_dim, tuple) and len(input_dim) == 1:
-            input_dim: int = input_dim[0]
+            input_dim: int = input_dim[0] #type: ignore
 
         if isinstance(input_dim, int):
             # Vector input: (input_dim,) -> hidden_dim
