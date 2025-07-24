@@ -1,10 +1,11 @@
-"""CuMind: A clean implementation of the CuMind algorithm."""
+"""CuMind: A modular reinforcement learning framework."""
 
-from .agent import Agent, Trainer
-from .config import Config
-from .runner import inference, train
-from .utils import log
-from .utils.prng import key
+__version__ = "0.1.8"
 
-__version__ = "0.1.7"
-__all__ = ["Agent", "Trainer", "train", "inference", "Config", "log", "key"]
+# Most commonly used components
+from .agent import Agent, inference, train
+from .core import MCTS, CuMindNetwork
+from .data import MemoryBuffer, SelfPlay
+from .utils import cfg, key, log
+
+__all__ = ["Agent", "inference", "train", "CuMindNetwork", "MCTS", "MemoryBuffer", "SelfPlay", "cfg", "log", "key"]

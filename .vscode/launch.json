@@ -3,11 +3,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Curr File",
+            "name": "cartpole",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/cumind/__main__.py",
-            "console": "integratedTerminal"
+            "program": "${workspaceFolder}/src/cartpole.py",
+            "console": "integratedTerminal",
+            "stopOnEntry": true
         },
         {
             "name": "CuMind",

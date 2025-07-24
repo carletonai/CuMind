@@ -7,7 +7,7 @@ from typing import Any, Deque, Dict, List
 
 import numpy as np
 
-from ..utils.logger import log
+from cumind.utils.logger import log
 
 
 class Memory(ABC):
@@ -87,6 +87,10 @@ class Memory(ABC):
 
 class MemoryBuffer(Memory):
     """A standard memory buffer with uniform sampling."""
+
+    def __init__(self, capacity: int):
+        """Initializes the memory buffer with capacity."""
+        super().__init__(capacity)
 
     def add(self, sample: List[Dict[str, Any]]) -> None:
         """Adds a sample to the buffer.

@@ -1,51 +1,44 @@
 """CuMind agent implementation."""
 
-from typing import Any, Dict, List, Tuple, cast
+from typing import Any, Dict, Optional, Tuple
 
-import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax  # type: ignore
 from flax import nnx
 
-from ..config import Config
-from ..core.mcts import MCTS
-from ..core.network import CuMindNetwork
-from ..utils.checkpoint import load_checkpoint, save_checkpoint
-from ..utils.logger import log
-from ..utils.prng import key
+from cumind.core.mcts import MCTS
+from cumind.core.network import CuMindNetwork
+from cumind.utils.config import cfg
+from cumind.utils.logger import log
+from cumind.utils.prng import key
 
 
 class Agent:
     """CuMind agent for training and inference."""
 
-    def __init__(self, config: Config, existing_state: Dict[str, Any] | None = None):
+    def __init__(self, existing_state: Optional[Dict[str, Any]] = None):
         """Initialize CuMind agent with network, optimizer, and MCTS.
 
         Args:
-            config: Config with network architecture and training parameters.
             existing_state: Optional dictionary to load agent state from.
         """
-        log.info("Initializing CuMind agent...")
-        self.config = config
+        log.info("Initializing CuMind agent.")
 
-        self.device = jax.devices(config.device_type)[0]
-
+        self.device = jax.devices(cfg.device)[0]
         log.info(f"Using device: {self.device}")
 
-        log.info(f"Creating CuMindNetwork with observation shape {config.observation_shape} and action space size {config.action_space_size}")
-        key.seed(config.seed)
-        rngs = nnx.Rngs(params=key())
+        log.info(f"Creating CuMindNetwork with observation shape {cfg.env.observation_shape} and action space size {cfg.env.action_space_size}")
 
         with jax.default_device(self.device):
-            self.network = CuMindNetwork(observation_shape=config.observation_shape, action_space_size=config.action_space_size, hidden_dim=config.hidden_dim, num_blocks=config.num_blocks, conv_channels=config.conv_channels, rngs=rngs)
+            self.network = CuMindNetwork(representation_network=cfg.representation(), dynamics_network=cfg.dynamics(), prediction_network=cfg.prediction())
 
             log.info("Creating target network.")
             self.target_network = nnx.clone(self.network)
 
-            log.info(f"Setting up AdamW optimizer with learning rate {config.learning_rate} and weight decay {config.weight_decay}")
-            self.optimizer = optax.adamw(learning_rate=config.learning_rate, weight_decay=config.weight_decay)
+            log.info(f"Setting up AdamW optimizer with learning rate {cfg.training.learning_rate} and weight decay {cfg.training.weight_decay}")
+            self.optimizer = optax.adamw(learning_rate=cfg.training.learning_rate, weight_decay=cfg.training.weight_decay)
 
             if existing_state:
                 log.info("Loading agent state from existing state.")
@@ -54,8 +47,7 @@ class Agent:
                 log.info("Initializing new optimizer state.")
                 self.optimizer_state = self.optimizer.init(nnx.state(self.network, nnx.Param))
 
-        log.info("Initializing MCTS.")
-        self.mcts = MCTS(self.network, config)
+        self.mcts = MCTS(self.network)
         log.info("Agent initialization complete.")
 
     def select_action(self, observation: np.ndarray, training: bool = False) -> Tuple[int, np.ndarray]:
@@ -80,7 +72,7 @@ class Agent:
 
         if training:
             # Sample action from probabilities
-            action_idx = int(jax.random.choice(key(), len(action_probs), p=action_probs))
+            action_idx = int(jax.random.choice(key.get(), len(action_probs), p=action_probs))
         else:
             # Take best action
             action_idx = int(np.argmax(action_probs))

@@ -1,21 +1,18 @@
 """Basic training example for CuMind with CartPole."""
 
-from cumind.config import Config
-from cumind.runner import train
+from cumind.agent.runner import inference, train
+from cumind.utils.config import cfg
+from cumind.utils.logger import log
 
 
 def main() -> None:
     """Main function for running the CartPole example."""
-    # Loads whatever configuration in config.py
-    config = Config()
-
-    config.env_name = "CartPole-v1"
-    config.action_space_size = 2
-    config.observation_shape = (4,)
-    config.num_episodes = 500
-
-    train(config)
+    cfg.load("configuration.json")
+    ckpt = train()
+    log.info(f"Training completed in {log.elapsed()}.")
+    inference(ckpt)
 
 
 if __name__ == "__main__":
     main()
+    log.shutdown()

@@ -4,34 +4,31 @@ import os
 
 import gymnasium as gym
 
-from .agent.agent import Agent
-from .agent.trainer import Trainer
-from .config import Config
-from .data.memory import MemoryBuffer
-from .utils.checkpoint import load_checkpoint
-from .utils.logger import log
+from cumind.agent.agent import Agent
+from cumind.agent.trainer import Trainer
+from cumind.utils.checkpoint import load_checkpoint
+from cumind.utils.config import cfg
+from cumind.utils.logger import log
 
 
-def train(config: Config) -> str:
+def train() -> str:
     """Train the agent on a given environment."""
-    env = gym.make(config.env_name)
+    env = gym.make(cfg.env.name)
 
-    agent = Agent(config)
-    memory_buffer = MemoryBuffer(capacity=config.memory_capacity)
-    trainer = Trainer(agent, memory_buffer, config)
+    agent = Agent()
+    memory_buffer = cfg.memory()
+    trainer = Trainer(agent, memory_buffer)
 
-    log.info(f"Checkpoints will be saved in: {trainer.checkpoint_dir}")
-    log.info("Starting training...")
     trainer.run_training_loop(env)
-    log.info("Training completed!")
 
     env.close()  # type: ignore
+
     return trainer.checkpoint_dir
 
 
-def inference(config: Config, checkpoint_file: str) -> None:
+def inference(checkpoint_file: str) -> None:
     """Run inference with a trained agent from a checkpoint."""
-    log.info("\nStarting inference...")
+    log.info("\nStarting inference.")
 
     if not os.path.isfile(checkpoint_file):
         log.error(f"Checkpoint file not found: {checkpoint_file}")
@@ -39,12 +36,12 @@ def inference(config: Config, checkpoint_file: str) -> None:
 
     log.info(f"Loading agent from: {checkpoint_file}")
 
-    inference_agent = Agent(config)
+    inference_agent = Agent()
     state = load_checkpoint(checkpoint_file)
     inference_agent.load_state(state)
 
-    env = gym.make(config.env_name, render_mode="human")
-    for episode in range(5):
+    env = gym.make(cfg.env.name, render_mode="human")
+    for episode in range(500):
         obs, _ = env.reset()
         done = False
         total_reward = 0.0

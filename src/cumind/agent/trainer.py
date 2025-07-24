@@ -1,6 +1,8 @@
 """Training loop implementation."""
 
+import math
 import os
+import sys
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
@@ -11,82 +13,107 @@ import optax  # type: ignore
 from flax import nnx
 from tqdm import tqdm  # type: ignore
 
-from ..config import Config
-from ..core.network import CuMindNetwork
-from ..data.memory import Memory
-from ..data.self_play import SelfPlay
-from ..utils.checkpoint import load_checkpoint, save_checkpoint
-from ..utils.logger import log
-from .agent import Agent
+from cumind.agent.agent import Agent
+from cumind.core.network import CuMindNetwork
+from cumind.data.memory import Memory
+from cumind.data.self_play import SelfPlay
+from cumind.utils.checkpoint import load_checkpoint, save_checkpoint
+from cumind.utils.config import cfg
+from cumind.utils.logger import log
+
+
+class DummyTqdmFile:
+    def write(self, _: Any) -> None:
+        pass
+
+    def flush(self) -> None:
+        pass
 
 
 class Trainer:
     """Orchestrates the training process, including sampling, updates, and logging."""
 
-    def __init__(self, agent: Agent, memory: Memory, config: Config):
+    def __init__(self, agent: Agent, memory: Memory):
         """Initializes the Trainer.
         Args:
             agent: The agent to train.
-            buffer: The memory buffer for sampling training data.
-            config: The configuration object.
-            env_name: The name for the environment, used for creating checkpoint directories.
+            memory: The memory buffer for sampling training data.
         """
-        log.info(f"Initializing trainer for environment: {config.env_name}")
+        log.info(f"Initializing trainer for environment: {cfg.env.name}")
         self.agent = agent
         self.memory = memory
-        self.config = config
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.checkpoint_dir = f"{config.checkpoint_root_dir}/{config.env_name}/{timestamp}"
+        self.checkpoint_dir = f"{cfg.training.checkpoint_root_dir}/{cfg.env.name}/{timestamp}"
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         log.info(f"Checkpoints will be saved to {self.checkpoint_dir}")
         self.train_step_count = 0
 
     def run_training_loop(self, env: Any) -> None:
-        """Runs the main training loop.
-        Args:
-            env: The environment to run episodes in.
-        """
-        num_episodes = self.config.num_episodes
-        train_frequency = self.config.train_frequency
+        """Runs the main training loop."""
+        num_episodes = cfg.training.num_episodes
+        train_frequency = cfg.training.train_frequency
+        tqdm_file = sys.stdout if cfg.logging.tqdm else DummyTqdmFile()
+        pbar = tqdm(range(1, num_episodes + 1), desc="Training Progress", file=tqdm_file)
+        self_play = SelfPlay(self.agent, self.memory)
+        last_logged_percent = -1
+        self.last_loss: Dict[str, float] = {}
 
-        log.info(f"Starting training loop for {num_episodes} episodes with train frequency {train_frequency}.")
-        loss_info = {}
-        pbar = tqdm(range(1, num_episodes + 1), desc="Training Progress")
-        self_play = SelfPlay(self.config, self.agent, self.memory)
         for episode in pbar:
-            episode_reward, episode_steps, _ = self_play.run_episode(env)
+            self._run_episode_and_log(env, self_play, episode)
+            self._maybe_train_and_update(episode, train_frequency)
+            last_logged_percent = self._maybe_log_progress(pbar, episode, num_episodes, last_logged_percent)
+            self._maybe_checkpoint(episode)
 
+    def _run_episode_and_log(self, env: Any, self_play: SelfPlay, episode: int) -> None:
+        episode_reward, episode_steps, _ = self_play.run_episode(env)
+        metrics = {
+            "Episode": episode,
+            "Reward": float(episode_reward),
+            "Length": episode_steps,
+            "Loss": float(self.last_loss.get("total_loss", 0)),
+            "Memory": float(self.memory.get_pct()),
+        }
+        self._log_metrics(metrics)
 
-            if episode > 0 and episode % train_frequency == 0:
-                loss_info = self.train_step()
+    def _maybe_train_and_update(self, episode: int, train_frequency: int) -> None:
+        if episode > 0 and episode % train_frequency == 0:
+            self.last_loss = self.train_step()
+            if self.train_step_count > 0 and self.train_step_count % cfg.training.target_update_frequency == 0:
+                log.info(f"Updating target network at training step {self.train_step_count}")
+                self.agent.update_target_network()
 
-                if self.train_step_count > 0 and self.train_step_count % self.config.target_update_frequency == 0:
-                    log.info(f"Updating target network at training step {self.train_step_count}")
-                    self.agent.update_target_network()
-            metrics = {
-                "Episode": episode,
-                "Reward": float(episode_reward),
-                "Length": episode_steps,
-                "Loss": float(loss_info.get("total_loss", 0)),
-                "Memory": float(self.memory.get_pct()),
-            }
-            log.info(
-                f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, "
-                f"Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, "
-                f"Memory={metrics['Memory']:2.2f}"
-            )
-            pbar.set_postfix(metrics)
+    def _maybe_log_progress(self, pbar: tqdm, episode: int, num_episodes: int, last_logged_percent: int) -> int:
+        percent = 100 * (episode - 1) / num_episodes
+        rate = pbar.format_dict.get("rate", 0.0) or 0.0
+        n = pbar.format_dict.get("n", 0)
+        total = pbar.format_dict.get("total", None)
+        eta_val = pbar.format_dict.get("eta", None)
+        if eta_val is not None and isinstance(eta_val, (int, float)) and math.isfinite(eta_val):
+            eta = pbar.format_interval(eta_val)
+        elif rate > 0 and total is not None:
+            remaining = total - n
+            eta = pbar.format_interval(remaining / rate)
+        else:
+            eta = "?"
+        if int(percent) != last_logged_percent or episode == num_episodes:
+            log.info(f"Progress: {percent:.1f}% | {rate:.2f} it/s | ETA: {eta}")
+            return int(percent)
+        return last_logged_percent
 
-            if episode > 0 and episode % self.config.checkpoint_interval == 0:
-                self.save_checkpoint(episode)
+    def _maybe_checkpoint(self, episode: int) -> None:
+        if episode > 0 and episode % cfg.training.checkpoint_interval == 0:
+            self.save_checkpoint(episode)
+
+    def _log_metrics(self, metrics: Dict[str, Any]) -> None:
+        log.info(f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, Memory={metrics['Memory']:2.2f}")
 
     def train_step(self) -> Dict[str, float]:
         """Performs one full training step, including sampling and network update."""
-        if not self.memory.is_ready(self.config.min_memory_size, self.config.min_memory_pct):
+        if not self.memory.is_ready(cfg.memory.min_size, cfg.memory.min_pct):
             log.warning("Buffer not ready for training, skipping step.")
             return {}
         log.debug(f"Starting training step {self.train_step_count}...")
-        batch = self.memory.sample(self.config.batch_size)
+        batch = self.memory.sample(cfg.training.batch_size)
         observations, actions, targets = self._prepare_batch(batch)
 
         params = nnx.state(self.agent.network, nnx.Param)
@@ -130,16 +157,16 @@ class Trainer:
             policy_targets.append(item[0]["policy"])
             observations.append(item[0]["observation"])
 
-            actions = [step["action"] for step in item[: self.config.num_unroll_steps]]
-            rewards = [step["reward"] for step in item[: self.config.num_unroll_steps]]
+            actions = [step["action"] for step in item[: cfg.selfplay.num_unroll_steps]]
+            rewards = [step["reward"] for step in item[: cfg.selfplay.num_unroll_steps]]
             action_sequences.append(actions)
             reward_targets.append(rewards)
 
         for seq in action_sequences:
-            while len(seq) < self.config.num_unroll_steps:
+            while len(seq) < cfg.selfplay.num_unroll_steps:
                 seq.append(0)
         for seq in reward_targets:
-            while len(seq) < self.config.num_unroll_steps:
+            while len(seq) < cfg.selfplay.num_unroll_steps:
                 seq.append(0.0)
 
         return (
@@ -154,8 +181,8 @@ class Trainer:
 
     def _compute_n_step_return(self, item: List[Dict[str, Any]]) -> float:
         """Computes the n-step return for a item, with bootstrapping."""
-        n_steps = self.config.td_steps
-        discount = self.config.discount
+        n_steps = cfg.selfplay.td_steps
+        discount = cfg.selfplay.discount
         rewards = [step["reward"] for step in item]
         n_step_return = 0.0
 
@@ -180,7 +207,7 @@ class Trainer:
         current_states = hidden_states
 
         # Accumulate value loss, policy loss, and reward loss for each unroll step
-        for step in range(self.config.num_unroll_steps):
+        for step in range(cfg.selfplay.num_unroll_steps):
             step_actions = jnp.asarray(actions)[:, step]
             next_states, pred_rewards, pred_policy_logits, pred_values = network.recurrent_inference(current_states, step_actions)
 
@@ -197,10 +224,10 @@ class Trainer:
 
             current_states = next_states
 
-        if self.config.num_unroll_steps > 0:
-            reward_loss /= self.config.num_unroll_steps
-            value_loss /= self.config.num_unroll_steps + 1
-            policy_loss /= self.config.num_unroll_steps + 1
+        if cfg.selfplay.num_unroll_steps > 0:
+            reward_loss /= cfg.selfplay.num_unroll_steps
+            value_loss /= cfg.selfplay.num_unroll_steps + 1
+            policy_loss /= cfg.selfplay.num_unroll_steps + 1
 
         return {"value_loss": value_loss, "policy_loss": policy_loss, "reward_loss": reward_loss}
 
@@ -208,7 +235,6 @@ class Trainer:
         """Saves the agent's state to a checkpoint file."""
         state = self.agent.save_state()
         path = f"{self.checkpoint_dir}/episode_{episode:05d}.pkl"
-        log.info(f"Saving checkpoint at episode {episode} to {path}")
         save_checkpoint(state, path)
 
     def load_checkpoint(self, path: str) -> None:
