@@ -2,6 +2,14 @@ CuMind Release Notes
 -------------------------------------------------------------------
 Document all technical changes introduced in this release as concise bullet points below.
 
+v0.1.9 (2025-07-24)
+----------------------
+Tarek Ibrahim (68)
+- Introduced 'multi_device' option in configuration for better device management.
+- Refactored training loop in Trainer class for improved logging and clarity.
+- Added vectorized n-step return functions in jax_utils for efficiency.
+- Implemented randint method in KeyManager for random integer generation.
+
 v0.1.8 (2025-07-18)
 ----------------------
 Tarek Ibrahim (68)
