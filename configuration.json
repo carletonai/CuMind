@@ -72,6 +72,7 @@
     },
     "device": "cpu",
     "seed": 42,
-    "validate": true
+    "validate": true,
+    "multi_device": false
   }
 }

@@ -219,6 +219,7 @@ class Configuration(metaclass=ConfigMeta):
     device: str = "cpu"
     seed: int = 42
     validate: bool = True
+    multi_device: bool = False
 
     @classmethod
     def _get_instance(cls) -> "Configuration":
@@ -378,6 +379,10 @@ class Configuration(metaclass=ConfigMeta):
         valid_devices = ["cpu", "gpu", "tpu"]
         if self.device not in valid_devices:
             raise ValueError(f"device must be one of {valid_devices}, got {self.device}")
+        if not isinstance(self.multi_device, bool):
+            raise ValueError(f"multi_device must be a boolean, got {type(self.multi_device)}")
+        if self.multi_device and self.device == "cpu":
+            raise ValueError("multi_device cannot be True when device is 'cpu'")
 
         # 13. seed
         if not isinstance(self.seed, int) or self.seed < 0:
