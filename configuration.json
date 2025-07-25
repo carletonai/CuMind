@@ -35,7 +35,7 @@
       "batch_size": 64,
       "learning_rate": 0.001,
       "weight_decay": 0.0001,
-      "target_update_frequency": 250,
+      "target_update_frequency": 100,
       "checkpoint_interval": 50,
       "num_episodes": 2000,
       "train_frequency": 2,
@@ -64,12 +64,12 @@
     },
     "logging": {
       "dir": "logs",
-      "level": "DEBUG",
+      "level": "INFO",
       "console": true,
       "timestamps": true,
       "tqdm": false
     },
-    "device": "cpu",
+    "device": "gpu",
     "seed": 42,
     "validate": false
   }

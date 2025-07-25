@@ -45,7 +45,7 @@ class Agent:
                 self.optimizer_state = self.optimizer.init(nnx.state(self.network, nnx.Param))
                 # Ensure target network is properly initialized
                 log.info("Initializing target prediction network.")
-                self.network.update_target_prediction_network(hard=True)
+                self.network.update_target_prediction_network(hard=False, tau=0.005)
 
         self.mcts = MCTS(self.network)
         log.info("Agent initialization complete.")
@@ -69,14 +69,16 @@ class Agent:
 
         # Use MCTS to get action probabilities
         action_probs = self.mcts.search(root_hidden_state=hidden_state_array, add_noise=training)
-
+        # Take best action
+        action_idx = int(np.argmax(action_probs))
+        """
         if training:
             # Sample action from probabilities
             action_idx = int(jax.random.choice(key.get(), len(action_probs), p=action_probs))
         else:
             # Take best action
             action_idx = int(np.argmax(action_probs))
-
+        """
         # log.debug(f"Selected action: {action_idx}")
         return int(action_idx), action_probs
 
