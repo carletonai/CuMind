@@ -84,3 +84,39 @@ def safe_normalize(x: chex.Array, axis: int = -1, epsilon: float = 1e-8) -> chex
     """
     norm = jnp.linalg.norm(x, axis=axis, keepdims=True)
     return x / jnp.maximum(norm, epsilon)
+
+
+def vectorized_n_step_return(rewards: jnp.ndarray, values: jnp.ndarray, n_steps: int, discount: float) -> jnp.ndarray:
+    """Compute the n-step return for a sequence of rewards and values.
+
+    This function calculates the n-step return using a vectorized approach,
+    replacing the need for a Python loop. It is designed to work with JAX for
+    efficient computation on accelerators.
+
+    Args:
+        rewards: Array of rewards
+        values: Array of value estimates
+        n_steps: Number of steps to consider for the n-step return
+        discount: Discount factor for future rewards
+
+    Returns:
+        Array containing the n-step returns
+    """
+    idx = jnp.arange(n_steps)
+    mask = idx < rewards.shape[0]
+    rewards = jnp.where(mask, rewards[:n_steps], 0)
+    discounts = discount**idx
+    n_step_return = jnp.sum(rewards * discounts)
+    if rewards.shape[0] > n_steps:
+        n_step_return += (discount**n_steps) * values[n_steps]
+    return n_step_return
+
+
+def vmap_n_step_return(rewards: jnp.ndarray, values: jnp.ndarray, n_steps: int, discount: float) -> chex.Array:
+    """Computes n-step returns for batches of rewards and values using JAX vmap."""
+    return cast(chex.Array, jax.vmap(vectorized_n_step_return, in_axes=(0, 0, None, None))(rewards, values, n_steps, discount))
+
+
+def pmap_n_step_return(rewards: jnp.ndarray, values: jnp.ndarray, n_steps: int, discount: float) -> chex.Array:
+    """Computes n-step returns for batches of rewards and values using JAX vmap."""
+    return cast(chex.Array, jax.pmap(vectorized_n_step_return, in_axes=(0, 0, None, None))(rewards, values, n_steps, discount))
