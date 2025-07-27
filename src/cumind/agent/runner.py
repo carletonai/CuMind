@@ -13,7 +13,7 @@ from cumind.utils.logger import log
 
 def train() -> str:
     """Train the agent on a given environment."""
-    env = gym.make(cfg.env.name)
+    env = gym.make(id=cfg.env.name, max_episode_steps=cfg.env.max_episode_steps)
 
     agent = Agent()
     memory_buffer = cfg.memory()
@@ -39,7 +39,7 @@ def inference(checkpoint_file: str, num_episodes: int) -> None:
     state = load_checkpoint(checkpoint_file)
     inference_agent.load_state(state)
 
-    env = gym.make(cfg.env.name, render_mode="human")
+    env = gym.make(id=cfg.env.name, max_episode_steps=cfg.env.max_episode_steps, render_mode="human")
     for episode in range(num_episodes):
         obs, _ = env.reset()
         done = False

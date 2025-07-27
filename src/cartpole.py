@@ -7,7 +7,7 @@ from cumind.utils.logger import log
 
 def main() -> None:
     """Main function for running the CartPole example."""
-    timestamp, checkpoint_dir = cfg.load("configuration.json")
+    timestamp, checkpoint_dir = cfg.load("test.json")
 
     # Print directory information
     print(f"Logging directory: {cfg.logging.dir}/{timestamp}/training.log")

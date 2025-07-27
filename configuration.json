@@ -24,7 +24,7 @@
     "memory": {
       "type": "cumind.data.memory.PrioritizedMemoryBuffer",
       "capacity": 2000,
-      "min_size": 100,
+      "min_size": 200,
       "min_pct": 0.1,
       "alpha": 0.6,
       "epsilon": 1e-06,
@@ -50,7 +50,8 @@
     "env": {
       "name": "CartPole-v1",
       "action_space_size": 2,
-      "observation_shape": [4]
+      "observation_shape": [4],
+      "max_episode_steps": 500
     },
     "selfplay": {
       "num_unroll_steps": 5,
@@ -71,6 +72,6 @@
     },
     "device": "cpu",
     "seed": 42,
-    "validate": false
+    "validate": true
   }
 }
