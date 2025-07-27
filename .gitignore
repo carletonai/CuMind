@@ -1,5 +1,9 @@
+# CU MIND
+test.json
 checkpoints/
 logs/
+
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

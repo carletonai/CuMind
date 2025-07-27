@@ -101,9 +101,9 @@ class PredictionConfig(HotSwappableConfig):
 class MemoryConfig(HotSwappableConfig):
     """Configuration for memory buffer."""
 
-    type: Optional[Union[str, Type[Any]]] = "cumind.data.memory.MemoryBuffer"
+    type: Optional[Union[str, Type[Any]]] = "cumind.data.memory.PrioritizedMemoryBuffer"
     capacity: int = 2000
-    min_size: int = 100
+    min_size: int = 200
     min_pct: float = 0.1
     alpha: float = 0.6
     epsilon: float = 1e-6
@@ -119,9 +119,9 @@ class TrainingConfig:
 
     optimizer: str = "optax.adamw"
     batch_size: int = 64
-    learning_rate: float = 0.01
+    learning_rate: float = 0.001
     weight_decay: float = 0.0001
-    target_update_frequency: int = 250
+    target_update_frequency: int = 100
     checkpoint_interval: int = 50
     num_episodes: int = 2000
     train_frequency: int = 2
@@ -145,6 +145,7 @@ class EnvironmentConfig:
     name: str = "CartPole-v1"
     action_space_size: int = 2
     observation_shape: Tuple[int, ...] = (4,)
+    max_episode_steps: int = 500
 
 
 @dataclasses.dataclass(frozen=True)
@@ -172,7 +173,7 @@ class LoggerConfig:
     dir: str = "logs"
     level: str = "INFO"
     console: bool = True
-    timestamps: bool = False
+    timestamps: bool = True
     tqdm: bool = False
 
 
@@ -219,6 +220,14 @@ class Configuration(metaclass=ConfigMeta):
     seed: int = 42
     validate: bool = True
 
+    @classmethod
+    def _get_instance(cls) -> "Configuration":
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = cls()
+        return cls._instance
+
     def boot(self, path: Optional[str] = None) -> Tuple[str, str]:
         self._validate()
 
@@ -238,14 +247,6 @@ class Configuration(metaclass=ConfigMeta):
         timestamp = log.get_timestamp()
         checkpoint_dir = log.get_checkpoint_dir()
         return timestamp, checkpoint_dir
-
-    @classmethod
-    def _get_instance(cls) -> "Configuration":
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = cls()
-        return cls._instance
 
     @classmethod
     def load(cls, path: str) -> Tuple[str, str]:
@@ -294,12 +295,12 @@ class Configuration(metaclass=ConfigMeta):
             raise ValueError(f"memory.min_size must be positive, got {self.memory.min_size}")
         if not (0 < self.memory.min_pct < 1):
             raise ValueError(f"memory.min_pct must be between 0 and 1, got {self.memory.min_pct}")
-        if self.memory.per_alpha <= 0:
-            raise ValueError(f"memory.per_alpha must be positive, got {self.memory.per_alpha}")
-        if self.memory.per_epsilon <= 0:
-            raise ValueError(f"memory.per_epsilon must be positive, got {self.memory.per_epsilon}")
-        if self.memory.per_beta <= 0:
-            raise ValueError(f"memory.per_beta must be positive, got {self.memory.per_beta}")
+        if self.memory.alpha <= 0:
+            raise ValueError(f"memory.per_alpha must be positive, got {self.memory.alpha}")
+        if self.memory.epsilon <= 0:
+            raise ValueError(f"memory.per_epsilon must be positive, got {self.memory.epsilon}")
+        if self.memory.beta <= 0:
+            raise ValueError(f"memory.per_beta must be positive, got {self.memory.beta}")
         if self.memory.type is None:
             raise ValueError("memory.type must be specified")
 
@@ -340,6 +341,8 @@ class Configuration(metaclass=ConfigMeta):
             raise ValueError(f"env.action_space_size must be positive, got {self.env.action_space_size}")
         if not isinstance(self.env.observation_shape, tuple) or not all(isinstance(x, int) and x > 0 for x in self.env.observation_shape):
             raise ValueError("env.observation_shape must be a tuple of positive integers")
+        if not isinstance(self.env.max_episode_steps, int) or self.env.max_episode_steps <= 0:
+            raise ValueError(f"env.max_episode_steps must be a positive integer, got {self.env.max_episode_steps}")
 
         # 9. SelfPlayConfig
         if self.selfplay.num_unroll_steps <= 0:
