@@ -19,7 +19,7 @@ def train() -> str:
     memory_buffer = cfg.memory()
     trainer = Trainer(agent, memory_buffer)
 
-    trainer.run_training_loop(env)
+    trainer.train(env)
 
     env.close()  # type: ignore
 

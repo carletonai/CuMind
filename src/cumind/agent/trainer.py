@@ -20,12 +20,22 @@ from cumind.utils.config import cfg
 from cumind.utils.logger import log
 
 
-class DummyTqdmFile:
-    def write(self, _: Any) -> None:
-        pass
+class TqdmSink:
+    def __init__(self, mode: bool):
+        self.mode = mode
+        if mode:
+            self.sink = self._stdout_sink
+        else:
+            self.sink = self._logger_sink
 
-    def flush(self) -> None:
-        pass
+    def write(self, msg: Any) -> None:
+        self.sink(msg)
+
+    def _stdout_sink(self, msg: Any) -> None:
+        sys.stdout.write(str(msg))
+
+    def _logger_sink(self, msg: Any) -> None:
+        log.info(str(msg))
 
 
 class Trainer:
@@ -46,20 +56,18 @@ class Trainer:
         log.info(f"Checkpoints will be saved to {self.checkpoint_dir}")
         self.train_step_count = 0
 
-    def run_training_loop(self, env: Any) -> None:
+    def train(self, env: Any) -> None:
         """Runs the main training loop."""
         num_episodes = cfg.training.num_episodes
         train_frequency = cfg.training.train_frequency
-        tqdm_file = sys.stdout if cfg.logging.tqdm else DummyTqdmFile()
+        tqdm_file = TqdmSink(cfg.logging.tqdm)
         pbar = tqdm(range(1, num_episodes + 1), desc="Training Progress", file=tqdm_file)
         self_play = SelfPlay(self.agent, self.memory)
-        last_logged_percent = -1
         self.last_loss: Dict[str, float] = {}
 
         for episode in pbar:
             self._run_episode_and_log(env, self_play, episode)
             self._maybe_train_and_update(episode, train_frequency)
-            last_logged_percent = self._maybe_log_progress(pbar, episode, num_episodes, last_logged_percent)
             self._maybe_checkpoint(episode)
 
     def _run_episode_and_log(self, env: Any, self_play: SelfPlay, episode: int) -> None:
@@ -81,23 +89,6 @@ class Trainer:
                 self.agent.update_target_network()
                 log.info("Target network update completed")
 
-    def _maybe_log_progress(self, pbar: tqdm, episode: int, num_episodes: int, last_logged_percent: int) -> int:
-        percent = 100 * (episode - 1) / num_episodes
-        rate = pbar.format_dict.get("rate", 0.0) or 0.0
-        n = pbar.format_dict.get("n", 0)
-        total = pbar.format_dict.get("total", None)
-        eta_val = pbar.format_dict.get("eta", None)
-        if eta_val is not None and isinstance(eta_val, (int, float)) and math.isfinite(eta_val):
-            eta = pbar.format_interval(eta_val)
-        elif rate > 0 and total is not None:
-            remaining = total - n
-            eta = pbar.format_interval(remaining / rate)
-        else:
-            eta = "?"
-        if int(percent) != last_logged_percent or episode == num_episodes:
-            log.info(f"Progress: {percent:.1f}% | {rate:.2f} it/s | ETA: {eta}")
-            return int(percent)
-        return last_logged_percent
 
     def _maybe_checkpoint(self, episode: int) -> None:
         if episode > 0 and episode % cfg.training.checkpoint_interval == 0:
