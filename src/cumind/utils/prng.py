@@ -1,7 +1,7 @@
 """PRNG utilities for JAX key management."""
 
 import threading
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, cast
 
 import jax
 import jax.numpy as jnp
@@ -77,7 +77,17 @@ class KeyManager:
             if prod == 1:
                 return subkeys[0]
             else:
+                assert cls._key is not None
                 return jnp.array(subkeys).reshape(shape + cls._key.shape)
+
+    @classmethod
+    def randint(cls, minval: int, maxval: int, shape: Tuple[int, ...] = ()) -> int:
+        """Return a random integer between minval and maxval."""
+        with cls._lock:
+            if cls._key is None or cls._seed is None:
+                log.error("Attempted to use PRNG before initialization")
+                raise RuntimeError("PRNG not initialized. Call key.seed(value) first.")
+            return cast(int, jax.random.randint(cls._key, shape, minval, maxval).item())
 
 
 # Alias
