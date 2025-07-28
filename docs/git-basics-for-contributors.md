@@ -93,12 +93,31 @@ git checkout -b new-branch
 Creates a new branch named `new-branch` and switches to it immediately.  
 
 #### **`git reset`**
-#### **Reset working directory to the latest commit**
+#### **Reset working directory to the latest commit (hard reset)**
 ``` bash
 git reset --hard HEAD
 ```
 Discards all uncommitted changes in the current branch and resets it to the latest commit.  
 **WARNING: This is destructive and cannot be undone.**
+
+#### **Reset to a previous commit, but keep changes staged (soft reset)**
+``` bash
+git reset --soft HEAD~1
+```
+Moves `HEAD` back one commit (or to a specific hash), but keeps your changes staged so you can recommit them.  
+Useful when you want to edit a previous commit without losing your previous work.
+
+#### **General syntax**
+``` bash
+git reset --{soft | hard | mixed} {commit-id | HEAD~n}
+```
+- `--soft`: Keeps all changes staged (in the index)
+- `--mixed` (default): Keeps changes but unstages them
+- `--hard`: Discards all changes. 
+
+You can use:  
+- A commit hash (`a1b2c3d`), or 
+- A relative reference like `HEAD~1` (1 commit before the current), `HEAD~2` (2 commits before current), etc.
 
 #### **`git reflog`**
 #### **Show recent Git history**
