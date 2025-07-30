@@ -29,11 +29,7 @@ dependencies = [
 # - chex: Testing and assertion utilities for JAX
 
 # Note: JAX CPU version is used by default
-# To install other JAX versions, use:
-# pip install -U jax[cuda12]     # for NVIDIA GPUs with CUDA 12
-# pip install -U jax[tpu]        # for TPU
-# pip install -U jax[rocm]       # for AMD GPUs  
-# pip install -U jax[metal]      # for Apple Silicon
+# LOOK AT CONFIG.PY LINE 385 VALIDATING DEVICE.
 
 
 # =========================
