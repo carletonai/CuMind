@@ -126,6 +126,7 @@ class TrainingConfig:
     num_episodes: int = 2000
     train_frequency: int = 2
     checkpoint_dir: str = "checkpoints"
+    debug: bool = False
 
 
 @dataclasses.dataclass(frozen=True)

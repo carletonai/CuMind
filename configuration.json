@@ -39,7 +39,8 @@
       "checkpoint_interval": 50,
       "num_episodes": 2000,
       "train_frequency": 2,
-      "checkpoint_dir": "checkpoints"
+      "checkpoint_dir": "checkpoints",
+      "debug": false
     },
     "mcts": {
       "num_simulations": 25,

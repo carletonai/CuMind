@@ -59,6 +59,11 @@ class Agent:
         Returns:
             A tuple containing the selected action index and the MCTS policy probabilities.
         """
+        if cfg.training.debug:
+            num_actions = cfg.env.action_space_size
+            action_probs = np.ones(num_actions, dtype=np.float32) / num_actions
+            action_idx = int(np.random.choice(num_actions))
+            return action_idx, action_probs
         log.debug(f"Selecting action. Training mode: {training}")
 
         obs_tensor = jax.device_put(jnp.array(observation)[None], self.device)  # [None] adds batch dimension
