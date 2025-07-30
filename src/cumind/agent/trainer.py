@@ -1,7 +1,5 @@
 """Training loop implementation."""
 
-import math
-import sys
 from typing import Any, Dict, List, Tuple
 
 import chex
@@ -17,25 +15,7 @@ from cumind.data.memory import Memory
 from cumind.data.self_play import SelfPlay
 from cumind.utils.checkpoint import load_checkpoint, save_checkpoint
 from cumind.utils.config import cfg
-from cumind.utils.logger import log
-
-
-class TqdmSink:
-    def __init__(self, mode: bool):
-        self.mode = mode
-        if mode:
-            self.sink = self._stdout_sink
-        else:
-            self.sink = self._logger_sink
-
-    def write(self, msg: Any) -> None:
-        self.sink(msg)
-
-    def _stdout_sink(self, msg: Any) -> None:
-        sys.stdout.write(str(msg))
-
-    def _logger_sink(self, msg: Any) -> None:
-        log.info(str(msg))
+from cumind.utils.logger import TqdmSink, log
 
 
 class Trainer:
@@ -88,7 +68,6 @@ class Trainer:
                 log.info(f"Updating target network at training step {self.train_step_count}")
                 self.agent.update_target_network()
                 log.info("Target network update completed")
-
 
     def _maybe_checkpoint(self, episode: int) -> None:
         if episode > 0 and episode % cfg.training.checkpoint_interval == 0:

@@ -235,3 +235,21 @@ class ColorFormatter(logging.Formatter):
 
 # Alias
 log = Logger
+
+
+class TqdmSink:
+    def __init__(self, mode: bool):
+        self.mode = mode
+        if mode:
+            self.sink = self._stdout_sink
+        else:
+            self.sink = self._logger_sink
+
+    def write(self, msg: Any) -> None:
+        self.sink(msg)
+
+    def _stdout_sink(self, msg: Any) -> None:
+        sys.stdout.write(str(msg))
+
+    def _logger_sink(self, msg: Any) -> None:
+        log.info(str(msg))
