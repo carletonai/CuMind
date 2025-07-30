@@ -15,6 +15,7 @@ from cumind.data.memory import Memory
 from cumind.data.self_play import SelfPlay
 from cumind.utils.checkpoint import load_checkpoint, save_checkpoint
 from cumind.utils.config import cfg
+from cumind.utils.jax_utils import pmap_n_step_return, vmap_n_step_return
 from cumind.utils.logger import TqdmSink, log
 
 
@@ -113,19 +114,15 @@ class Trainer:
 
     def _prepare_batch(self, batch: List[Any]) -> Tuple[chex.Array, chex.Array, Dict[str, chex.Array]]:
         """Prepares a batch of trajectories for training."""
-        observations, action_sequences, policy_targets, value_targets, reward_targets = [], [], [], [], []
+        observations, action_sequences, policy_targets, reward_targets = [], [], [], []
+        value_targets: chex.Array
 
         for item in batch:
             if not item:
                 log.critical("Encountered empty item in batch.")
                 raise RuntimeError("Encountered empty item in batch.")
-
-            value = self._compute_n_step_return(item)
-            value_targets.append(value)
-
             policy_targets.append(item[0]["policy"])
             observations.append(item[0]["observation"])
-
             actions = [step["action"] for step in item[: cfg.selfplay.num_unroll_steps]]
             rewards = [step["reward"] for step in item[: cfg.selfplay.num_unroll_steps]]
             action_sequences.append(actions)
@@ -138,6 +135,27 @@ class Trainer:
             while len(seq) < cfg.selfplay.num_unroll_steps:
                 seq.append(0.0)
 
+        # Efficient n-step return computation
+        n_steps = cfg.selfplay.td_steps
+        discount = cfg.selfplay.discount
+        # Prepare rewards and bootstrap values for all items
+        rewards_arr = [jnp.array([step["reward"] for step in item]) for item in batch]
+        values_arr = []
+        for item in batch:
+            if len(item) > n_steps:
+                last_obs = jnp.array(item[n_steps]["observation"])[None, :]
+                _, _, value = self.agent.network.initial_inference(last_obs, use_target=True)
+                v = jnp.concatenate([jnp.zeros(n_steps), jnp.asarray(value).reshape(-1)])
+            else:
+                v = jnp.zeros(len(item))
+            values_arr.append(v)
+        rewards_stack = jax.tree_util.tree_map(lambda *xs: jnp.array(xs), *rewards_arr)
+        values_stack = jax.tree_util.tree_map(lambda *xs: jnp.array(xs), *values_arr)
+        if cfg.multi_device:
+            value_targets = pmap_n_step_return(rewards_stack, values_stack, n_steps, discount)
+        else:
+            value_targets = vmap_n_step_return(rewards_stack, values_stack, n_steps, discount)
+
         return (
             jnp.array(observations),
             jnp.array(action_sequences, dtype=jnp.int32),
@@ -147,23 +165,6 @@ class Trainer:
                 "policies": jnp.array(policy_targets, dtype=jnp.float32),
             },
         )
-
-    def _compute_n_step_return(self, item: List[Dict[str, Any]]) -> float:
-        """Computes the n-step return for a item, with bootstrapping."""
-        n_steps = cfg.selfplay.td_steps
-        discount = cfg.selfplay.discount
-        rewards = [step["reward"] for step in item]
-        n_step_return = 0.0
-
-        for i in range(min(len(rewards), n_steps)):
-            n_step_return += rewards[i] * (discount**i)
-
-        if len(item) > n_steps:
-            last_obs = jnp.array(item[n_steps]["observation"])[None, :]
-            _, _, value = self.agent.network.initial_inference(last_obs, use_target=True)
-            n_step_return += (discount**n_steps) * float(jnp.asarray(value)[0, 0])
-
-        return n_step_return
 
     def _compute_losses(self, network: CuMindNetwork, observations: chex.Array, actions: chex.Array, targets: Dict[str, chex.Array]) -> Dict[str, chex.Array]:
         """Computes the value, policy, and reward losses."""
