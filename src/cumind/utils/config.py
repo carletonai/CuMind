@@ -4,6 +4,7 @@ import dataclasses
 import inspect
 import json
 import re
+import subprocess
 import threading
 from pathlib import Path
 from typing import Any, Optional, Tuple, Type, Union, cast, get_args, get_origin
@@ -378,13 +379,22 @@ class Configuration(metaclass=ConfigMeta):
             raise ValueError("logging.dir must be a non-empty string")
 
         # 12. device
-        valid_devices = ["cpu", "gpu", "tpu"]
+        valid_devices = ["cpu", "cuda", "tpu", "rocm", "metal"]
         if self.device not in valid_devices:
             raise ValueError(f"device must be one of {valid_devices}, got {self.device}")
         if not isinstance(self.multi_device, bool):
             raise ValueError(f"multi_device must be a boolean, got {type(self.multi_device)}")
         if self.multi_device and self.device == "cpu":
             raise ValueError("multi_device cannot be True when device is 'cpu'")
+
+        if self.device == "cuda":
+            subprocess.run(["uv", "pip", "install", "jax[cuda12]>=0.6.2"], check=True)
+        elif self.device == "tpu":
+            subprocess.run(["uv", "pip", "install", "jax[tpu]>=0.6.2"], check=True)
+        elif self.device == "rocm":
+            subprocess.run(["uv", "pip", "install", "jax[rocm]>=0.6.2"], check=True)
+        elif self.device == "metal":
+            subprocess.run(["uv", "pip", "install", "jax[metal]>=0.6.2"], check=True)
 
         # 13. seed
         if not isinstance(self.seed, int) or self.seed < 0:
