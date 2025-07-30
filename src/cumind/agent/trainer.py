@@ -64,11 +64,18 @@ class Trainer:
 
     def _maybe_train_and_update(self, episode: int, train_frequency: int) -> None:
         if episode > 0 and episode % train_frequency == 0:
-            self.last_loss = self.train_step()
-            if self.train_step_count > 0 and self.train_step_count % cfg.training.target_update_frequency == 0:
-                log.info(f"Updating target network at training step {self.train_step_count}")
-                self.agent.update_target_network()
-                log.info("Target network update completed")
+            if not self.memory.is_ready(cfg.memory.min_size, cfg.memory.min_pct):
+                log.warning("Buffer not ready for training, skipping step.")
+                return
+
+            for _ in range(cfg.training.num_batches):
+                self.last_loss = self.train_step()
+                self.train_step_count += 1
+
+                if self.train_step_count > 0 and self.train_step_count % cfg.training.target_update_frequency == 0:
+                    log.info(f"Updating target network at training step {self.train_step_count}")
+                    self.agent.update_target_network()
+                    log.info("Target network update completed")
 
     def _maybe_checkpoint(self, episode: int) -> None:
         if episode > 0 and episode % cfg.training.checkpoint_interval == 0:
@@ -79,9 +86,6 @@ class Trainer:
 
     def train_step(self) -> Dict[str, float]:
         """Performs one full training step, including sampling and network update."""
-        if not self.memory.is_ready(cfg.memory.min_size, cfg.memory.min_pct):
-            log.warning("Buffer not ready for training, skipping step.")
-            return {}
         log.debug(f"Starting training step {self.train_step_count}...")
         batch = self.memory.sample(cfg.training.batch_size)
         observations, actions, targets = self._prepare_batch(batch)
@@ -100,7 +104,6 @@ class Trainer:
         losses_float = {f"train/{k}": float(v) for k, v in losses.items()}
         losses_float["total_loss"] = float(total_loss)
         log.log_scalars(losses_float, self.train_step_count)
-        self.train_step_count += 1
         return {"total_loss": float(total_loss), **losses_float}
 
     def _loss_fn(self, params: nnx.State[Any, Any], observations: chex.Array, actions: chex.Array, targets: Dict[str, chex.Array]) -> Tuple[chex.Array, Dict[str, chex.Array]]:

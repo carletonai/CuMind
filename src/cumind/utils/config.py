@@ -119,6 +119,7 @@ class TrainingConfig:
 
     optimizer: str = "optax.adamw"
     batch_size: int = 64
+    num_batches: int = 1000
     learning_rate: float = 0.001
     weight_decay: float = 0.0001
     target_update_frequency: int = 100
