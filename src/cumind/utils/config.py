@@ -245,11 +245,19 @@ class Configuration(metaclass=ConfigMeta):
             log.info(f"Config location: {path}")
         else:
             log.info("Loaded default config")
-        log.info("Configuration validated and loaded successfully.")
 
-        # Return timestamp and checkpoint directory from logger
+        # Log the full config as JSON
+        config_json = self._as_json_str()
+        log.info("Config values:\n" + config_json)
+
         timestamp = log.get_timestamp()
         checkpoint_dir = log.get_checkpoint_dir()
+
+        log.info(f"Logging directory: {self.logging.dir}/{timestamp}/training.log")
+        log.info(f"Checkpoint directory: {checkpoint_dir}/")
+
+        log.info("Configuration booted successfully.")
+
         return timestamp, checkpoint_dir
 
     @classmethod
@@ -449,15 +457,10 @@ class Configuration(metaclass=ConfigMeta):
         section_configs = _coerce_types(config_params, cls)
         return cls(**section_configs)
 
-    def _to_json(self, json_path: str) -> None:
-        """Saves the configuration to a JSON file."""
-        json_file = Path(json_path)
-        json_file.parent.mkdir(parents=True, exist_ok=True)
-
+    def _as_json_str(self) -> str:
+        """Returns the configuration as a JSON string."""
         config_dict = dataclasses.asdict(self)
         organized_config = {}
-
-        # Exclude internal fields (those starting with an underscore)
         for k, v in config_dict.items():
             if k.startswith("_"):
                 continue
@@ -465,14 +468,16 @@ class Configuration(metaclass=ConfigMeta):
                 organized_config[k] = dataclasses.asdict(v)
             else:
                 organized_config[k] = v
-
         final_config = {"CuMind": organized_config}
-
-        # Dump to string first
         json_str = json.dumps(final_config, indent=2)
-        # Compact single-element lists: [\n  4\n] -> [4]
         json_str = re.sub(r"\[\s*([\d.eE+-]+)\s*\]", r"[\1]", json_str)
+        return json_str
 
+    def _to_json(self, json_path: str) -> None:
+        """Saves the configuration to a JSON file."""
+        json_file = Path(json_path)
+        json_file.parent.mkdir(parents=True, exist_ok=True)
+        json_str = self._as_json_str()
         with open(json_file, "w", encoding="utf-8") as f:
             f.write(json_str)
             f.write("\n")
