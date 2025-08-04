@@ -66,6 +66,9 @@
       "target": "float32"
     },
     "logging": {
+      "wandb": false,
+      "title": "spamEggs",
+      "tags": null,
       "dir": "logs",
       "level": "INFO",
       "console": true,

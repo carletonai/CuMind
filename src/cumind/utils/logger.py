@@ -7,9 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import tensorboard as tb  # type: ignore
 import wandb
-
 from cumind.utils.config import cfg
 
 
@@ -51,8 +49,6 @@ class Logger:
         level: str = cfg.logging.level
         console: bool = cfg.logging.console
         timestamps: bool = cfg.logging.timestamps
-        wandb_config: Optional[Dict[str, Any]] = None  # cfg.logging.wb
-        tensorboard_config: Optional[Dict[str, Any]] = None  # cfg.logging.tb
 
         self._logger = logging.getLogger("CuMindLogger")
         self.tb_writer: Optional[Any] = None
@@ -83,16 +79,16 @@ class Logger:
 
         self.set_level(level)
 
-        # Integrations
-        self.use_wandb = wandb_config is not None
-        self.use_tensorboard = tensorboard_config is not None
+        # Setup wandb config
+        self.use_wandb = cfg.logging.wandb
         if self.use_wandb:
-            assert wandb_config is not None
+            wandb_config:Dict[str, Any] = {
+            "project": "CuMind",
+            "name": cfg.logging.title,
+            "tags": cfg.logging.tags,
+            }
             if wandb.run is None:
                 wandb.init(**wandb_config)
-        if self.use_tensorboard:
-            self.tb_writer = tb.summary.create_file_writer(str(self.log_dir))
-
         type(self)._initialized = True
 
     def _create_directories(self, cfg: cfg) -> None:
@@ -148,9 +144,6 @@ class Logger:
         cls.info(f"Step {step:4d}: {name} = {value:.6f}")
         if instance.use_wandb:
             wandb.log({name: value}, step=step)
-        if instance.use_tensorboard and instance.tb_writer:
-            with instance.tb_writer.as_default():
-                tb.summary.scalar(name, value, step=step)
 
     @classmethod
     def log_scalars(cls, metrics: Dict[str, float], step: int) -> None:
@@ -207,8 +200,6 @@ class Logger:
 
         if instance.use_wandb and wandb.run is not None:
             wandb.finish()
-        if instance.use_tensorboard and instance.tb_writer is not None:
-            instance.tb_writer.close()
 
         cls.info("Closing logger handlers and shutting down logging system.")
         for handler in instance._logger.handlers[:]:

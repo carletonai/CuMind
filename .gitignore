@@ -7,7 +7,7 @@ test.json.bak
 # Directory
 checkpoints/
 logs/
-
+wandb/
 
 
 # Byte-compiled / optimized / DLL files

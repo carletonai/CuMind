@@ -173,6 +173,10 @@ class DataTypesConfig:
 class LoggerConfig:
     """Configuration for logger."""
 
+    wandb: bool = False
+    title: str = "spamEggs"
+    tags: Optional[list[str]] = None
+
     dir: str = "logs"
     level: str = "INFO"
     console: bool = True
@@ -385,6 +389,11 @@ class Configuration(metaclass=ConfigMeta):
             raise ValueError(f"logging.timestamps must be a boolean, got {type(self.logging.timestamps)}")
         if not isinstance(self.logging.dir, str) or not self.logging.dir:
             raise ValueError("logging.dir must be a non-empty string")
+        if self.logging.title is not None and not isinstance(self.logging.title, str):
+            raise ValueError(f"logging.wandb_name must be a string, got {type(self.logging.title)}")
+        if self.logging.tags is not None:
+            if not isinstance(self.logging.tags, list) or not all(isinstance(tag, str) for tag in self.logging.tags):
+                raise ValueError("logging.wandb_tags must be a list of strings")
 
         # 12. device
         valid_devices = ["cpu", "cuda", "tpu", "rocm", "metal"]

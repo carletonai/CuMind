@@ -8,7 +8,6 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 from flax import nnx
-from jax import lax
 from tqdm import tqdm
 
 from cumind.agent.agent import Agent
@@ -74,9 +73,7 @@ def _train_step_impl(
     return total_loss, losses, new_params, new_opt_state
 
 
-def _compute_losses(
-    network: CuMindNetwork, observations: chex.Array, actions: chex.Array, targets: Dict[str, chex.Array]
-) -> Dict[str, chex.Array]:
+def _compute_losses(network: CuMindNetwork, observations: chex.Array, actions: chex.Array, targets: Dict[str, chex.Array]) -> Dict[str, chex.Array]:
     """Computes the value, policy, and reward losses."""
     hidden_states, initial_policy_logits, initial_values = network.initial_inference(observations)
     value_loss = jnp.mean((jnp.asarray(initial_values).squeeze() - jnp.asarray(targets["values"])) ** 2)
@@ -156,10 +153,7 @@ class Trainer:
             self.save_checkpoint(episode)
 
     def _log_metrics(self, metrics: Dict[str, Any]) -> None:
-        log.info(
-            f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, "
-            f"Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, Memory={metrics['Memory']:2.2f}"
-        )
+        log.info(f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, Memory={metrics['Memory']:2.2f}")
 
     def train_step(self) -> Dict[str, float]:
         log.debug(f"Starting training step {self.train_step_count}...")
