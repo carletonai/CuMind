@@ -82,10 +82,10 @@ class Logger:
         # Setup wandb config
         self.use_wandb = cfg.logging.wandb
         if self.use_wandb:
-            wandb_config:Dict[str, Any] = {
-            "project": "CuMind",
-            "name": cfg.logging.title,
-            "tags": cfg.logging.tags,
+            wandb_config: Dict[str, Any] = {
+                "project": "CuMind",
+                "name": cfg.logging.title,
+                "tags": cfg.logging.tags,
             }
             if wandb.run is None:
                 wandb.init(**wandb_config)

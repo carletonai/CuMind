@@ -6,9 +6,9 @@ import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-import optax
+import optax  # type: ignore
 from flax import nnx
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 from cumind.agent.agent import Agent
 from cumind.core.network import CuMindNetwork
@@ -24,7 +24,7 @@ from cumind.utils.logger import TqdmSink, log
 def _train_step_impl(
     network: CuMindNetwork,
     optimizer: optax.GradientTransformation,
-    params: nnx.State,
+    params: nnx.State[Any, Any],
     opt_state: optax.OptState,
     observations: chex.Array,
     actions: chex.Array,
@@ -33,7 +33,7 @@ def _train_step_impl(
     bootstrap_obs: chex.Array,
     rewards_stack: chex.Array,
     bootstrap_mask: chex.Array,
-) -> Tuple[chex.Array, Dict[str, chex.Array], nnx.State, optax.OptState]:
+) -> Tuple[chex.Array, Dict[str, chex.Array], Any, optax.OptState]:
     """Core training step implementation (to be JIT-compiled)."""
 
     # 1. Calculate n-step returns entirely on the device
@@ -45,9 +45,9 @@ def _train_step_impl(
 
     # Compute the final value targets
     if cfg.multi_device:
-        value_targets = pmap_n_step_return(rewards_stack, values_stack, cfg.selfplay.td_steps, cfg.selfplay.discount)
+        value_targets = pmap_n_step_return(jnp.asarray(rewards_stack), jnp.asarray(values_stack), cfg.selfplay.td_steps, cfg.selfplay.discount)
     else:
-        value_targets = vmap_n_step_return(rewards_stack, values_stack, cfg.selfplay.td_steps, cfg.selfplay.discount)
+        value_targets = vmap_n_step_return(jnp.asarray(rewards_stack), jnp.asarray(values_stack), cfg.selfplay.td_steps, cfg.selfplay.discount)
 
     targets = {
         "values": value_targets,
@@ -56,7 +56,7 @@ def _train_step_impl(
     }
 
     # 2. Compute loss and gradients
-    def loss_fn(params: nnx.State) -> Tuple[chex.Array, Dict[str, chex.Array]]:
+    def loss_fn(params: nnx.State[Any, Any]) -> Tuple[chex.Array, Dict[str, chex.Array]]:
         temp_network = nnx.clone(network)
         nnx.update(temp_network, params)
         losses = _compute_losses(temp_network, observations, actions, targets)
