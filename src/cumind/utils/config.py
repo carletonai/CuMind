@@ -120,7 +120,7 @@ class TrainingConfig:
 
     optimizer: str = "optax.adamw"
     batch_size: int = 64
-    num_batches: int = 1000
+    num_batches: int = 1
     learning_rate: float = 0.001
     weight_decay: float = 0.0001
     target_update_frequency: int = 100
@@ -175,7 +175,7 @@ class LoggerConfig:
 
     wandb: bool = False
     title: str = "spamEggs"
-    tags: Optional[list[str]] = None
+    tags: list[str] = dataclasses.field(default_factory=lambda: ["foo", "bar"])
 
     dir: str = "logs"
     level: str = "INFO"
@@ -391,9 +391,8 @@ class Configuration(metaclass=ConfigMeta):
             raise ValueError("logging.dir must be a non-empty string")
         if self.logging.title is not None and not isinstance(self.logging.title, str):
             raise ValueError(f"logging.wandb_name must be a string, got {type(self.logging.title)}")
-        if self.logging.tags is not None:
-            if not isinstance(self.logging.tags, list) or not all(isinstance(tag, str) for tag in self.logging.tags):
-                raise ValueError("logging.wandb_tags must be a list of strings")
+        if not isinstance(self.logging.tags, list) or not all(isinstance(tag, str) for tag in self.logging.tags):
+            raise ValueError("logging.tags must be a list of strings")
 
         # 12. device
         valid_devices = ["cpu", "cuda", "tpu", "rocm", "metal"]
@@ -479,7 +478,7 @@ class Configuration(metaclass=ConfigMeta):
                 organized_config[k] = v
         final_config = {"CuMind": organized_config}
         json_str = json.dumps(final_config, indent=2)
-        json_str = re.sub(r"\[\s*([\d.eE+-]+)\s*\]", r"[\1]", json_str)
+        json_str = re.sub(r'\[\s*\n\s*(.*?)\s*\n\s*\]', lambda m: '[' + re.sub(r'\s*\n\s*', ' ', m.group(1).strip()) + ']', json_str, flags=re.DOTALL)
         return json_str
 
     def _to_json(self, json_path: str) -> None:
