@@ -1,40 +1,63 @@
-"""ResNet architecture for CuMind."""
+"""ResNet architecture for reinforcement learning."""
 
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
 import chex
+import jax.numpy as jnp
 from flax import nnx
 
 from cumind.core.encoder import BaseEncoder, ConvEncoder, VectorEncoder
 
 
 class ResNet(nnx.Module):
-    """
-    General-purpose ResNet backbone supporting both vector and image inputs.
+    """ResNet backbone supporting both vector and image inputs."""
 
-    Args:
-        input_shape: Shape of the input data (tuple).
-        hidden_dim: Dimension of hidden layers.
-        num_blocks: Number of residual blocks.
-        conv_channels: Number of channels for convolutional layers (used for image input).
-        rngs: Random number generators for parameter initialization.
+    def __init__(self, input_dim: Union[int, Tuple[int, int, int]], hidden_dim: int, num_hidden_layers: int, rngs: nnx.Rngs, conv_channels: Optional[int] = None):
+        """
+        Initializes the ResNet model.
 
-    Raises:
-        ValueError: If input_shape is not 1D (vector) or 3D (image).
-    """
-
-    def __init__(self, hidden_dim: int, input_shape: Tuple[int, ...], num_blocks: int, conv_channels: int, rngs: nnx.Rngs):
-        self.input_shape = input_shape
+        Args:
+            input_dim: Input dimension - int for vector input, (H, W, C) for image input
+            hidden_dim: Dimension of hidden layers and output features
+            num_hidden_layers: Number of residual blocks/layers
+            conv_channels: Number of channels for convolutional layers (image input only)
+            rngs: Random number generators for parameter initialization
+        """
         self.hidden_dim = hidden_dim
-        self.num_blocks = num_blocks
+        self.num_hidden_layers = num_hidden_layers
         self.conv_channels = conv_channels
         self.encoder: BaseEncoder
-        if len(input_shape) == 1:
-            self.encoder = VectorEncoder(input_shape, hidden_dim, num_blocks, rngs)
-        elif len(input_shape) == 3:
-            self.encoder = ConvEncoder(input_shape, hidden_dim, num_blocks, conv_channels, rngs)
+
+        # Handle 1D tuples as integers (e.g., (4,) -> 4)
+        in_dim: Union[int, Tuple[int, int, int]]
+        if isinstance(input_dim, tuple) and len(input_dim) == 1:
+            in_dim = input_dim[0]
         else:
-            raise ValueError("Unsupported observation shape")
+            in_dim = input_dim
+
+        observation_shape: Tuple[int, ...]
+        if isinstance(in_dim, int):
+            # Vector input: (in_dim,) -> hidden_dim
+            observation_shape = (in_dim,)
+            self.encoder = VectorEncoder(observation_shape=observation_shape, hidden_dim=hidden_dim, num_blocks=num_hidden_layers, rngs=rngs)
+        elif isinstance(in_dim, tuple) and len(in_dim) == 3:
+            # Image input: (height, width, channels) -> hidden_dim
+            observation_shape = in_dim
+            assert conv_channels is not None, "conv_channels must be provided for image input"
+            self.encoder = ConvEncoder(observation_shape=observation_shape, hidden_dim=hidden_dim, num_blocks=num_hidden_layers, conv_channels=conv_channels, rngs=rngs)
+        else:
+            raise ValueError(f"Unsupported input_dim: {in_dim}. Use int or (X,) for vector input or (H, W, C) tuple for image input.")
 
     def __call__(self, x: chex.Array) -> chex.Array:
+        """
+        Forward pass through the ResNet.
+
+        Args:
+            x: Input tensor of shape (..., input_dim) for vector input
+               or (..., H, W, C) for image input
+
+        Returns:
+            Output tensor of shape (..., hidden_dim)
+        """
+        x = jnp.asarray(x, dtype=jnp.float32)
         return self.encoder(x)

@@ -1,42 +1,47 @@
 {
   "CuMind": {
     "networks": {
-      "hidden_dim": 128
+      "hidden_state_dim": 128
     },
     "representation": {
       "type": "cumind.core.resnet.ResNet",
-      "num_blocks": 2,
+      "num_hidden_layers": 2,
       "conv_channels": 32,
       "seed": 42
     },
     "dynamics": {
       "type": "cumind.core.mlp.MLPWithEmbedding",
-      "num_blocks": 2,
+      "hidden_dim": 128,
+      "num_hidden_layers": 2,
       "seed": 42
     },
     "prediction": {
       "type": "cumind.core.mlp.MLPDual",
+      "hidden_dim": 128,
+      "num_hidden_layers": 2,
       "seed": 42
     },
     "memory": {
-      "type": "cumind.data.memory.MemoryBuffer",
+      "type": "cumind.data.memory.PrioritizedMemoryBuffer",
       "capacity": 2000,
-      "min_size": 100,
+      "min_size": 200,
       "min_pct": 0.1,
-      "per_alpha": 0.6,
-      "per_epsilon": 1e-06,
-      "per_beta": 0.4
+      "alpha": 0.6,
+      "epsilon": 1e-06,
+      "beta": 0.4
     },
     "training": {
       "optimizer": "optax.adamw",
       "batch_size": 64,
-      "learning_rate": 0.01,
+      "num_batches": 1,
+      "learning_rate": 0.001,
       "weight_decay": 0.0001,
-      "target_update_frequency": 250,
+      "target_update_frequency": 100,
       "checkpoint_interval": 50,
-      "num_episodes": 1220,
+      "num_episodes": 2000,
       "train_frequency": 2,
-      "checkpoint_root_dir": "checkpoints"
+      "checkpoint_dir": "checkpoints",
+      "debug": false
     },
     "mcts": {
       "num_simulations": 25,
@@ -47,7 +52,8 @@
     "env": {
       "name": "CartPole-v1",
       "action_space_size": 2,
-      "observation_shape": [4]
+      "observation_shape": [4],
+      "max_episode_steps": 500
     },
     "selfplay": {
       "num_unroll_steps": 5,
@@ -60,13 +66,18 @@
       "target": "float32"
     },
     "logging": {
+      "wandb": false,
+      "title": "spamEggs",
+      "tags": ["foo", "bar"],
       "dir": "logs",
       "level": "INFO",
       "console": true,
-      "timestamps": false,
+      "timestamps": true,
       "tqdm": false
     },
     "device": "cpu",
-    "seed": 42
+    "seed": 42,
+    "validate": true,
+    "multi_device": false
   }
 }

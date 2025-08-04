@@ -2,6 +2,15 @@ CuMind Release Notes
 -------------------------------------------------------------------
 Document all technical changes introduced in this release as concise bullet points below.
 
+
+v0.1.95 (2025-08-03)
+----------------------
+Tarek Ibrahim (68++)
+- Added Weights & Biases (wandb) integration for experiment tracking
+- Trainer improvements: debug mode, configurable number of batches, multi-backend support
+- Added TqdmSink for progress bar logging
+- Minor code cleanups and test updates
+
 v0.1.8 (2025-07-18)
 ----------------------
 Tarek Ibrahim (68)

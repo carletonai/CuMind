@@ -13,26 +13,25 @@ from cumind.utils.logger import log
 
 def train() -> str:
     """Train the agent on a given environment."""
-    env = gym.make(cfg.env.name)
+    env = gym.make(id=cfg.env.name, max_episode_steps=cfg.env.max_episode_steps)
 
     agent = Agent()
     memory_buffer = cfg.memory()
     trainer = Trainer(agent, memory_buffer)
 
-    trainer.run_training_loop(env)
+    trainer.train(env)
 
     env.close()  # type: ignore
 
     return trainer.checkpoint_dir
 
 
-def inference(checkpoint_file: str) -> None:
+def inference(checkpoint_file: str, num_episodes: int) -> None:
     """Run inference with a trained agent from a checkpoint."""
     log.info("\nStarting inference.")
 
     if not os.path.isfile(checkpoint_file):
-        log.error(f"Checkpoint file not found: {checkpoint_file}")
-        return
+        raise RuntimeError(f"Checkpoint file not found: {checkpoint_file}")
 
     log.info(f"Loading agent from: {checkpoint_file}")
 
@@ -40,8 +39,8 @@ def inference(checkpoint_file: str) -> None:
     state = load_checkpoint(checkpoint_file)
     inference_agent.load_state(state)
 
-    env = gym.make(cfg.env.name, render_mode="human")
-    for episode in range(500):
+    env = gym.make(id=cfg.env.name, max_episode_steps=cfg.env.max_episode_steps, render_mode="human")
+    for episode in range(num_episodes):
         obs, _ = env.reset()
         done = False
         total_reward = 0.0

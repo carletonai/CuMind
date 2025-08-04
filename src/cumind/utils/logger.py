@@ -7,9 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import tensorboard as tb  # type: ignore
 import wandb
-
 from cumind.utils.config import cfg
 
 
@@ -19,6 +17,14 @@ class Logger:
     _instance: Optional["Logger"] = None
     _initialized: bool = False
     _lock: threading.RLock = threading.RLock()
+
+    @classmethod
+    def _get_instance(cls) -> "Logger":
+        """Get the singleton instance, creating it if necessary."""
+        if cls._instance is None:
+            cls()
+        assert cls._instance is not None
+        return cls._instance
 
     def __new__(cls, *args: Any, **kwargs: Any) -> "Logger":
         if cls._instance is None:
@@ -30,23 +36,19 @@ class Logger:
                     cls._instance._initialize(*args, **kwargs)
         return cls._instance
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Constructor - initialization is handled in __new__."""
+        pass
+
     def _initialize(
         self,
-        cfg: Optional[cfg] = None,
-        dir: str = "logs",
-        level: str = "INFO",
-        console: bool = False,
-        timestamps: bool = True,
-        wandb_config: Optional[Dict[str, Any]] = None,
-        tensorboard_config: Optional[Dict[str, Any]] = None,
+        cfg: cfg,
     ) -> None:
         """Initialize the logger instance."""
 
-        if cfg is not None:
-            dir = cfg.logging.dir
-            level = cfg.logging.level
-            console = cfg.logging.console
-            timestamps = cfg.logging.timestamps
+        level: str = cfg.logging.level
+        console: bool = cfg.logging.console
+        timestamps: bool = cfg.logging.timestamps
 
         self._logger = logging.getLogger("CuMindLogger")
         self.tb_writer: Optional[Any] = None
@@ -62,11 +64,11 @@ class Logger:
         # Single formatter for all handlers
         self._formatter = logging.Formatter(self.FORMAT, datefmt=self.DATEFMT)
 
-        # Setup file handler
-
+        # Setup directories
         self.start_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_dir = Path(dir) / self.start_time
-        self.log_dir.mkdir(parents=True, exist_ok=True)
+        self._create_directories(cfg)
+
+        # Setup file handler
         file_handler = logging.FileHandler(self.log_dir / "training.log")
         file_handler.setFormatter(self._formatter)
         self._logger.addHandler(file_handler)
@@ -77,29 +79,40 @@ class Logger:
 
         self.set_level(level)
 
-        # Integrations
-        self.use_wandb = wandb_config is not None
-        self.use_tensorboard = tensorboard_config is not None
+        # Setup wandb config
+        self.use_wandb = cfg.logging.wandb
         if self.use_wandb:
-            assert wandb_config is not None
+            wandb_config: Dict[str, Any] = {
+                "project": "CuMind",
+                "name": cfg.logging.title,
+                "tags": cfg.logging.tags,
+            }
             if wandb.run is None:
                 wandb.init(**wandb_config)
-        if self.use_tensorboard:
-            self.tb_writer = tb.summary.create_file_writer(str(self.log_dir))
-
         type(self)._initialized = True
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Constructor - initialization is handled in __new__."""
-        pass
+    def _create_directories(self, cfg: cfg) -> None:
+        """Create both log and checkpoint directories with consistent timestamp."""
+        # Log directory
+        self.log_dir = Path(cfg.logging.dir) / self.start_time
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Checkpoint directory
+        self.checkpoint_dir = f"{cfg.training.checkpoint_dir}/{cfg.env.name}/{self.start_time}"
+        Path(self.checkpoint_dir).mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def _get_instance(cls) -> "Logger":
-        """Get the singleton instance, creating it if necessary."""
-        if cls._instance is None:
-            cls()
-        assert cls._instance is not None
-        return cls._instance
+    def get_timestamp(cls) -> str:
+        """Get the current timestamp used for directories."""
+        return cls._get_instance().start_time
+
+    @classmethod
+    def get_checkpoint_dir(cls) -> str:
+        """Get the checkpoint directory path."""
+        instance = cls._get_instance()
+        if instance.checkpoint_dir is None:
+            raise RuntimeError("Checkpoint directory not available - logger was initialized without config")
+        return instance.checkpoint_dir
 
     @classmethod
     def debug(cls, msg: str, *args: Any, **kwargs: Any) -> None:
@@ -131,9 +144,6 @@ class Logger:
         cls.info(f"Step {step:4d}: {name} = {value:.6f}")
         if instance.use_wandb:
             wandb.log({name: value}, step=step)
-        if instance.use_tensorboard and instance.tb_writer:
-            with instance.tb_writer.as_default():
-                tb.summary.scalar(name, value, step=step)
 
     @classmethod
     def log_scalars(cls, metrics: Dict[str, float], step: int) -> None:
@@ -190,8 +200,6 @@ class Logger:
 
         if instance.use_wandb and wandb.run is not None:
             wandb.finish()
-        if instance.use_tensorboard and instance.tb_writer is not None:
-            instance.tb_writer.close()
 
         cls.info("Closing logger handlers and shutting down logging system.")
         for handler in instance._logger.handlers[:]:
@@ -218,3 +226,21 @@ class ColorFormatter(logging.Formatter):
 
 # Alias
 log = Logger
+
+
+class TqdmSink:
+    def __init__(self, mode: bool):
+        self.mode = mode
+        if mode:
+            self.sink = self._stdout_sink
+        else:
+            self.sink = self._logger_sink
+
+    def write(self, msg: Any) -> None:
+        self.sink(msg)
+
+    def _stdout_sink(self, msg: Any) -> None:
+        sys.stdout.write(str(msg))
+
+    def _logger_sink(self, msg: Any) -> None:
+        log.info(str(msg))

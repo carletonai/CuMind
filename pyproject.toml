@@ -3,7 +3,7 @@
 # =========================
 [project]
 name = "cumind"
-version = "0.1.8"
+version = "0.1.95"
 description = "A JAX-based CuMind is a JAX-based RL framework inspired by Google DeepMind. Achieve's superhuman performance in complex domains without pretraining nor prior knowledge of their rules."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -17,7 +17,6 @@ dependencies = [
     "optax>=0.2.5",
     "chex>=0.1.89",
     "wandb>=0.20.1",
-    "tensorboard>=2.19.0",
     "ipython>=9.3.0",
     "ipykernel>=6.29.5",
 ]
@@ -29,11 +28,7 @@ dependencies = [
 # - chex: Testing and assertion utilities for JAX
 
 # Note: JAX CPU version is used by default
-# To install other JAX versions, use:
-# pip install -U jax[cuda12]     # for NVIDIA GPUs with CUDA 12
-# pip install -U jax[tpu]        # for TPU
-# pip install -U jax[rocm]       # for AMD GPUs  
-# pip install -U jax[metal]      # for Apple Silicon
+# LOOK AT CONFIG.PY LINE 385 VALIDATING DEVICE.
 
 
 # =========================

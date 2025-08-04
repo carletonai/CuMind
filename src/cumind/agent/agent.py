@@ -12,7 +12,6 @@ from cumind.core.mcts import MCTS
 from cumind.core.network import CuMindNetwork
 from cumind.utils.config import cfg
 from cumind.utils.logger import log
-from cumind.utils.prng import key
 
 
 class Agent:
@@ -34,9 +33,6 @@ class Agent:
         with jax.default_device(self.device):
             self.network = CuMindNetwork(representation_network=cfg.representation(), dynamics_network=cfg.dynamics(), prediction_network=cfg.prediction())
 
-            log.info("Creating target network.")
-            self.target_network = nnx.clone(self.network)
-
             log.info(f"Setting up AdamW optimizer with learning rate {cfg.training.learning_rate} and weight decay {cfg.training.weight_decay}")
             self.optimizer = optax.adamw(learning_rate=cfg.training.learning_rate, weight_decay=cfg.training.weight_decay)
 
@@ -46,6 +42,9 @@ class Agent:
             else:
                 log.info("Initializing new optimizer state.")
                 self.optimizer_state = self.optimizer.init(nnx.state(self.network, nnx.Param))
+                # Ensure target network is properly initialized
+                log.info("Initializing target prediction network.")
+                self.network.update_target_prediction_network(hard=True)
 
         self.mcts = MCTS(self.network)
         log.info("Agent initialization complete.")
@@ -60,6 +59,11 @@ class Agent:
         Returns:
             A tuple containing the selected action index and the MCTS policy probabilities.
         """
+        if cfg.training.debug:
+            num_actions = cfg.env.action_space_size
+            action_probs = np.ones(num_actions, dtype=np.float32) / num_actions
+            action_idx = int(np.random.choice(num_actions))
+            return action_idx, action_probs
         log.debug(f"Selecting action. Training mode: {training}")
 
         obs_tensor = jax.device_put(jnp.array(observation)[None], self.device)  # [None] adds batch dimension
@@ -69,22 +73,23 @@ class Agent:
 
         # Use MCTS to get action probabilities
         action_probs = self.mcts.search(root_hidden_state=hidden_state_array, add_noise=training)
-
+        # Take best action
+        action_idx = int(np.argmax(action_probs))
+        """
         if training:
             # Sample action from probabilities
             action_idx = int(jax.random.choice(key.get(), len(action_probs), p=action_probs))
         else:
             # Take best action
             action_idx = int(np.argmax(action_probs))
-
-        log.debug(f"Selected action: {action_idx}")
+        """
+        # log.debug(f"Selected action: {action_idx}")
         return int(action_idx), action_probs
 
     def update_target_network(self) -> None:
-        """Update the target network's weights with the main network's weights."""
-        log.debug("Updating target network.")
-        online_params = nnx.state(self.network, nnx.Param)
-        nnx.update(self.target_network, online_params)
+        """Update the target prediction network's weights with the main network's weights."""
+        log.debug("Updating target prediction network.")
+        self.network.update_target_prediction_network(hard=False, tau=0.01)
 
     def save_state(self) -> Dict[str, Any]:
         """Get the current state of the agent for checkpointing.
@@ -108,6 +113,6 @@ class Agent:
         nnx.update(self.network, state["network_state"])
         self.optimizer_state = state["optimizer_state"]
 
-        log.info("Updating target network after loading state.")
-        self.update_target_network()
+        log.info("Updating target prediction network after loading state.")
+        self.network.update_target_prediction_network(hard=True)
         log.info("Agent state loaded successfully.")

@@ -8,7 +8,11 @@ from cumind.agent.agent import Agent
 from cumind.core.network import CuMindNetwork
 from cumind.data.memory import Memory, MemoryBuffer, PrioritizedMemoryBuffer, TreeBuffer
 from cumind.utils.config import cfg
+from cumind.utils.logger import log
 from cumind.utils.prng import key
+
+cfg.boot()
+log.info(cfg.env.observation_shape)
 
 
 @pytest.fixture(autouse=True)
@@ -46,7 +50,7 @@ def test_network_inference():
     obs = jnp.ones((batch_size, 4))
     hidden_state, policy_logits, value = network.initial_inference(obs)
 
-    assert hidden_state.shape == (batch_size, cfg.networks.hidden_dim)
+    assert hidden_state.shape == (batch_size, cfg.networks.hidden_state_dim)
     assert policy_logits.shape == (batch_size, cfg.env.action_space_size)
     assert value.shape == (batch_size, 1)
 
@@ -54,7 +58,7 @@ def test_network_inference():
     actions = jnp.array([0, 1])
     next_state, reward, next_policy, next_value = network.recurrent_inference(hidden_state, actions)
 
-    assert next_state.shape == (batch_size, cfg.networks.hidden_dim)
+    assert next_state.shape == (batch_size, cfg.networks.hidden_state_dim)
     assert reward.shape == (batch_size, 1)
     assert next_policy.shape == (batch_size, cfg.env.action_space_size)
     assert next_value.shape == (batch_size, 1)
@@ -85,11 +89,11 @@ def test_memory_buffer_functionality():
     _test_buffer_operations(memory_buffer, "MemoryBuffer")
 
     # Test PrioritizedMemoryBuffer
-    prioritized_buffer = PrioritizedMemoryBuffer(capacity=100, alpha=cfg.memory.per_alpha, epsilon=cfg.memory.per_epsilon, beta=cfg.memory.per_beta)
+    prioritized_buffer = PrioritizedMemoryBuffer(capacity=100, alpha=cfg.memory.alpha, epsilon=cfg.memory.epsilon, beta=cfg.memory.beta)
     _test_buffer_operations(prioritized_buffer, "PrioritizedMemoryBuffer")
 
     # Test TreeBuffer
-    tree_buffer = TreeBuffer(capacity=100, alpha=cfg.memory.per_alpha, epsilon=cfg.memory.per_epsilon)
+    tree_buffer = TreeBuffer(capacity=100, alpha=cfg.memory.alpha, epsilon=cfg.memory.epsilon)
     _test_buffer_operations(tree_buffer, "TreeBuffer")
 
 
@@ -123,7 +127,7 @@ def _test_buffer_operations(buffer: Memory, buffer_name: str):
 def test_prioritized_buffer_priority_update():
     """Test priority update functionality for prioritized buffers."""
     # Test PrioritizedMemoryBuffer priority update
-    prioritized_buffer = PrioritizedMemoryBuffer(capacity=10, alpha=cfg.memory.per_alpha, epsilon=cfg.memory.per_epsilon, beta=cfg.memory.per_beta)
+    prioritized_buffer = PrioritizedMemoryBuffer(capacity=10, alpha=cfg.memory.alpha, epsilon=cfg.memory.epsilon, beta=cfg.memory.beta)
     sample = [{"observation": np.ones(4), "action": 0, "reward": 1.0}]
     prioritized_buffer.add(sample)
 
@@ -132,7 +136,7 @@ def test_prioritized_buffer_priority_update():
     assert prioritized_buffer.max_priority == 5.0
 
     # Test TreeBuffer priority update
-    tree_buffer = TreeBuffer(capacity=10, alpha=cfg.memory.per_alpha, epsilon=cfg.memory.per_epsilon)
+    tree_buffer = TreeBuffer(capacity=10, alpha=cfg.memory.alpha, epsilon=cfg.memory.epsilon)
     tree_buffer.add(sample)
 
     # Update priority - TreeBuffer applies alpha exponent, so we need to account for that
@@ -149,8 +153,8 @@ def test_basic_integration():
     # Test with different buffer types
     buffer_types = [
         (MemoryBuffer, {"capacity": 10}),
-        (PrioritizedMemoryBuffer, {"capacity": 10, "alpha": cfg.memory.per_alpha, "epsilon": cfg.memory.per_epsilon, "beta": cfg.memory.per_beta}),
-        (TreeBuffer, {"capacity": 10, "alpha": cfg.memory.per_alpha, "epsilon": cfg.memory.per_epsilon}),
+        (PrioritizedMemoryBuffer, {"capacity": 10, "alpha": cfg.memory.alpha, "epsilon": cfg.memory.epsilon, "beta": cfg.memory.beta}),
+        (TreeBuffer, {"capacity": 10, "alpha": cfg.memory.alpha, "epsilon": cfg.memory.epsilon}),
     ]
 
     for BufferClass, kwargs in buffer_types:  # noqa: N806
