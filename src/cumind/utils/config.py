@@ -412,6 +412,15 @@ class Configuration(metaclass=ConfigMeta):
         elif self.device == "metal":
             subprocess.run(["uv", "pip", "install", "jax[metal]>=0.6.2"], check=True)
 
+        # Initialize JAX distributed system for TPU and multi-device setups
+        if (self.device == "tpu" or self.device == "cuda") and self.multi_device:
+            import jax
+
+            try:
+                jax.distributed.initialize()
+            except Exception as e:
+                raise RuntimeError(f"JAX distributed initialization failed: {e}. Continuing with single-process mode.")
+
         # 13. seed
         if not isinstance(self.seed, int) or self.seed < 0:
             raise ValueError(f"seed must be a non-negative integer, got {self.seed}")

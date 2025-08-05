@@ -25,26 +25,22 @@ class Agent:
         """
         log.info("Initializing CuMind agent.")
 
-        self.device = jax.devices(cfg.device)[0]
-        log.info(f"Using device: {self.device}")
-
         log.info(f"Creating CuMindNetwork with observation shape {cfg.env.observation_shape} and action space size {cfg.env.action_space_size}")
 
-        with jax.default_device(self.device):
-            self.network = CuMindNetwork(representation_network=cfg.representation(), dynamics_network=cfg.dynamics(), prediction_network=cfg.prediction())
+        self.network = CuMindNetwork(representation_network=cfg.representation(), dynamics_network=cfg.dynamics(), prediction_network=cfg.prediction())
 
-            log.info(f"Setting up AdamW optimizer with learning rate {cfg.training.learning_rate} and weight decay {cfg.training.weight_decay}")
-            self.optimizer = optax.adamw(learning_rate=cfg.training.learning_rate, weight_decay=cfg.training.weight_decay)
+        log.info(f"Setting up AdamW optimizer with learning rate {cfg.training.learning_rate} and weight decay {cfg.training.weight_decay}")
+        self.optimizer = optax.adamw(learning_rate=cfg.training.learning_rate, weight_decay=cfg.training.weight_decay)
 
-            if existing_state:
-                log.info("Loading agent state from existing state.")
-                self.load_state(existing_state)
-            else:
-                log.info("Initializing new optimizer state.")
-                self.optimizer_state = self.optimizer.init(nnx.state(self.network, nnx.Param))
-                # Ensure target network is properly initialized
-                log.info("Initializing target prediction network.")
-                self.network.update_target_prediction_network(hard=True)
+        if existing_state:
+            log.info("Loading agent state from existing state.")
+            self.load_state(existing_state)
+        else:
+            log.info("Initializing new optimizer state.")
+            self.optimizer_state = self.optimizer.init(nnx.state(self.network, nnx.Param))
+            # Ensure target network is properly initialized
+            log.info("Initializing target prediction network.")
+            self.network.update_target_prediction_network(hard=True)
 
         self.mcts = MCTS(self.network)
         log.info("Agent initialization complete.")
@@ -66,7 +62,7 @@ class Agent:
             return action_idx, action_probs
         log.debug(f"Selecting action. Training mode: {training}")
 
-        obs_tensor = jax.device_put(jnp.array(observation)[None], self.device)  # [None] adds batch dimension
+        obs_tensor = jnp.array(observation)[None]  # [None] adds batch dimension
 
         hidden_state, _, _ = self.network.initial_inference(obs_tensor)
         hidden_state_array = jnp.asarray(hidden_state, dtype=jnp.float32)[0]  # Remove batch dimension
