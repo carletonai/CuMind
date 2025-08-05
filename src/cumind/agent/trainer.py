@@ -140,6 +140,7 @@ class Trainer:
             if not self.memory.is_ready(cfg.memory.min_size, cfg.memory.min_pct):
                 log.warning("Buffer not ready for training, a larger buffer is needed.")
                 return
+            start_time = log.elapsed()
             for _ in range(cfg.training.num_batches):
                 self.last_loss = self.train_step()
                 self.train_step_count += 1
@@ -147,6 +148,8 @@ class Trainer:
                     log.info(f"Updating target network at training step {self.train_step_count}")
                     self.agent.update_target_network()
                     log.info("Target network update completed")
+            elapsed = log.elapsed() - start_time
+            log.info(f"Training loop for {cfg.training.num_batches} batches took {elapsed.total_seconds():.2f} seconds")
 
     def _maybe_checkpoint(self, episode: int) -> None:
         if episode > 0 and episode % cfg.training.checkpoint_interval == 0:
