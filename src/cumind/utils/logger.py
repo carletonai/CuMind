@@ -163,12 +163,15 @@ class Logger:
 
     @classmethod
     def open(cls) -> None:
-        """Open console output for logging to stdout."""
+        """Open console output for logging to stdout, safely handling missing stdout."""
         with cls._lock:
             instance = cls._get_instance()
             if instance._console_handler is None:
-                instance._console_handler = logging.StreamHandler(sys.stdout)
-                # Use instance's FORMAT/DATEFMT, not class variables
+                stream = sys.stdout if sys.stdout is not None else getattr(sys, "__stdout__", None)
+                if stream is None:
+                    instance._logger.warning("No stdout available; console handler not added.")
+                    return
+                instance._console_handler = logging.StreamHandler(stream)
                 instance._console_handler.setFormatter(ColorFormatter(instance.FORMAT, datefmt=instance.DATEFMT))
                 instance._logger.addHandler(instance._console_handler)
                 cls.info("Console output opened")

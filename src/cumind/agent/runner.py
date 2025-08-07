@@ -3,6 +3,7 @@
 import os
 
 import gymnasium as gym
+
 from cumind.agent.agent import Agent
 from cumind.agent.trainer import Trainer
 from cumind.utils.checkpoint import load_checkpoint
@@ -27,6 +28,7 @@ def train() -> str:
 
 def inference(checkpoint_file: str, num_episodes: int) -> None:
     """Run inference with a trained agent from a checkpoint."""
+    log.open()
     log.info("\nStarting inference.")
 
     if not os.path.isfile(checkpoint_file):
