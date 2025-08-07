@@ -1,10 +1,12 @@
 """PRNG utilities for JAX key management."""
 
+import sys
 import threading
-from typing import Optional, Tuple, Union, cast
+from typing import Optional, Sequence, Tuple, Union, cast
 
 import jax
 import jax.numpy as jnp
+from jax.typing import ArrayLike, DTypeLike
 
 from cumind.utils.logger import log
 
@@ -21,7 +23,7 @@ class KeyManager:
     """
 
     _instance: Optional["KeyManager"] = None
-    _key: Optional[jax.Array] = None
+    _key: Optional[ArrayLike] = None
     _seed: Optional[int] = None
     _impl: Optional[str] = None
     _lock = threading.RLock()
@@ -51,7 +53,7 @@ class KeyManager:
                 log.info(f"PRNG initialized with seed: {seed}")
 
     @classmethod
-    def get(cls, num: Union[int, Tuple[int, ...]] = 1) -> jax.Array:
+    def get(cls, num: Union[int, Tuple[int, ...]] = 1) -> ArrayLike:
         """Get subkey(s) from the PRNG. num can be int or tuple of ints."""
         with cls._lock:
             if cls._key is None or cls._seed is None:
@@ -81,13 +83,13 @@ class KeyManager:
                 return jnp.array(subkeys).reshape(shape + cls._key.shape)
 
     @classmethod
-    def randint(cls, minval: int, maxval: int, shape: Tuple[int, ...] = ()) -> int:
+    def randint(cls, min: ArrayLike = int(), max: ArrayLike = sys.maxsize, shape: Sequence[int] = (1,), dtype: DTypeLike = int) -> int:
         """Return a random integer between minval and maxval."""
         with cls._lock:
             if cls._key is None or cls._seed is None:
                 log.error("Attempted to use PRNG before initialization")
                 raise RuntimeError("PRNG not initialized. Call key.seed(value) first.")
-            return cast(int, jax.random.randint(cls._key, shape, minval, maxval).item())
+            return cast(int, jax.random.randint(cls._key, shape, min, max, dtype).item())
 
 
 # Alias
