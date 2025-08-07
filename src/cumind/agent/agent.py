@@ -10,6 +10,7 @@ from flax import nnx
 
 from cumind.core.mcts import MCTS
 from cumind.core.network import CuMindNetwork
+from cumind.utils.checkpoint import AgentState
 from cumind.utils.config import cfg
 from cumind.utils.logger import log
 
@@ -17,11 +18,11 @@ from cumind.utils.logger import log
 class Agent:
     """CuMind agent for training and inference."""
 
-    def __init__(self, existing_state: Optional[Dict[str, Any]] = None):
+    def __init__(self, existing_state: Optional[AgentState] = None):
         """Initialize CuMind agent with network, optimizer, and MCTS.
 
         Args:
-            existing_state: Optional dictionary to load agent state from.
+            existing_state: Optional agent state to load from.
         """
         log.info("Initializing CuMind agent.")
 
@@ -91,7 +92,7 @@ class Agent:
         log.debug("Updating target prediction network.")
         self.network.update_target_prediction_network(hard=False, tau=0.01)
 
-    def save_state(self) -> Dict[str, Any]:
+    def save_state(self) -> AgentState:
         """Get the current state of the agent for checkpointing.
 
         Returns:
@@ -103,7 +104,7 @@ class Agent:
             "optimizer_state": self.optimizer_state,
         }
 
-    def load_state(self, state: Dict[str, Any]) -> None:
+    def load_state(self, state: AgentState) -> None:
         """Load the agent's state from a dictionary.
 
         Args:

@@ -1,7 +1,8 @@
 """Training loop implementation."""
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+import pickle
 import chex
 import jax
 import jax.numpy as jnp
@@ -14,7 +15,13 @@ from cumind.agent.agent import Agent
 from cumind.core.network import CuMindNetwork
 from cumind.data.memory import Memory
 from cumind.data.self_play import SelfPlay
-from cumind.utils.checkpoint import load_checkpoint, save_checkpoint
+from cumind.utils.checkpoint import (
+    AgentState,
+    CheckpointData,
+    CheckpointMetadata,
+    load_checkpoint,
+    save_checkpoint,
+)
 from cumind.utils.config import cfg
 from cumind.utils.jax_utils import pmap_n_step_return, vmap_n_step_return
 from cumind.utils.logger import TqdmSink, log
@@ -111,18 +118,44 @@ class Trainer:
         self.checkpoint_dir = log.get_checkpoint_dir()
         log.info(f"Checkpoints will be saved to {self.checkpoint_dir}")
         self.train_step_count = 0
+        self.start_episode = 1  # Track starting episode for resumption
 
-    def train(self, env: Any) -> None:
+    def train(self, env: Any, resume_from_checkpoint: Optional[str] = None) -> None:
+        # Resume from checkpoint if provided
+        if resume_from_checkpoint:
+            self._resume_from_checkpoint(resume_from_checkpoint)
+        
         num_episodes = cfg.training.num_episodes
         train_frequency = cfg.training.train_frequency
         tqdm_file = TqdmSink(cfg.logging.tqdm)
-        pbar = tqdm(range(1, num_episodes + 1), desc="Training Progress", file=tqdm_file)
+        pbar = tqdm(range(self.start_episode, num_episodes + 1), desc="Training Progress", file=tqdm_file)
         self_play = SelfPlay(self.agent, self.memory)
         self.last_loss: Dict[str, float] = {}
         for episode in pbar:
             self._run_episode_and_log(env, self_play, episode)
             self._maybe_train_and_update(episode, train_frequency)
             self._maybe_checkpoint(episode)
+
+    def _resume_from_checkpoint(self, checkpoint_path: str) -> None:
+        """Resume training from a checkpoint."""
+        log.info(f"Resuming training from checkpoint: {checkpoint_path}")
+        
+        try:
+            # Load the full checkpoint data to access both state and metadata
+            checkpoint_data: CheckpointData = load_checkpoint(checkpoint_path)
+            
+            self.agent.load_state(checkpoint_data['state'])
+            
+            metadata = checkpoint_data.get('metadata', {})
+            self.train_step_count = metadata.get('train_step_count', 0)
+            self.start_episode = metadata.get('episode', 0) + 1
+            self.last_loss = metadata.get('last_loss', {})
+            
+            log.info(f"Resumed from episode {metadata.get('episode', 0)}, training step {self.train_step_count}")
+            
+        except Exception as e:
+            log.exception(f"Failed to resume from checkpoint {checkpoint_path}: {e}")
+            raise
 
     def _run_episode_and_log(self, env: Any, self_play: SelfPlay, episode: int) -> None:
         episode_reward, episode_steps, _ = self_play.run_episode(env)
@@ -150,7 +183,18 @@ class Trainer:
 
     def _maybe_checkpoint(self, episode: int) -> None:
         if episode > 0 and episode % cfg.training.checkpoint_interval == 0:
-            self.save_checkpoint(episode)
+            state: AgentState = self.agent.save_state()
+            path = f"{self.checkpoint_dir}/episode_{episode:05d}.pkl"
+            
+            metadata: CheckpointMetadata = {
+                "episode": episode,
+                "train_step_count": self.train_step_count,
+                "last_loss": self.last_loss,
+                "memory_size": len(self.memory),
+            }
+            
+            save_checkpoint(state, path, metadata)
+            log.info(f"Checkpoint saved to {path}")
 
     def _log_metrics(self, metrics: Dict[str, Any]) -> None:
         log.info(f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, Memory={metrics['Memory']:2.2f}")
@@ -230,13 +274,8 @@ class Trainer:
             bootstrap_mask,
         )
 
-    def save_checkpoint(self, episode: int) -> None:
-        state = self.agent.save_state()
-        path = f"{self.checkpoint_dir}/episode_{episode:05d}.pkl"
-        save_checkpoint(state, path)
-
-    def load_checkpoint(self, path: str) -> None:
-        log.info(f"Loading checkpoint from {path}")
-        state = load_checkpoint(path)
+    def load_checkpoint(self, path: str) -> Dict[str, Any]:
+        """Load checkpoint and return metadata for training resumption."""
+        state: AgentState = load_checkpoint(path)["state"]
         self.agent.load_state(state)
-        log.info("Checkpoint loaded successfully.")
+        return {"loaded_from": path, **state.get("metadata", {})}

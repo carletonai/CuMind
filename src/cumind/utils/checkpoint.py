@@ -1,46 +1,76 @@
 """Checkpointing utilities for saving and loading model and training states."""
 
+import os
 import pickle
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union, cast
 
 from cumind.utils.logger import log
 
 
-def save_checkpoint(state: Dict[str, Any], path: str) -> None:
-    """Save training checkpoint to a file.
+class CheckpointMetadata(TypedDict, total=False):
+    """Metadata stored in checkpoints."""
+    episode: int
+    train_step_count: int
+    last_loss: Dict[str, float]
+    memory_size: int
 
+
+class AgentState(TypedDict):
+    """Agent state structure for checkpoints."""
+    network_state: Any
+    optimizer_state: Any
+    # memory_state: Optional[Any]  # TODO
+
+
+class CheckpointData(TypedDict):
+    """Complete checkpoint data structure."""
+    state: AgentState
+    metadata: CheckpointMetadata
+    timestamp: str
+
+
+def save_checkpoint(state: AgentState, path: str, metadata: Optional[CheckpointMetadata] = None) -> None:
+    """Save training checkpoint to a file.
     Args:
-        state: A dictionary containing the state to save (e.g., network, optimizer).
-        path: File path to save the checkpoint.
+        state: The agent state dictionary to save.
+        path: The file path to save the checkpoint.
+        metadata: Optional metadata to include in the checkpoint.
     """
+    checkpoint_data: CheckpointData = {
+        "state": state,
+        "metadata": metadata or {},
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    
     try:
-        path_obj = Path(path)
-        path_obj.parent.mkdir(parents=True, exist_ok=True)
-        with open(path_obj, "wb") as f:
-            pickle.dump(state, f)
+        with open(path, "wb") as f:
+            pickle.dump(checkpoint_data, f)
         log.info(f"Checkpoint saved to {path}")
-    except (IOError, pickle.PicklingError) as e:
+    except Exception as e:
         log.exception(f"Failed to save checkpoint to {path}: {e}")
         raise
 
 
-def load_checkpoint(path: str) -> Dict[str, Any]:
+def load_checkpoint(path: str) -> CheckpointData:
     """Load training checkpoint from a file.
 
     Args:
         path: File path to load the checkpoint from.
 
     Returns:
-        The loaded state dictionary.
+        The full checkpoint data.
     """
     try:
         with open(path, "rb") as f:
-            state = pickle.load(f)
+            checkpoint_data: CheckpointData = pickle.load(f)
         log.info(f"Checkpoint loaded from {path}")
-        return cast(Dict[str, Any], state)
-    except (IOError, pickle.UnpicklingError, FileNotFoundError) as e:
+        
+        return checkpoint_data
+    except Exception as e:
         log.exception(f"Failed to load checkpoint from {path}: {e}")
         raise
 

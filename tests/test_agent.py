@@ -6,6 +6,7 @@ import pytest
 from flax import nnx
 
 from cumind.agent.agent import Agent
+from cumind.utils.checkpoint import AgentState
 from cumind.utils.config import cfg
 from cumind.utils.logger import log
 from cumind.utils.prng import key
@@ -61,7 +62,7 @@ class TestAgent:
         obs = np.ones(4)
         agent1.select_action(obs)  # Run one step to have state
 
-        state = agent1.save_state()
+        state: AgentState = agent1.save_state()
 
         agent2 = Agent()
         agent2.load_state(state)

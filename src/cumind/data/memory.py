@@ -31,6 +31,17 @@ class Memory(ABC):
             sample: The data sample to store.
         """
         raise NotImplementedError
+    
+    def add_many(self, samples: List[List[Dict[str, Any]]]) -> None:
+        """Add multiple samples into the buffer.
+
+        Args:
+            samples: A list of samples to load.
+        """
+        log.debug(f"Loading {len(samples)} samples into MemoryBuffer.")
+        for sample in samples:
+            self.add(sample)
+        log.info(f"MemoryBuffer now contains {len(self)} samples after loading.")
 
     @abstractmethod
     def sample(self, batch_size: int) -> List[Any]:
