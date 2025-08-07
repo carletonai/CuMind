@@ -1,16 +1,15 @@
 """High-level training and inference runners."""
 
 import os
+from typing import Optional
 
 import gymnasium as gym
-
 from cumind.agent.agent import Agent
 from cumind.agent.trainer import Trainer
 from cumind.utils.checkpoint import AgentState, find_latest_checkpoint_for_env, load_checkpoint
 from cumind.utils.config import cfg
 from cumind.utils.logger import log
 
-from typing import Optional
 
 def train(resume_from_latest: bool = False, checkpoint_path: Optional[str] = None) -> str:
     """Train the agent on a given environment.

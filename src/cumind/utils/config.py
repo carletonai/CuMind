@@ -478,7 +478,7 @@ class Configuration(metaclass=ConfigMeta):
                 organized_config[k] = v
         final_config = {"CuMind": organized_config}
         json_str = json.dumps(final_config, indent=2)
-        json_str = re.sub(r'\[\s*\n\s*(.*?)\s*\n\s*\]', lambda m: '[' + re.sub(r'\s*\n\s*', ' ', m.group(1).strip()) + ']', json_str, flags=re.DOTALL)
+        json_str = re.sub(r"\[\s*\n\s*(.*?)\s*\n\s*\]", lambda m: "[" + re.sub(r"\s*\n\s*", " ", m.group(1).strip()) + "]", json_str, flags=re.DOTALL)
         return json_str
 
     def _to_json(self, json_path: str) -> None:

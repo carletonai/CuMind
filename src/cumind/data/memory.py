@@ -31,7 +31,7 @@ class Memory(ABC):
             sample: The data sample to store.
         """
         raise NotImplementedError
-    
+
     def add_many(self, samples: List[List[Dict[str, Any]]]) -> None:
         """Add multiple samples into the buffer.
 

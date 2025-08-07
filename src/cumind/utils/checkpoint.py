@@ -4,13 +4,14 @@ import os
 import pickle
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 from cumind.utils.logger import log
 
 
 class CheckpointMetadata(TypedDict, total=False):
     """Metadata stored in checkpoints."""
+
     episode: int
     train_step_count: int
     last_loss: Dict[str, float]
@@ -19,6 +20,7 @@ class CheckpointMetadata(TypedDict, total=False):
 
 class AgentState(TypedDict):
     """Agent state structure for checkpoints."""
+
     network_state: Any
     optimizer_state: Any
     # memory_state: Optional[Any]  # TODO
@@ -26,6 +28,7 @@ class AgentState(TypedDict):
 
 class CheckpointData(TypedDict):
     """Complete checkpoint data structure."""
+
     state: AgentState
     metadata: CheckpointMetadata
     timestamp: str
@@ -38,14 +41,10 @@ def save_checkpoint(state: AgentState, path: str, metadata: Optional[CheckpointM
         path: The file path to save the checkpoint.
         metadata: Optional metadata to include in the checkpoint.
     """
-    checkpoint_data: CheckpointData = {
-        "state": state,
-        "metadata": metadata or {},
-        "timestamp": datetime.now().isoformat()
-    }
-    
+    checkpoint_data: CheckpointData = {"state": state, "metadata": metadata or {}, "timestamp": datetime.now().isoformat()}
+
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    
+
     try:
         with open(path, "wb") as f:
             pickle.dump(checkpoint_data, f)
@@ -68,7 +67,7 @@ def load_checkpoint(path: str) -> CheckpointData:
         with open(path, "rb") as f:
             checkpoint_data: CheckpointData = pickle.load(f)
         log.info(f"Checkpoint loaded from {path}")
-        
+
         return checkpoint_data
     except Exception as e:
         log.exception(f"Failed to load checkpoint from {path}: {e}")

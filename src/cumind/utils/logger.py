@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import wandb
+
 from cumind.utils.config import cfg
 
 

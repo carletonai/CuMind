@@ -1,6 +1,6 @@
 """CuMind agent implementation."""
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import jax
 import jax.numpy as jnp
