@@ -95,6 +95,32 @@ class Memory(ABC):
         log.info(f"Clearing buffer of size {len(self)}.")
         self.buffer.clear()
 
+    def save_state(self) -> Dict[str, Any]:
+        """Save the current state of the memory buffer for checkpointing.
+
+        Returns:
+            A dictionary containing the buffer state.
+        """
+        return {
+            "buffer_type": self.__class__.__name__,
+            "capacity": self.capacity,
+            "buffer": list(self.buffer),
+        }
+
+    def load_state(self, state: Dict[str, Any]) -> None:
+        """Load the memory buffer state from a dictionary.
+
+        Args:
+            state: A dictionary containing the buffer state.
+        """
+        if state["buffer_type"] != self.__class__.__name__:
+            raise ValueError(f"Cannot load state for {self.__class__.__name__} from {state['buffer_type']}")
+
+        self.capacity = state["capacity"]
+        self.buffer.clear()
+        for sample in state["buffer"]:
+            self.buffer.append(sample)
+
 
 class MemoryBuffer(Memory):
     """A standard memory buffer with uniform sampling."""
@@ -197,6 +223,38 @@ class PrioritizedMemoryBuffer(Memory):
         super().clear()
         self.priorities.clear()
         self.max_priority = 1.0
+
+    def save_state(self) -> Dict[str, Any]:
+        """Save the current state of the prioritized memory buffer for checkpointing.
+
+        Returns:
+            A dictionary containing the buffer state.
+        """
+        base_state = super().save_state()
+        base_state.update(
+            {
+                "alpha": self.alpha,
+                "beta": self.beta,
+                "epsilon": self.epsilon,
+                "priorities": list(self.priorities),
+                "max_priority": self.max_priority,
+            }
+        )
+        return base_state
+
+    def load_state(self, state: Dict[str, Any]) -> None:
+        """Load the prioritized memory buffer state from a dictionary.
+
+        Args:
+            state: A dictionary containing the buffer state.
+        """
+        super().load_state(state)
+        self.alpha = state["alpha"]
+        self.beta = state["beta"]
+        self.epsilon = state["epsilon"]
+        self.priorities.clear()
+        self.priorities.extend(state["priorities"])
+        self.max_priority = state["max_priority"]
 
 
 class TreeBuffer(Memory):
@@ -312,3 +370,38 @@ class TreeBuffer(Memory):
         self.data_pointer = 0
         self.n_entries = 0
         self.max_priority = 1.0
+
+    def save_state(self) -> Dict[str, Any]:
+        """Save the current state of the tree buffer for checkpointing.
+
+        Returns:
+            A dictionary containing the buffer state.
+        """
+        base_state = super().save_state()
+        base_state.update(
+            {
+                "alpha": self.alpha,
+                "epsilon": self.epsilon,
+                "max_priority": self.max_priority,
+                "tree_size": self.tree_size,
+                "sum_tree": self.sum_tree.tolist(),  # Convert numpy array to list for JSON serialization
+                "data_pointer": self.data_pointer,
+                "n_entries": self.n_entries,
+            }
+        )
+        return base_state
+
+    def load_state(self, state: Dict[str, Any]) -> None:
+        """Load the tree buffer state from a dictionary.
+
+        Args:
+            state: A dictionary containing the buffer state.
+        """
+        super().load_state(state)
+        self.alpha = state["alpha"]
+        self.epsilon = state["epsilon"]
+        self.max_priority = state["max_priority"]
+        self.tree_size = state["tree_size"]
+        self.sum_tree = np.array(state["sum_tree"])
+        self.data_pointer = state["data_pointer"]
+        self.n_entries = state["n_entries"]

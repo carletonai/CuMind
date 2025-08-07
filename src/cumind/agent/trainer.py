@@ -143,7 +143,20 @@ class Trainer:
             # Load the full checkpoint data to access both state and metadata
             checkpoint_data: CheckpointData = load_checkpoint(checkpoint_path)
 
-            self.agent.load_state(checkpoint_data["state"])
+            # Load agent state (without memory)
+            agent_state = checkpoint_data["state"]
+            memory_state = agent_state.get("memory_state")
+
+            # Load agent state (network and optimizer)
+            self.agent.load_state(agent_state)
+
+            # Load memory state if available
+            if memory_state is not None:
+                log.info("Loading memory buffer state from checkpoint")
+                self.memory.load_state(memory_state)
+                log.info(f"Memory buffer loaded with {len(self.memory)} samples")
+            else:
+                log.warning("No memory state found in checkpoint - starting with empty memory buffer")
 
             metadata = checkpoint_data.get("metadata", {})
             self.train_step_count = metadata.get("train_step_count", 0)
@@ -183,6 +196,8 @@ class Trainer:
     def _maybe_checkpoint(self, episode: int) -> None:
         if episode > 0 and episode % cfg.training.checkpoint_interval == 0:
             state: AgentState = self.agent.save_state()
+            # Add memory state to the agent state
+            state["memory_state"] = self.memory.save_state()
             path = f"{self.checkpoint_dir}/episode_{episode:05d}.pkl"
 
             metadata: CheckpointMetadata = {

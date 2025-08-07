@@ -23,7 +23,7 @@ class AgentState(TypedDict):
 
     network_state: Any
     optimizer_state: Any
-    # memory_state: Optional[Any]  # TODO
+    memory_state: Optional[Any]
 
 
 class CheckpointData(TypedDict):

@@ -102,6 +102,7 @@ class Agent:
         return {
             "network_state": nnx.state(self.network),
             "optimizer_state": self.optimizer_state,
+            "memory_state": None,  # Memory state will be set by the trainer
         }
 
     def load_state(self, state: AgentState) -> None:
@@ -113,6 +114,7 @@ class Agent:
         log.info("Loading agent state from dictionary.")
         nnx.update(self.network, state["network_state"])
         self.optimizer_state = state["optimizer_state"]
+        # Note: memory_state is handled by the trainer, not the agent
 
         log.info("Updating target prediction network after loading state.")
         self.network.update_target_prediction_network(hard=True)
