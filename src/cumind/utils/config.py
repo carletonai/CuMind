@@ -225,8 +225,8 @@ class Configuration(metaclass=ConfigMeta):
     # Global settings
     device: str = "cpu"
     seed: int = 42
-    validate: bool = True
     multi_device: bool = False
+    validate: bool = True
 
     @classmethod
     def _get_instance(cls) -> "Configuration":
@@ -282,11 +282,11 @@ class Configuration(metaclass=ConfigMeta):
         if not self.validate:
             return
 
-        # 1. GeneralNetworksConfig
+        # GeneralNetworksConfig
         if self.networks.hidden_state_dim <= 0:
             raise ValueError(f"networks.hidden_dim must be positive, got {self.networks.hidden_state_dim}")
 
-        # 2. RepresentationConfig
+        # RepresentationConfig
         if self.representation.num_hidden_layers <= 0:
             raise ValueError(f"representation.num_hidden_layers must be positive, got {self.representation.num_hidden_layers}")
         if self.representation.conv_channels <= 0:
@@ -294,17 +294,17 @@ class Configuration(metaclass=ConfigMeta):
         if self.representation.type is None:
             raise ValueError("representation.type must be specified")
 
-        # 3. DynamicsConfig
+        # DynamicsConfig
         if self.dynamics.num_hidden_layers <= 0:
             raise ValueError(f"dynamics.num_hidden_layers must be positive, got {self.dynamics.num_hidden_layers}")
         if self.dynamics.type is None:
             raise ValueError("dynamics.type must be specified")
 
-        # 4. PredictionConfig
+        # PredictionConfig
         if self.prediction.type is None:
             raise ValueError("prediction.type must be specified")
 
-        # 5. MemoryConfig
+        # MemoryConfig
         if self.memory.capacity <= 0:
             raise ValueError(f"memory.capacity must be positive, got {self.memory.capacity}")
         if self.memory.min_size <= 0:
@@ -320,7 +320,7 @@ class Configuration(metaclass=ConfigMeta):
         if self.memory.type is None:
             raise ValueError("memory.type must be specified")
 
-        # 6. TrainingConfig
+        # TrainingConfig
         if self.training.batch_size <= 0:
             raise ValueError(f"training.batch_size must be positive, got {self.training.batch_size}")
         if self.training.learning_rate <= 0:
@@ -340,7 +340,7 @@ class Configuration(metaclass=ConfigMeta):
         if not isinstance(self.training.optimizer, str) or not self.training.optimizer:
             raise ValueError("training.optimizer must be a non-empty string")
 
-        # 7. MCTSConfig
+        # MCTSConfig
         if self.mcts.num_simulations <= 0:
             raise ValueError(f"mcts.num_simulations must be positive, got {self.mcts.num_simulations}")
         if self.mcts.c_puct <= 0:
@@ -350,7 +350,7 @@ class Configuration(metaclass=ConfigMeta):
         if not (0 < self.mcts.exploration_fraction < 1):
             raise ValueError(f"mcts.exploration_fraction must be between 0 and 1, got {self.mcts.exploration_fraction}")
 
-        # 8. EnvironmentConfig
+        # EnvironmentConfig
         if not isinstance(self.env.name, str) or not self.env.name:
             raise ValueError("env.name must be a non-empty string")
         if self.env.action_space_size <= 0:
@@ -360,7 +360,7 @@ class Configuration(metaclass=ConfigMeta):
         if not isinstance(self.env.max_episode_steps, int) or self.env.max_episode_steps <= 0:
             raise ValueError(f"env.max_episode_steps must be a positive integer, got {self.env.max_episode_steps}")
 
-        # 9. SelfPlayConfig
+        # SelfPlayConfig
         if self.selfplay.num_unroll_steps <= 0:
             raise ValueError(f"selfplay.num_unroll_steps must be positive, got {self.selfplay.num_unroll_steps}")
         if self.selfplay.td_steps <= 0:
@@ -368,7 +368,7 @@ class Configuration(metaclass=ConfigMeta):
         if not (0 < self.selfplay.discount < 1):
             raise ValueError(f"selfplay.discount must be between 0 and 1, got {self.selfplay.discount}")
 
-        # 10. DataTypesConfig
+        # DataTypesConfig
         valid_model_dtypes = ["float32", "float16", "bfloat16"]
         if self.dtypes.model not in valid_model_dtypes:
             raise ValueError(f"dtypes.model must be one of {valid_model_dtypes}, got {self.dtypes.model}")
@@ -379,7 +379,7 @@ class Configuration(metaclass=ConfigMeta):
         if self.dtypes.target not in valid_target_dtypes:
             raise ValueError(f"dtypes.target must be one of {valid_target_dtypes}, got {self.dtypes.target}")
 
-        # 11. LoggerConfig
+        # LoggerConfig
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if self.logging.level not in valid_levels:
             raise ValueError(f"logging.level must be one of {valid_levels}, got {self.logging.level}")
@@ -394,7 +394,7 @@ class Configuration(metaclass=ConfigMeta):
         if not isinstance(self.logging.tags, list) or not all(isinstance(tag, str) for tag in self.logging.tags):
             raise ValueError("logging.tags must be a list of strings")
 
-        # 12. device
+        # device
         valid_devices = ["cpu", "cuda", "tpu", "rocm", "metal"]
         if self.device not in valid_devices:
             raise ValueError(f"device must be one of {valid_devices}, got {self.device}")
@@ -402,6 +402,18 @@ class Configuration(metaclass=ConfigMeta):
             raise ValueError(f"multi_device must be a boolean, got {type(self.multi_device)}")
         if self.multi_device and self.device == "cpu":
             raise ValueError("multi_device cannot be True when device is 'cpu'")
+
+        # seed
+        if not isinstance(self.seed, int) or self.seed < 0:
+            raise ValueError(f"seed must be a non-negative integer, got {self.seed}")
+
+        # ----------------------------------------------------------
+        # Dynamic backend resolution.
+        # This block installs the appropriate JAX backend depending
+        # on the selected device. It uses 'uv' for pip installation.
+        # For multi-device setups (TPU/CUDA), it initializes JAX
+        # distributed system.
+        # ----------------------------------------------------------
 
         if self.device == "cuda":
             subprocess.run(["uv", "pip", "install", "jax[cuda12]>=0.6.2"], check=True)
@@ -420,10 +432,6 @@ class Configuration(metaclass=ConfigMeta):
                 jax.distributed.initialize()
             except Exception as e:
                 raise RuntimeError(f"JAX distributed initialization failed: {e}. Continuing with single-process mode.")
-
-        # 13. seed
-        if not isinstance(self.seed, int) or self.seed < 0:
-            raise ValueError(f"seed must be a non-negative integer, got {self.seed}")
 
     @classmethod
     def _from_json(cls, json_path: str) -> "Configuration":
