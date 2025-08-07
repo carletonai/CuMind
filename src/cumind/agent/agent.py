@@ -2,7 +2,6 @@
 
 from typing import Any, Dict, Optional, Tuple
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 import optax  # type: ignore

@@ -1,5 +1,7 @@
 """Basic training example for CuMind with CartPole."""
 
+import jax.profiler
+
 from cumind.agent.runner import inference, train
 from cumind.utils.config import cfg
 from cumind.utils.logger import log
@@ -20,5 +22,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    with jax.profiler.trace("/tmp/profile-data"):
+        main()
+    jax.profiler.save_device_memory_profile("memory.prof")
     log.shutdown()

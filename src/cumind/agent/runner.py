@@ -3,7 +3,6 @@
 import os
 
 import gymnasium as gym
-
 from cumind.agent.agent import Agent
 from cumind.agent.trainer import Trainer
 from cumind.utils.checkpoint import load_checkpoint
