@@ -183,7 +183,7 @@ wheels = [
 
 [[package]]
 name = "cumind"
-version = "0.1.95"
+version = "0.2.0"
 source = { editable = "." }
 
 [package.dev-dependencies]

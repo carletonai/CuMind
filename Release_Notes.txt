@@ -3,9 +3,17 @@ CuMind Release Notes
 Document all technical changes introduced in this release as concise bullet points below.
 
 
+v0.2.0 (2025-08-09)
+----------------------
+Tarek Ibrahim ()
+- Unified experiment artifact management for consistent outputs.
+- Enhanced JAX support with typing and tracing capabilities.
+- Integrated type checking into CI and improved deployment workflows.
+- Includes critical bug fixes and performance improvements.
+
 v0.1.95 (2025-08-03)
 ----------------------
-Tarek Ibrahim (68++)
+Tarek Ibrahim ()
 - Added Weights & Biases (wandb) integration for experiment tracking
 - Trainer improvements: debug mode, configurable number of batches, multi-backend support
 - Added TqdmSink for progress bar logging
