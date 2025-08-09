@@ -229,13 +229,30 @@ class Configuration(metaclass=ConfigMeta):
 
     @classmethod
     def _get_instance(cls) -> "Configuration":
+        """Returns the singleton Configuration instance (thread-safe)."""
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = cls()
         return cls._instance
 
-    def boot(self, path: Optional[str] = None) -> str:
+    def override(self, field: str, value: Any) -> "Configuration":
+        """Override the value of a nested configuration field specified by a dotted path."""
+        section, attr = field.split(".")
+        target = self
+        if hasattr(target, section):
+            target = getattr(target, section)
+        else:
+            raise AttributeError(f"Config has no field '{section}' in path '{field}'")
+
+        if hasattr(target, attr):
+            object.__setattr__(target, attr, value)
+        else:
+            raise AttributeError(f"Config has no field '{attr}' in path '{field}'")
+        return self
+
+    def boot(self) -> str:
+        """Bootstraps experiment configuration and workspace, initializes logging, saves config, returns workspace path."""
         # Phase 1: Validate configuration
         self._validate()
 
@@ -255,19 +272,12 @@ class Configuration(metaclass=ConfigMeta):
         else:
             raise RuntimeError(f"Workspace directory already exists after 10 attempts: {workspace_path}")
 
-
         # Phase 3: Initialize logging and PRNG
         from cumind.utils.logger import log
         from cumind.utils.prng import key
 
         log().boot(self, workspace_path)
         key.seed(self.seed)
-
-        # Phase 4: Log config location and values
-        if path is not None:
-            log.info(f"Config location: {path}")
-        else:
-            log.info("Loaded default config")
 
         config_json = self._as_json_str()
         log.info("Config values:\n" + config_json)
@@ -283,12 +293,16 @@ class Configuration(metaclass=ConfigMeta):
         return str(workspace_path)
 
     @classmethod
-    def load(cls, path: Union[str, Path]) -> str:
+    def load(cls, obj: Optional[Union[str, Path, "Configuration"]] = None) -> str:
         """Load configuration from a JSON file and set as singleton instance. Automatically validates after loading."""
-        cfg = cls._from_json(str(path))
         with cls._lock:
-            cls._instance = cfg
-            return cfg.boot(str(path))
+            if isinstance(obj, (str, Path)):
+                cls._instance = cls._from_json(str(obj))
+            elif isinstance(obj, Configuration):
+                cls._instance = obj
+            elif obj is None:
+                cls._instance = Configuration()
+            return cls._instance.boot()
 
     @classmethod
     def save(cls, path: Union[str, Path]) -> None:
