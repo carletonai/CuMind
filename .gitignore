@@ -4,9 +4,9 @@ test.json*
 *.log
 
 # Directory
-checkpoints/
-logs/
-wandb/
+artifacts
+experiments
+gymnasium
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

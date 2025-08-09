@@ -1,36 +1,38 @@
-"""Basic training example for CuMind with CartPole."""
+"""Basic entry example for CuMind."""
 
 import jax.profiler
 
 from cumind.agent.runner import inference, train
+from cumind.utils.checkpoint import find_latest_checkpoint_for_env
 from cumind.utils.config import cfg
 from cumind.utils.logger import log
 
 
 def main() -> None:
-    """Main function for running the CartPole example."""
-    timestamp, checkpoint_dir = cfg.load("test.json")
-    print(f"Run UUID: {timestamp}")
+    """Main function for running training example."""
 
     train()
-    log.info(f"Training completed in {log.elapsed()}.")
 
-    latest_ckpt = f"{checkpoint_dir}/episode_{cfg.training.num_episodes:05d}.pkl"
-
-    log.open()
-    inference(latest_ckpt, 500)
+    ckpt = find_latest_checkpoint_for_env(cfg.env.name, cfg.workspace)
+    if ckpt is None:
+        raise RuntimeError("No checkpoint found for environment.")
+    inference(ckpt, 500)
 
 
 if __name__ == "__main__":
-    jax.profiler.start_trace("/tmp/profile-data", create_perfetto_link=True)
-    timestamp, checkpoint_dir = cfg.load("test.json")
-    print(f"Run UUID: {timestamp}")
+    workspace = cfg.load("test.json")
+    print(f"Workspace directory: {workspace}")
 
-    train()
-    log.info(f"Training completed in {log.elapsed()}.")
-    jax.profiler.stop_trace()  # type: ignore
-    jax.profiler.save_device_memory_profile("memory.prof")
-    log.shutdown()
+    jax.profiler.start_trace(f"{workspace}/trace", create_perfetto_link=True)
+
+    try:
+        main()
+    except Exception as e:
+        log.exception(f"Exception occurred: {e}")
+    finally:
+        jax.profiler.stop_trace()  # type: ignore
+        jax.profiler.save_device_memory_profile(f"{workspace}/memory.pprof")
+        log.shutdown()
 
     # Viewing Perfetto locally (for dev):
     # After program runs, follow the link printed in the terminal to view trace in your browser.

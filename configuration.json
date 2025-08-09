@@ -40,7 +40,6 @@
       "checkpoint_interval": 50,
       "num_episodes": 2000,
       "train_frequency": 2,
-      "checkpoint_dir": "checkpoints",
       "debug": false
     },
     "mcts": {
@@ -69,7 +68,6 @@
       "wandb": false,
       "title": "spamEggs",
       "tags": ["foo", "bar"],
-      "dir": "logs",
       "level": "INFO",
       "console": true,
       "timestamps": true,
@@ -78,6 +76,7 @@
     "device": "cpu",
     "seed": 42,
     "multi_device": false,
+    "workspace": "artifacts",
     "validate": true
   }
 }

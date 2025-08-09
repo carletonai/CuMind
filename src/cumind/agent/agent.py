@@ -98,7 +98,7 @@ class Agent:
             "optimizer_state": self.optimizer_state,
         }
 
-    def load_state(self, state: Dict[str, Any]) -> None:
+    def load_state(self, state: Dict[str, Any]) -> "Agent":
         """Load the agent's state from a dictionary.
 
         Args:
@@ -111,3 +111,4 @@ class Agent:
         log.info("Updating target prediction network after loading state.")
         self.network.update_target_prediction_network(hard=True)
         log.info("Agent state loaded successfully.")
+        return self

@@ -7,8 +7,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import wandb
-
 from cumind.utils.config import cfg
 
 
@@ -32,20 +30,16 @@ class Logger:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
-                    cls._instance._initialized = False
-                    # Initialize the instance immediately
-                    cls._instance._initialize(*args, **kwargs)
         return cls._instance
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Constructor - initialization is handled in __new__."""
         pass
 
-    def _initialize(
-        self,
-        cfg: cfg,
-    ) -> None:
+    def boot(self, cfg: cfg, workspace: Path) -> None:
         """Initialize the logger instance."""
+        if type(self)._initialized:
+            return
 
         level: str = cfg.logging.level
         console: bool = cfg.logging.console
@@ -66,11 +60,11 @@ class Logger:
         self._formatter = logging.Formatter(self.FORMAT, datefmt=self.DATEFMT)
 
         # Setup directories
-        self.start_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self._create_directories(cfg)
+        self.start_time = datetime.now()
+        self.workspace_path = workspace
 
         # Setup file handler
-        file_handler = logging.FileHandler(self.log_dir / "training.log")
+        file_handler = logging.FileHandler(self.workspace_path / "training.log")
         file_handler.setFormatter(self._formatter)
         self._logger.addHandler(file_handler)
 
@@ -83,37 +77,30 @@ class Logger:
         # Setup wandb config
         self.use_wandb = cfg.logging.wandb
         if self.use_wandb:
+            import os
+
+            os.environ["WANDB_DIR"] = str(self.workspace_path)
+            import wandb
+
             wandb_config: Dict[str, Any] = {
                 "project": "CuMind",
                 "name": cfg.logging.title,
                 "tags": cfg.logging.tags,
+                "monitor_gym": True,  # hard coded?
             }
             if wandb.run is None:
                 wandb.init(**wandb_config)
         type(self)._initialized = True
 
-    def _create_directories(self, cfg: cfg) -> None:
-        """Create both log and checkpoint directories with consistent timestamp."""
-        # Log directory
-        self.log_dir = Path(cfg.logging.dir) / self.start_time
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-
-        # Checkpoint directory
-        self.checkpoint_dir = f"{cfg.training.checkpoint_dir}/{cfg.env.name}/{self.start_time}"
-        Path(self.checkpoint_dir).mkdir(parents=True, exist_ok=True)
-
     @classmethod
-    def get_timestamp(cls) -> str:
-        """Get the current timestamp used for directories."""
+    def get_timestamp(cls) -> datetime:
+        """Returns the timestamp indicating when the logger was started."""
         return cls._get_instance().start_time
 
     @classmethod
-    def get_checkpoint_dir(cls) -> str:
-        """Get the checkpoint directory path."""
-        instance = cls._get_instance()
-        if instance.checkpoint_dir is None:
-            raise RuntimeError("Checkpoint directory not available - logger was initialized without config")
-        return instance.checkpoint_dir
+    def get_workspace(cls) -> Path:
+        """Returns the workspace path used by the logger."""
+        return cls._get_instance().workspace_path
 
     @classmethod
     def debug(cls, msg: str, *args: Any, **kwargs: Any) -> None:
@@ -144,6 +131,8 @@ class Logger:
         instance = cls._get_instance()
         cls.info(f"Step {step:4d}: {name} = {value:.6f}")
         if instance.use_wandb:
+            import wandb
+
             wandb.log({name: value}, step=step)
 
     @classmethod
@@ -190,7 +179,7 @@ class Logger:
     @classmethod
     def elapsed(cls) -> timedelta:
         """Return the elapsed time since logger start as a timedelta."""
-        start = datetime.strptime(cls._get_instance().start_time, "%Y%m%d_%H%M%S")
+        start = cls.get_timestamp()
         end = datetime.now()
         return end - start
 
@@ -202,8 +191,11 @@ class Logger:
         elapsed = instance.elapsed()
         instance._logger.info(f"Logging Session ran for {elapsed}.")
 
-        if instance.use_wandb and wandb.run is not None:
-            wandb.finish()
+        if instance.use_wandb:
+            import wandb
+
+            if wandb.run is not None:
+                wandb.finish()
 
         cls.info("Closing logger handlers and shutting down logging system.")
         for handler in instance._logger.handlers[:]:

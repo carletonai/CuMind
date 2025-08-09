@@ -127,7 +127,6 @@ class TrainingConfig:
     checkpoint_interval: int = 50
     num_episodes: int = 2000
     train_frequency: int = 2
-    checkpoint_dir: str = "checkpoints"
     debug: bool = False
 
 
@@ -177,7 +176,6 @@ class LoggerConfig:
     title: str = "spamEggs"
     tags: list[str] = dataclasses.field(default_factory=lambda: ["foo", "bar"])
 
-    dir: str = "logs"
     level: str = "INFO"
     console: bool = True
     timestamps: bool = True
@@ -226,6 +224,7 @@ class Configuration(metaclass=ConfigMeta):
     device: str = "cpu"
     seed: int = 42
     multi_device: bool = False
+    workspace: str = "artifacts"
     validate: bool = True
 
     @classmethod
@@ -236,46 +235,65 @@ class Configuration(metaclass=ConfigMeta):
                     cls._instance = cls()
         return cls._instance
 
-    def boot(self, path: Optional[str] = None) -> Tuple[str, str]:
+    def boot(self, path: Optional[str] = None) -> str:
+        # Phase 1: Validate configuration
         self._validate()
 
+        from pathlib import Path
+
+        from cumind.utils.names import get_name
+
+        # Phase 2: Prepare experiment directory
+        for attempt in range(10):
+            workspace_path = Path(self.workspace) / self.env.name / get_name()
+            if not workspace_path.exists():
+                try:
+                    workspace_path.mkdir(parents=True, exist_ok=False)
+                except FileExistsError:
+                    continue
+                break
+        else:
+            raise RuntimeError(f"Workspace directory already exists after 10 attempts: {workspace_path}")
+
+
+        # Phase 3: Initialize logging and PRNG
         from cumind.utils.logger import log
         from cumind.utils.prng import key
 
-        log(cfg=self)
+        log().boot(self, workspace_path)
         key.seed(self.seed)
 
+        # Phase 4: Log config location and values
         if path is not None:
             log.info(f"Config location: {path}")
         else:
             log.info("Loaded default config")
 
-        # Log the full config as JSON
         config_json = self._as_json_str()
         log.info("Config values:\n" + config_json)
 
-        timestamp = log.get_timestamp()
-        checkpoint_dir = log.get_checkpoint_dir()
+        # Phase 5: Save configuration copy to run directory
+        config_copy_path = workspace_path / "configuration.json"
+        self.save(config_copy_path)
 
-        log.info(f"Logging directory: {self.logging.dir}/{timestamp}/training.log")
-        log.info(f"Checkpoint directory: {checkpoint_dir}/")
-
+        # Phase 6: Finalize boot process
+        log.info(f"Experiment directory: {workspace_path}")
         log.info("Configuration booted successfully.")
 
-        return timestamp, checkpoint_dir
+        return str(workspace_path)
 
     @classmethod
-    def load(cls, path: str) -> Tuple[str, str]:
+    def load(cls, path: Union[str, Path]) -> str:
         """Load configuration from a JSON file and set as singleton instance. Automatically validates after loading."""
-        cfg = cls._from_json(path)
+        cfg = cls._from_json(str(path))
         with cls._lock:
             cls._instance = cfg
-            return cfg.boot(path)
+            return cfg.boot(str(path))
 
     @classmethod
-    def save(cls, path: str) -> None:
+    def save(cls, path: Union[str, Path]) -> None:
         """Save configuration to a JSON file."""
-        cls._get_instance()._to_json(path)
+        cls._get_instance()._to_json(str(path))
 
     def _validate(self) -> None:
         """Validates the configuration parameters."""
@@ -335,8 +353,6 @@ class Configuration(metaclass=ConfigMeta):
             raise ValueError(f"training.num_episodes must be positive, got {self.training.num_episodes}")
         if self.training.train_frequency <= 0:
             raise ValueError(f"training.train_frequency must be positive, got {self.training.train_frequency}")
-        if not isinstance(self.training.checkpoint_dir, str) or not self.training.checkpoint_dir:
-            raise ValueError("training.checkpoint_dir must be a non-empty string")
         if not isinstance(self.training.optimizer, str) or not self.training.optimizer:
             raise ValueError("training.optimizer must be a non-empty string")
 
@@ -387,12 +403,14 @@ class Configuration(metaclass=ConfigMeta):
             raise ValueError(f"logging.console must be a boolean, got {type(self.logging.console)}")
         if not isinstance(self.logging.timestamps, bool):
             raise ValueError(f"logging.timestamps must be a boolean, got {type(self.logging.timestamps)}")
-        if not isinstance(self.logging.dir, str) or not self.logging.dir:
-            raise ValueError("logging.dir must be a non-empty string")
         if self.logging.title is not None and not isinstance(self.logging.title, str):
             raise ValueError(f"logging.wandb_name must be a string, got {type(self.logging.title)}")
         if not isinstance(self.logging.tags, list) or not all(isinstance(tag, str) for tag in self.logging.tags):
             raise ValueError("logging.tags must be a list of strings")
+
+        # experiment_dir
+        if not isinstance(self.workspace, str) or not self.workspace:
+            raise ValueError("experiment_dir must be a non-empty string")
 
         # device
         valid_devices = ["cpu", "cuda", "tpu", "rocm", "metal"]

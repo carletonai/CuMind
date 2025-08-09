@@ -3,10 +3,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "cartpole",
+            "name": "debug",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/cartpole.py",
+            "program": "${workspaceFolder}/src/main.py",
             "console": "integratedTerminal",
             "stopOnEntry": true
         },
