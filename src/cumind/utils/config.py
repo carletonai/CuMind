@@ -293,6 +293,7 @@ class Configuration(metaclass=ConfigMeta):
     @classmethod
     def save(cls, path: Union[str, Path]) -> None:
         """Save configuration to a JSON file."""
+        cfg._instance = Configuration()
         cls._get_instance()._to_json(str(path))
 
     def _validate(self) -> None:
@@ -528,4 +529,3 @@ class Configuration(metaclass=ConfigMeta):
 
 # Alias
 cfg = Configuration
-cfg._instance = Configuration()

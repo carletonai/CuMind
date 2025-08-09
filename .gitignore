@@ -1,28 +1,35 @@
-# Files
-scratch.ipynb
-test.json*
-*.log
+# General files
+*.ipynb
+*.json
+scratch.*
 
-# Directory
-artifacts
-experiments
-gymnasium
+# Directories
+artifacts/
+experiments/
+gymnasium/
 
-# Byte-compiled / optimized / DLL files
+# Python cache and build
 __pycache__/
-
-# Distribution / packaging
 dist/
+*.egg-info/
+build/
 
 # Jupyter & IPython
-.ipynb_checkpoints
+.ipynb_checkpoints/
 profile_default/
 ipython_config.py
 
-# Environments
-.venv*
+# Virtual environments
+.venv*/
+env/
+venv/
 
 # Quality Control
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+
+# OS/Editor files
+.DS_Store
+*.swp
+*.bak
