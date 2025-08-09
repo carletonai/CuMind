@@ -28,6 +28,7 @@ dev = [
     "ipython>=9.3.0",
     "ipykernel>=6.29.5",
     "pydeps>=3.0.1",
+    "ty>=0.0.1a17",
 ]
 
 [tool.ruff]
@@ -49,6 +50,12 @@ python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+
+
+[tool.ty.src]
+include = ["src/"]
+exclude = []
+
 
 [tool.uv]
 default-groups = ["main", "dev"]

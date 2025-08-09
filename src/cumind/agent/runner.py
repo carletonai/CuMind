@@ -24,6 +24,7 @@ def train() -> None:
             env.close()  # type: ignore
         log.shutdown()
 
+
 def inference(checkpoint_file: str, num_episodes: int) -> None:
     """Run inference with a trained agent from a checkpoint."""
     try:

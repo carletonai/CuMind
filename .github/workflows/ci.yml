@@ -21,12 +21,16 @@ jobs:
     - name: Install dependencies
       run: uv sync
 
-   # Ambiguous reporting
-   # - name: Run linting
-   #   run: uv run ruff check .
-      
+  #    Ambiguous reporting
+  #  - name: Run linting
+  #    run: uv run ruff check .
+  
+  #    Too slow
+  #  - name: Run type checking
+  #    run: uv run mypy src/
+
     - name: Run type checking
-      run: uv run mypy src/
+      run: uv run ty check .
 
     - name: Run tests
       run: uv run pytest
