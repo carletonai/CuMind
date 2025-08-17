@@ -3,6 +3,10 @@ name: CI
 on:
   push:
     branches: [ master, dev ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'extras/**'
   pull_request:
     branches: [ master, dev ]
 
@@ -21,9 +25,12 @@ jobs:
     - name: Install dependencies
       run: uv sync
 
+   # Ambiguous reporting
+   # - name: Run linting
+   #   run: uv run ruff check .
+      
     - name: Run type checking
       run: uv run mypy src/
 
     - name: Run tests
       run: uv run pytest
-
