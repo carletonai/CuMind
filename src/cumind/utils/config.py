@@ -182,6 +182,39 @@ class LoggerConfig:
     tqdm: bool = False
 
 
+@dataclasses.dataclass(frozen=True)
+class TracingConfig:
+    """Configuration for tracing."""
+
+    enabled: bool = True
+
+    host_level: int = 1
+    # 0: Disable host tracing
+    # 1: Trace user-instrumented events (default)
+    # 2: Add high-level program execution details
+    # 3: Add verbose, low-level details
+
+    python_level: int = 0
+    # 0 disables Python function call tracing, 1 enables (default)
+
+    tpu_trace_mode: Optional[str] = "TRACE_ONLY_XLA"
+    # TRACE_ONLY_HOST: Only host-side (CPU) activities are traced, no device traces.
+    # TRACE_ONLY_XLA: Only XLA-level operations on the device are traced.
+    # TRACE_COMPUTE: Traces compute operations on the device.
+    # TRACE_COMPUTE_AND_SYNC: Traces both compute operations and synchronization events on the device.
+
+    tpu_num_sparse_cores_to_trace: Optional[int] = 8
+    # 8 sparse cores per chip is typical for TPUv4.
+
+    tpu_num_sparse_core_tiles_to_trace: Optional[int] = 2
+    # 2 tiles per sparse core is a sensible default.
+
+    tpu_num_chips_to_profile_per_task: Optional[int] = 8
+    # 8 chips for a full TPUv4-16 slice (topology 2x2x2).
+
+    save_memory: bool = False
+
+
 class ConfigMeta(type):
     def __getattribute__(cls, name: str) -> Any:
         # Allow access to dunder attributes
@@ -219,6 +252,7 @@ class Configuration(metaclass=ConfigMeta):
     selfplay: SelfPlayConfig = dataclasses.field(default_factory=SelfPlayConfig)
     dtypes: DataTypesConfig = dataclasses.field(default_factory=DataTypesConfig)
     logging: LoggerConfig = dataclasses.field(default_factory=LoggerConfig)
+    tracing: TracingConfig = dataclasses.field(default_factory=TracingConfig)
 
     # Global settings
     device: str = "cpu"
@@ -251,7 +285,7 @@ class Configuration(metaclass=ConfigMeta):
             raise AttributeError(f"Config has no field '{attr}' in path '{field}'")
         return self
 
-    def boot(self) -> str:
+    def boot(self) -> Tuple[str, Any]:
         """Bootstraps experiment configuration and workspace, initializes logging, saves config, returns workspace path."""
         # Phase 1: Validate configuration
         self._validate()
@@ -290,10 +324,26 @@ class Configuration(metaclass=ConfigMeta):
         log.info(f"Experiment directory: {workspace_path}")
         log.info("Configuration booted successfully.")
 
-        return str(workspace_path)
+        # Phase 7: Setup JAX profiler options if tracing is enabled
+        options = None
+        if self.tracing.enabled:
+            from jax.profiler import ProfileOptions
+
+            options = ProfileOptions()
+            options.host_tracer_level = self.tracing.host_level
+            options.python_tracer_level = self.tracing.python_level
+            if self.device == "tpu":
+                options.advanced_configuration = {
+                    "tpu_trace_mode": self.tracing.tpu_trace_mode,
+                    "tpu_num_sparse_cores_to_trace": self.tracing.tpu_num_sparse_cores_to_trace,
+                    "tpu_num_sparse_core_tiles_to_trace": self.tracing.tpu_num_sparse_core_tiles_to_trace,
+                    "tpu_num_chips_to_profile_per_task": self.tracing.tpu_num_chips_to_profile_per_task,
+                }
+
+        return str(workspace_path), options
 
     @classmethod
-    def load(cls, obj: Optional[Union[str, Path, "Configuration"]] = None) -> str:
+    def load(cls, obj: Optional[Union[str, Path, "Configuration"]] = None) -> Tuple[str, Any]:
         """Load configuration from a JSON file and set as singleton instance. Automatically validates after loading."""
         with cls._lock:
             if isinstance(obj, (str, Path)):
@@ -307,7 +357,8 @@ class Configuration(metaclass=ConfigMeta):
     @classmethod
     def save(cls, path: Union[str, Path]) -> None:
         """Save configuration to a JSON file."""
-        cfg._instance = Configuration()
+        if cls._instance is None:
+            cfg._instance = Configuration()
         cls._get_instance()._to_json(str(path))
 
     def _validate(self) -> None:
@@ -422,10 +473,19 @@ class Configuration(metaclass=ConfigMeta):
             raise ValueError(f"logging.wandb_name must be a string, got {type(self.logging.title)}")
         if not isinstance(self.logging.tags, list) or not all(isinstance(tag, str) for tag in self.logging.tags):
             raise ValueError("logging.tags must be a list of strings")
-
         # experiment_dir
         if not isinstance(self.workspace, str) or not self.workspace:
             raise ValueError("experiment_dir must be a non-empty string")
+
+        # TracingConfig
+        if not isinstance(self.tracing.enabled, bool):
+            raise ValueError(f"tracing.enabled must be a boolean, got {type(self.tracing.enabled)}")
+        if not isinstance(self.tracing.host_level, int) or self.tracing.host_level < 0:
+            raise ValueError(f"tracing.host_level must be a non-negative integer, got {self.tracing.host_level}")
+        if not isinstance(self.tracing.python_level, int) or self.tracing.python_level < 0:
+            raise ValueError(f"tracing.python_level must be a non-negative integer, got {self.tracing.python_level}")
+        if not isinstance(self.tracing.save_memory, bool):
+            raise ValueError(f"tracing.save_memory must be a boolean, got {type(self.tracing.save_memory)}")
 
         # device
         valid_devices = ["cpu", "cuda", "tpu", "rocm", "metal"]
