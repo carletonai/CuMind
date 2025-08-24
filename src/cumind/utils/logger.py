@@ -48,6 +48,33 @@ class Logger:
         self._logger = logging.getLogger("CuMindLogger")
         self.tb_writer: Optional[Any] = None
         self._console_handler: Optional[logging.StreamHandler[Any]] = None
+        self._original_stdout = sys.stdout
+
+        class StdoutWrapper:
+            def __init__(self, logger: logging.Logger, original_stdout: Any) -> None:
+                self.logger = logger
+                self.original_stdout = original_stdout
+                self._logging = False  # Prevent recursion
+
+            def write(self, text: str) -> Any:
+                if text.strip() and not self._logging:
+                    try:
+                        self._logging = True
+                        self.logger.info(f"[stdout] {text.strip()}")
+                    except Exception:
+                        pass  # Don't let logging errors break stdout
+                    finally:
+                        self._logging = False
+                return self.original_stdout.write(text)
+
+            def flush(self) -> None:
+                if hasattr(self.original_stdout, "flush"):
+                    self.original_stdout.flush()
+
+            def __getattr__(self, name: str) -> Any:
+                return getattr(self.original_stdout, name)
+
+        sys.stdout = StdoutWrapper(self._logger, self._original_stdout)
 
         if not timestamps:
             self.FORMAT = "%(levelname)s - %(message)s"
@@ -133,7 +160,9 @@ class Logger:
         if instance.use_wandb:
             import wandb
 
-            wandb.log({name: value}, step=step)
+            # Group metrics by their namespace (episode/* or train/*)
+            namespace = name.split("/")[0] if "/" in name else "default"
+            wandb.log({f"{namespace}/step": step, name: value})
 
     @classmethod
     def log_scalars(cls, metrics: Dict[str, float], step: int) -> None:
@@ -156,7 +185,9 @@ class Logger:
         with cls._lock:
             instance = cls._get_instance()
             if instance._console_handler is None:
-                stream = sys.stdout if sys.stdout is not None else getattr(sys, "__stdout__", None)
+                stream = instance._original_stdout
+                if stream is None:
+                    stream = getattr(sys, "__stdout__", None)
                 if stream is None:
                     instance._logger.warning("No stdout available; console handler not added.")
                     return
@@ -190,6 +221,9 @@ class Logger:
 
         elapsed = instance.elapsed()
         instance._logger.info(f"Logging Session ran for {elapsed}.")
+
+        # Restore original stdout before shutdown
+        sys.stdout = instance._original_stdout
 
         if instance.use_wandb:
             import wandb
@@ -225,6 +259,8 @@ log = Logger
 
 
 class TqdmSink:
+    """A sink class that routes messages to either stdout or a logger based on mode."""
+
     def __init__(self, mode: bool):
         self.mode = mode
         if mode:

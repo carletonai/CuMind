@@ -33,7 +33,7 @@ def _train_step_impl(
     bootstrap_obs: chex.Array,
     rewards_stack: chex.Array,
     bootstrap_mask: chex.Array,
-) -> Tuple[chex.Array, Dict[str, chex.Array], Any, optax.OptState]:
+) -> Tuple[chex.Array, Dict[str, chex.Array], Any, optax.OptState, chex.Array]:
     """Core training step implementation (to be JIT-compiled)."""
 
     # 1. Calculate n-step returns entirely on the device
@@ -66,11 +66,14 @@ def _train_step_impl(
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
     (total_loss, losses), grads = grad_fn(params)
 
+    # Calculate gradient norm
+    grad_norm = jnp.sqrt(sum(jnp.sum(g**2) for g in jax.tree_util.tree_leaves(grads)))
+
     # 3. Apply updates
     updates, new_opt_state = optimizer.update(grads, opt_state, params)
     new_params = optax.apply_updates(params, updates)
 
-    return total_loss, losses, new_params, new_opt_state
+    return total_loss, losses, new_params, new_opt_state, grad_norm
 
 
 def _compute_losses(network: CuMindNetwork, observations: chex.Array, actions: chex.Array, targets: Dict[str, chex.Array]) -> Dict[str, chex.Array]:
@@ -142,8 +145,8 @@ class Trainer:
                 return
             start_time = log.elapsed()
             for _ in range(cfg.training.num_batches):
-                self.last_loss = self.train_step()
                 self.train_step_count += 1
+                self.last_loss = self.train_step()
                 if self.train_step_count > 0 and self.train_step_count % cfg.training.target_update_frequency == 0:
                     log.info(f"Updating target network at training step {self.train_step_count}")
                     self.agent.update_target_network()
@@ -157,6 +160,16 @@ class Trainer:
 
     def _log_metrics(self, metrics: Dict[str, Any]) -> None:
         log.info(f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, Memory={metrics['Memory']:2.2f}")
+
+        episode_metrics = {
+            "episode/reward": metrics["Reward"],
+            "episode/length": metrics["Length"],
+            "episode/memory_pct": metrics["Memory"],
+            "episode/number": metrics["Episode"],
+        }
+        # Use a separate metric namespace with episode number as the step
+        # This avoids step conflicts with training metrics
+        log.log_scalars(episode_metrics, metrics["Episode"])
 
     def train_step(self) -> Dict[str, float]:
         log.debug(f"Starting training step {self.train_step_count}...")
@@ -172,7 +185,7 @@ class Trainer:
         ) = self._prepare_batch(batch)
 
         params = nnx.state(self.agent.network, nnx.Param)
-        total_loss, losses, new_params, new_opt_state = _jitted_train_step(
+        total_loss, losses, new_params, new_opt_state, grad_norm = _jitted_train_step(
             self.agent.network,
             self.agent.optimizer,
             params,
@@ -188,10 +201,17 @@ class Trainer:
         self.agent.optimizer_state = new_opt_state
         nnx.update(self.agent.network, new_params)
         log.debug(f"Training step {self.train_step_count} complete.")
+
         losses_float = {f"train/{k}": float(v) for k, v in losses.items()}
         losses_float["total_loss"] = float(total_loss)
-        log.log_scalars(losses_float, self.train_step_count)
-        return {"total_loss": float(total_loss), **losses_float}
+
+        training_metrics = {"train/grad_norm": float(grad_norm)}
+        if hasattr(self.agent.optimizer_state, "hyperparams") and "learning_rate" in self.agent.optimizer_state.hyperparams:
+            training_metrics["train/learning_rate"] = float(self.agent.optimizer_state.hyperparams["learning_rate"])
+
+        all_metrics = {**losses_float, **training_metrics}
+        log.log_scalars(all_metrics, self.train_step_count)
+        return {"total_loss": float(total_loss), **all_metrics}
 
     def _prepare_batch(self, batch: List[Any]) -> Tuple[np.ndarray, ...]:
         """Prepares a batch for training with pure NumPy, keeping it off the GPU."""
