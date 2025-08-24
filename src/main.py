@@ -1,15 +1,13 @@
-"""Basic entry example for CuMind."""
+"""Entry for CuMind."""
 
-import jax.profiler
-
-from cumind.agent.runner import inference, train
-from cumind.utils.checkpoint import find_latest_checkpoint_for_env
 from cumind.utils.config import cfg
 from cumind.utils.logger import log
 
 
 def main() -> None:
     """Main function for running training example."""
+    from cumind.agent.runner import inference, train
+    from cumind.utils.checkpoint import find_latest_checkpoint_for_env
 
     train()
 
@@ -23,16 +21,15 @@ if __name__ == "__main__":
     workspace = cfg.load("test.json")
     print(f"Workspace directory: {workspace}")
 
-    jax.profiler.start_trace(f"{workspace}/trace", create_perfetto_link=True)
-
     try:
         main()
     except Exception as e:
         log.exception(f"Exception occurred: {e}")
     finally:
-        jax.profiler.stop_trace()  # type: ignore
-        jax.profiler.save_device_memory_profile(f"{workspace}/memory.pprof")
         log.shutdown()
+        from cumind.utils.tracing import stop_trace
+
+        stop_trace(workspace)
 
     # Viewing Perfetto locally (for dev):
     # After program runs, follow the link printed in the terminal to view trace in your browser.

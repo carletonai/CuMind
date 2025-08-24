@@ -22,7 +22,6 @@ def train() -> None:
     finally:
         if env is not None:
             env.close()  # type: ignore
-        log.shutdown()
 
 
 def inference(checkpoint_file: str, num_episodes: int) -> None:

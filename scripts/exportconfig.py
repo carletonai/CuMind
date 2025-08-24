@@ -1,5 +1,5 @@
 #!./.venv/bin/python3.12
-from cumind.utils.config import cfg
-
 if __name__ == "__main__":
-    cfg.save("configuration.json")
+    from cumind.utils.config import Configuration
+
+    Configuration()._to_json("configuration.json")
