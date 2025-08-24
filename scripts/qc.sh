@@ -5,13 +5,13 @@ set +e
 uv sync
 
 echo "=== Ruff Linting ==="
-uv run ruff check .
+uv run python -m ruff check .
 
 echo "=== Ty Type Checking ==="
-uv run ty check .
+uv run python -m ty check .
 
 echo "=== Mypy Type Checking ==="
-uv run mypy src
+uv run python -m mypy src
 
 echo "=== Pytest Unit Tests ==="
-uv run pytest -q
+uv run python -m pytest -q

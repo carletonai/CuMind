@@ -129,7 +129,7 @@ class Logger:
     @classmethod
     def log_scalar(cls, name: str, value: float, step: int) -> None:
         instance = cls._get_instance()
-        cls.info(f"Step {step:4d}: {name} = {value:.6f}")
+        cls.debug(f"Step {step:4d}: {name} = {value:.6f}")
         if instance.use_wandb:
             import wandb
 
