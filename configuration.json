@@ -73,6 +73,16 @@
       "timestamps": true,
       "tqdm": false
     },
+    "tracing": {
+      "enabled": true,
+      "host_level": 1,
+      "python_level": 0,
+      "tpu_trace_mode": "TRACE_ONLY_XLA",
+      "tpu_num_sparse_cores_to_trace": 8,
+      "tpu_num_sparse_core_tiles_to_trace": 2,
+      "tpu_num_chips_to_profile_per_task": 8,
+      "save_memory": false
+    },
     "device": "cpu",
     "seed": 42,
     "multi_device": false,
