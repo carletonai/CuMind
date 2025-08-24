@@ -7,11 +7,9 @@ from flax import nnx
 
 from cumind.agent.agent import Agent
 from cumind.utils.config import cfg
-from cumind.utils.logger import log
 from cumind.utils.prng import key
 
-cfg.boot()
-log.info(cfg.env.observation_shape)
+cfg.load(cfg(workspace="/tmp/CuMindTestEnv").override("logging.console", bool(False)))
 
 
 @pytest.fixture(autouse=True)

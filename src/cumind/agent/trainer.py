@@ -20,7 +20,7 @@ from cumind.utils.jax_utils import pmap_n_step_return, vmap_n_step_return
 from cumind.utils.logger import TqdmSink, log
 
 
-# This entire block of computation will be JIT-compiled and run on the GPU.
+# This entire block of computation will be JIT-compiled.
 def _train_step_impl(
     network: CuMindNetwork,
     optimizer: optax.GradientTransformation,
@@ -108,7 +108,7 @@ class Trainer:
         log.info(f"Initializing trainer for environment: {cfg.env.name}")
         self.agent = agent
         self.memory = memory
-        self.checkpoint_dir = log.get_checkpoint_dir()
+        self.checkpoint_dir = log.get_workspace()
         log.info(f"Checkpoints will be saved to {self.checkpoint_dir}")
         self.train_step_count = 0
 
@@ -140,6 +140,7 @@ class Trainer:
             if not self.memory.is_ready(cfg.memory.min_size, cfg.memory.min_pct):
                 log.warning("Buffer not ready for training, a larger buffer is needed.")
                 return
+            start_time = log.elapsed()
             for _ in range(cfg.training.num_batches):
                 self.last_loss = self.train_step()
                 self.train_step_count += 1
@@ -147,6 +148,8 @@ class Trainer:
                     log.info(f"Updating target network at training step {self.train_step_count}")
                     self.agent.update_target_network()
                     log.info("Target network update completed")
+            elapsed = log.elapsed() - start_time
+            log.info(f"Training loop for {cfg.training.num_batches} batches took {elapsed.total_seconds():.2f} seconds")
 
     def _maybe_checkpoint(self, episode: int) -> None:
         if episode > 0 and episode % cfg.training.checkpoint_interval == 0:
@@ -232,7 +235,7 @@ class Trainer:
 
     def save_checkpoint(self, episode: int) -> None:
         state = self.agent.save_state()
-        path = f"{self.checkpoint_dir}/episode_{episode:05d}.pkl"
+        path = self.checkpoint_dir / f"episode_{episode:05d}.pkl"
         save_checkpoint(state, path)
 
     def load_checkpoint(self, path: str) -> None:

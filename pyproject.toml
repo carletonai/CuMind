@@ -1,69 +1,61 @@
-# =========================
-# Project Metadata
-# =========================
 [project]
-name = "cumind"
-version = "0.1.95"
+name = "CuMind"
+version = "0.2.0"
 description = "A JAX-based CuMind is a JAX-based RL framework inspired by Google DeepMind. Achieve's superhuman performance in complex domains without pretraining nor prior knowledge of their rules."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = [
-    "numpy>=2.3.0",
-    "gymnasium>=1.1.1",
-    "pygame>=2.6.1",
-    "tqdm>=4.67.1",
-    "jax>=0.6.2",
-    "flax>=0.10.6",
-    "optax>=0.2.5",
-    "chex>=0.1.89",
-    "wandb>=0.20.1",
-    "ipython>=9.3.0",
-    "ipykernel>=6.29.5",
-]
 
-# JAX Dependencies:
-# - jax: Core JAX library for numerical computing
-# - flax: Neural network library built on JAX
-# - optax: Gradient-based optimization library 
-# - chex: Testing and assertion utilities for JAX
-
-# Note: JAX CPU version is used by default
-# LOOK AT CONFIG.PY LINE 385 VALIDATING DEVICE.
-
-
-# =========================
-# Build System
-# =========================
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# =========================
-# Dependency Groups
-# =========================
 [dependency-groups]
-dev = ["ruff>=0.11.13", "pytest>=8.4.0", "mypy>=1.16.0"]
+main = [
+    "numpy>=2.3.0",
+    "gymnasium>=1.1.1",
+    "pygame>=2.6.1",
+    "tqdm>=4.67.1",
+    "jax>=0.6.2",       # Uses CPU by default; see config.py:385 for device selection.
+    "flax>=0.10.6",
+    "optax>=0.2.5",
+    "chex>=0.1.89",
+    "wandb>=0.20.1",
+]
+dev = [
+    "ruff>=0.11.13",
+    "pytest>=8.4.0",
+    "mypy>=1.16.0",
+    "ipython>=9.3.0",
+    "ipykernel>=6.29.5",
+    "pydeps>=3.0.1",
+    "ty>=0.0.1a17",
+]
 
-# =========================
-# Tooling Configuration
-# =========================
-
-# Ruff configuration
 [tool.ruff]
 line-length = 320
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W"] # Errors, pyFlakes, Import, Naming, Warnings
-ignore = ["E203", "E501"]
+select = [
+    "E", # pycodestyle errors
+    "F", # pyflakes errors
+    "I", # isort checks
+    "N", # pep8-naming
+    "W", # warnings
+]
+ignore = ["E501"] # Ignore line length errors
 
-# Mypy configuration
 [tool.mypy]
 python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
 
-# =========================
-# UV Configuration
-# =========================
+
+[tool.ty.src]
+include = ["src/"]
+exclude = []
+
+
+[tool.uv]
+default-groups = ["main", "dev"]
