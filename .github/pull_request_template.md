@@ -8,8 +8,7 @@
 
 
 ### Related Issues
-- Fixes: #
-- Related: #
+- #
 
 ### Screenshots / Notes
 <!-- Add screenshots or extra context if needed -->

@@ -2,10 +2,11 @@
 
 import argparse
 import os
+from pathlib import Path
 from typing import Optional
 
 from cumind.agent.runner import inference, train
-from cumind.utils.checkpoint import latest_checkpoints
+from cumind.utils.checkpoint import format_datetime_short, latest_checkpoints
 from cumind.utils.config import cfg
 from cumind.utils.logger import log
 
@@ -19,17 +20,18 @@ def parse_arguments() -> argparse.Namespace:
 
 def select_checkpoint() -> Optional[str]:
     """Prompts the user to select a checkpoint and returns the path."""
-    checkpoints = latest_checkpoints("checkpoints")
+    checkpoints = latest_checkpoints("experiments")
     if not checkpoints:
-        log.info("No checkpoints found.")
+        log.info("No experiments found.")
         return None
 
-    print("\nAvailable checkpoints:")
+    print("\nAvailable experiments:")
     options = []
     for env, runs in checkpoints.items():
         latest_run = runs[0]
         checkpoint_path, timestamp = latest_run
-        print(f"  - {env}: Latest run from {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+        formatted_time = format_datetime_short(timestamp)
+        print(f"  - {env}: Latest run from {formatted_time}")
         options.append((checkpoint_path, f"{env} (latest)"))
 
     print("\nPlease choose an option:")
@@ -56,7 +58,7 @@ def select_checkpoint() -> Optional[str]:
 def main() -> None:
     """Main CLI entry point."""
     args = parse_arguments()
-    config_path = args.config
+    config_path = Path(args.config)
     if not os.path.exists(config_path):
         log.info(f"Default config not found at {config_path}. Creating default config there.")
         cfg.save(config_path)

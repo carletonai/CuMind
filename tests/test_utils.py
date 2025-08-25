@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from pathlib import Path
 
 import chex
 import jax
@@ -13,8 +14,7 @@ from cumind.utils.config import cfg
 from cumind.utils.logger import log
 from cumind.utils.prng import key
 
-cfg.boot()
-log.info(cfg.env.observation_shape)
+cfg.load(cfg(workspace="/tmp/CuMindTestEnv").override("logging.console", bool(False)))
 
 
 @pytest.fixture(autouse=True)
@@ -22,9 +22,11 @@ def reset_singletons():
     """Reset the singletons before and after each test."""
     log._instance = None
     log._initialized = False
-    log(cfg=cfg)
-    key.seed(42)  # Initialize with a default seed
-    yield
+    with tempfile.TemporaryDirectory() as temp_dir:
+        logger = log._get_instance()
+        logger.boot(cfg=cfg, workspace=Path(temp_dir))
+        key.seed(42)  # Initialize with a default seed
+        yield
     log._instance = None
     log._initialized = False
 
@@ -32,103 +34,84 @@ def reset_singletons():
 class TestLogger:
     """Test suite for Logger."""
 
+    def setup_method(self):
+        """Set up the logger for each test."""
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.log_dir = os.path.join(self.temp_dir.name, "test_logs")
+        logger = log._get_instance()
+        logger.boot(cfg=cfg, workspace=Path(self.log_dir))
+
+    def teardown_method(self):
+        """Tear down the logger after each test."""
+        log.shutdown()
+        self.temp_dir.cleanup()
+
     def test_logger_initialization(self):
         """Test Logger initialization."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            log_dir = os.path.join(temp_dir, "test_logs")
-            logger = log(log_dir=log_dir, use_timestamp=False)
-
-            # The log_dir should be a Path object
-            assert hasattr(logger, "log_dir")
-            assert logger.log_dir.exists()
-            assert hasattr(logger, "_logger")
-            assert hasattr(logger, "tb_writer")
+        assert log.get_workspace().exists()
+        assert hasattr(log._get_instance(), "_logger")
 
     def test_log_scalar(self):
         """Test scalar logging functionality."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            log_dir = os.path.join(temp_dir, "test_logs")
-            logger = log(log_dir=log_dir, use_timestamp=False)
+        # Log some scalar values
+        log.log_scalar("loss/total", 0.5, step=1)
+        log.log_scalar("loss/value", 0.3, step=1)
+        log.log_scalar("loss/policy", 0.2, step=1)
 
-            # Log some scalar values
-            logger.log_scalar("loss/total", 0.5, step=1)
-            logger.log_scalar("loss/value", 0.3, step=1)
-            logger.log_scalar("loss/policy", 0.2, step=1)
-
-            # Check that logger has the right methods
-            assert hasattr(logger, "log_scalar")
-            assert hasattr(logger, "_logger")
+        # Check that logger has the right methods
+        assert hasattr(log, "log_scalar")
+        assert hasattr(log._get_instance(), "_logger")
 
     def test_log_multiple_steps(self):
         """Test logging across multiple steps."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            log_dir = os.path.join(temp_dir, "test_logs")
-            logger = log(log_dir=log_dir, use_timestamp=False)
+        # Log values across multiple steps
+        for step in range(10):
+            log.log_scalar("training/loss", float(step) * 0.1, step=step)
+            log.log_scalar("training/reward", float(step) * 2.0, step=step)
 
-            # Log values across multiple steps
-            for step in range(10):
-                logger.log_scalar("training/loss", float(step) * 0.1, step=step)
-                logger.log_scalar("training/reward", float(step) * 2.0, step=step)
-
-            # Verify logging doesn't crash
-            assert True  # If we get here, logging worked
+        # Verify logging doesn't crash
+        assert True  # If we get here, logging worked
 
     def test_log_info(self):
         """Test text logging functionality."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            log_dir = os.path.join(temp_dir, "test_logs")
-            logger = log(log_dir=log_dir, use_timestamp=False)
+        # Log text message
+        log.info("Training started")
+        log.info("Epoch 1 completed")
 
-            # Log text message
-            logger.info("Training started")
-            logger.info("Epoch 1 completed")
-
-            # Verify no errors occurred
-            assert True
+        # Verify no errors occurred
+        assert True
 
     def test_close_logger(self):
         """Test logger cleanup."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            log_dir = os.path.join(temp_dir, "test_logs")
-            logger = log(log_dir=log_dir, use_timestamp=False)
+        # Log some data
+        log.log_scalar("test/metric", 1.0, step=1)
 
-            # Log some data
-            logger.log_scalar("test/metric", 1.0, step=1)
+        # Close logger
+        log.close()
 
-            # Close logger
-            logger.close()
-
-            # Verify close operation completes
-            assert True
+        # Verify close operation completes
+        assert True
 
     def test_close_functionality(self):
         """Test logger cleanup and resource management."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            log_dir = os.path.join(temp_dir, "test_logs")
-            logger = log(log_dir=log_dir, use_timestamp=False)
+        # Log some data
+        log.log_scalar("test/metric", 1.0, step=0)
 
-            # Log some data
-            logger.log_scalar("test/metric", 1.0, step=0)
+        # Test close functionality
+        log.close()
 
-            # Test close functionality
-            logger.close()
-
-            # Verify close doesn't crash
-            assert True
+        # Verify close doesn't crash
+        assert True
 
     def test_metrics_aggregation(self):
         """Test metrics aggregation and averaging."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            log_dir = os.path.join(temp_dir, "test_logs")
-            logger = log(log_dir=log_dir, use_timestamp=False)
+        # Log multiple values for averaging
+        values = [0.1, 0.2, 0.3, 0.4, 0.5]
+        for i, value in enumerate(values):
+            log.log_scalar("test/metric", value, step=i)
 
-            # Log multiple values for averaging
-            values = [0.1, 0.2, 0.3, 0.4, 0.5]
-            for i, value in enumerate(values):
-                logger.log_scalar("test/metric", value, step=i)
-
-            # Test that all values were logged successfully
-            assert True
+        # Test that all values were logged successfully
+        assert True
 
     def test_invalid_log_directory(self):
         """Test behavior with invalid log directory."""
@@ -137,28 +120,26 @@ class TestLogger:
 
         # Should either handle gracefully or raise appropriate error
         try:
-            logger = log(log_dir=invalid_path, use_timestamp=False)
+            with tempfile.TemporaryDirectory():
+                logger = log._get_instance()
+                logger.boot(cfg=cfg, workspace=Path(invalid_path))
             # If no error, verify logger was created
-            assert logger is not None
+            assert log is not None
         except (OSError, PermissionError, FileNotFoundError):
             # Expected behavior for invalid path
             assert True
 
     def test_concurrent_logging(self):
         """Test logging from multiple sources."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            log_dir = os.path.join(temp_dir, "test_logs")
-            logger = log(log_dir=log_dir, use_timestamp=False)
+        # Simulate concurrent logging of different metrics
+        metrics = ["loss", "reward", "value", "policy"]
 
-            # Simulate concurrent logging of different metrics
-            metrics = ["loss", "reward", "value", "policy"]
+        for step in range(5):
+            for metric in metrics:
+                log.log_scalar(f"train/{metric}", np.random.random(), step=step)
 
-            for step in range(5):
-                for metric in metrics:
-                    logger.log_scalar(f"train/{metric}", np.random.random(), step=step)
-
-            # Verify all logging completed successfully
-            assert True
+        # Verify all logging completed successfully
+        assert True
 
 
 class TestJAXUtils:
