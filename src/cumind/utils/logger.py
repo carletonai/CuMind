@@ -127,18 +127,18 @@ class Logger:
         cls._get_instance()._logger.critical(msg, *args, **kwargs)
 
     @classmethod
-    def log_scalar(cls, name: str, value: float, step: int) -> None:
+    def log_scalar(cls, name: str, value: float, episode: int) -> None:
         instance = cls._get_instance()
-        cls.debug(f"Step {step:4d}: {name} = {value:.6f}")
+        cls.debug(f"Episode {episode:4d}: {name} = {value:.6f}")
         if instance.use_wandb:
             import wandb
 
-            wandb.log({name: value}, step=step)
+            wandb.log({f"episode/{name}": value}, step=episode)
 
     @classmethod
-    def log_scalars(cls, metrics: Dict[str, float], step: int) -> None:
+    def log_scalars(cls, metrics: Dict[str, float], episode: int) -> None:
         for name, value in metrics.items():
-            cls.log_scalar(name, value, step)
+            cls.log_scalar(name, value, episode)
 
     @classmethod
     def set_level(cls, level: str) -> None:

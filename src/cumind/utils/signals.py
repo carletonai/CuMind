@@ -15,6 +15,7 @@ def register_signals() -> None:
             stop_trace()  #  type: ignore
 
         sys.exit(1)
+
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
     signal.signal(signal.SIGINT, handler)
     signal.signal(signal.SIGTERM, handler)

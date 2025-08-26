@@ -127,13 +127,13 @@ class Trainer:
     def _run_episode_and_log(self, env: Any, self_play: SelfPlay, episode: int) -> None:
         episode_reward, episode_steps, _ = self_play.run_episode(env)
         metrics = {
-            "Episode": episode,
             "Reward": float(episode_reward),
             "Length": episode_steps,
             "Loss": float(self.last_loss.get("total_loss", 0)),
             "Memory": float(self.memory.get_pct()),
         }
-        self._log_metrics(metrics)
+        log.log_scalars(metrics, episode)
+        log.info(f"Episode {episode:3d}: Reward={metrics['Reward']:6.1f}, Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, Memory={metrics['Memory']:2.2f}")
 
     def _maybe_train_and_update(self, episode: int, train_frequency: int) -> None:
         if episode > 0 and episode % train_frequency == 0:
@@ -142,7 +142,7 @@ class Trainer:
                 return
             start_time = log.elapsed()
             for _ in range(cfg.training.num_batches):
-                self.last_loss = self.train_step()
+                self.last_loss = self.train_step(episode)
                 self.train_step_count += 1
                 if self.train_step_count > 0 and self.train_step_count % cfg.training.target_update_frequency == 0:
                     log.info(f"Updating target network at training step {self.train_step_count}")
@@ -155,10 +155,7 @@ class Trainer:
         if episode > 0 and episode % cfg.training.checkpoint_interval == 0:
             self.save_checkpoint(episode)
 
-    def _log_metrics(self, metrics: Dict[str, Any]) -> None:
-        log.info(f"Episode {metrics['Episode']:3d}: Reward={metrics['Reward']:6.1f}, Length={metrics['Length']:3d}, Loss={metrics['Loss']:.4f}, Memory={metrics['Memory']:2.2f}")
-
-    def train_step(self) -> Dict[str, float]:
+    def train_step(self, episode: int) -> Dict[str, float]:
         log.debug(f"Starting training step {self.train_step_count}...")
         batch = self.memory.sample(cfg.training.batch_size)
         (
@@ -190,7 +187,7 @@ class Trainer:
         log.debug(f"Training step {self.train_step_count} complete.")
         losses_float = {f"train/{k}": float(v) for k, v in losses.items()}
         losses_float["total_loss"] = float(total_loss)
-        log.log_scalars(losses_float, self.train_step_count)
+        log.log_scalars(losses_float, episode)
         return {"total_loss": float(total_loss), **losses_float}
 
     def _prepare_batch(self, batch: List[Any]) -> Tuple[np.ndarray, ...]:
